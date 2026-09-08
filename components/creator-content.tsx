@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from "react";
 import Navigation from "@/components/navigation";
-import { SafeHydration } from "@/components/common/SafeHydration";
 import {
   Users,
   Instagram,
@@ -44,17 +43,27 @@ const CREATORS_PER_PAGE = 8;
 // 크리에이터 동의 전까지 카드 그리드 숨김 (2026-04-24). true 로 바꾸면 롤백.
 const SHOW_CREATOR_CARDS = false;
 
+// useSearchParams 는 정적 프리렌더 시 가장 가까운 Suspense 전체를 클라이언트 전용으로 만든다.
+// 페이지 파라미터만 이 컴포넌트로 격리해 나머지 본문은 서버 렌더되게 한다.
+function PageParamSync({ onChange }: { onChange: (page: number) => void }) {
+  const searchParams = useSearchParams();
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  useEffect(() => {
+    onChange(Number.isNaN(page) || page < 1 ? 1 : page);
+  }, [page, onChange]);
+  return null;
+}
+
 function CreatorContent() {
   const { locale } = useLocale();
   const t = (key: Parameters<typeof getTranslation>[1]) =>
     getTranslation(locale, key);
   const [allCreators, setAllCreators] = useState<Creator[]>([]);
   const [loading, setLoading] = useState(true);
-  const searchParams = useSearchParams();
+  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   const { toast } = useToast();
 
-  const currentPage = parseInt(searchParams.get("page") || "1", 10);
   const totalPages = Math.ceil(allCreators.length / CREATORS_PER_PAGE);
   const startIndex = (currentPage - 1) * CREATORS_PER_PAGE;
   const endIndex = startIndex + CREATORS_PER_PAGE;
@@ -219,6 +228,9 @@ function CreatorContent() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <PageParamSync onChange={setCurrentPage} />
+      </Suspense>
       {/* ============================================================
           SECTION 1: Hero + Creator Cards (Dark bg-background)
           ============================================================ */}
@@ -916,29 +928,11 @@ function CreatorContent() {
   );
 }
 
-/** Suspense fallback: 로케일/번역 없이 정적 플레이스홀더만 렌더링하여 Hydration Mismatch 방지 */
-function CreatorFallback() {
-  return (
-    <div
-      className="min-h-screen flex items-center justify-center pt-32 sm:pt-40 px-6 lg:px-24"
-      aria-hidden="true"
-    >
-      <div className="max-w-7xl mx-auto w-full">
-        <div className="h-32 w-full max-w-2xl bg-card/50 animate-pulse" />
-      </div>
-    </div>
-  );
-}
-
 export default function CreatorPageContent() {
   return (
     <main className="min-h-screen bg-background w-full max-w-full overflow-x-hidden">
       <Navigation />
-      <SafeHydration fallback={<CreatorFallback />}>
-        <Suspense fallback={<CreatorFallback />}>
-          <CreatorContent />
-        </Suspense>
-      </SafeHydration>
+      <CreatorContent />
     </main>
   );
 }

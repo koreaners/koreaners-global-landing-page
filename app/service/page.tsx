@@ -45,6 +45,37 @@ export default function ServicePage() {
       audienceType: '한국 브랜드 (B2B), 일본 시장 진출 기업',
     },
     inLanguage: ['ko', 'ja'],
+    // 단가는 홈 FAQ(app/page.tsx)에 이미 공개된 값과 동일. 새 숫자 도입 금지.
+    offers: [
+      {
+        '@type': 'Offer',
+        name: '나노 크리에이터(~1만 팔로워) 인플루언서 캠페인',
+        priceCurrency: 'KRW',
+        priceSpecification: {
+          '@type': 'PriceSpecification',
+          priceCurrency: 'KRW',
+          minPrice: 150000,
+          maxPrice: 200000,
+          unitText: '크리에이터 1인 1건',
+        },
+        availability: 'https://schema.org/InStock',
+        url: `${siteUrl}/contact`,
+      },
+      {
+        '@type': 'Offer',
+        name: '마이크로 크리에이터(1~3만 팔로워) 인플루언서 캠페인',
+        priceCurrency: 'KRW',
+        priceSpecification: {
+          '@type': 'PriceSpecification',
+          priceCurrency: 'KRW',
+          minPrice: 200000,
+          maxPrice: 350000,
+          unitText: '크리에이터 1인 1건',
+        },
+        availability: 'https://schema.org/InStock',
+        url: `${siteUrl}/contact`,
+      },
+    ],
   }
 
   return (
