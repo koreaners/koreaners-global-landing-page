@@ -15,7 +15,7 @@ export function GET() {
 - 사용 언어: 한국어, 일본어
 - 공식 사이트: https://www.koreaners.co
 - Instagram: https://www.instagram.com/koreaners_global
-- 이메일: leo@koreaners.com
+- 이메일: sales@koreaners.com
 
 ## 핵심 서비스
 

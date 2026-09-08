@@ -182,7 +182,7 @@ export default function RootLayout({
                   {
                     "@type": "ContactPoint",
                     telephone: "+82-10-2368-2009",
-                    email: "leo@koreaners.com",
+                    email: "sales@koreaners.com",
                     contactType: "sales",
                     availableLanguage: ["Korean", "Japanese"],
                     areaServed: ["KR", "JP"],
@@ -190,7 +190,7 @@ export default function RootLayout({
                   {
                     "@type": "ContactPoint",
                     telephone: "+82-10-2368-2009",
-                    email: "leo@koreaners.com",
+                    email: "sales@koreaners.com",
                     contactType: "customer support",
                     availableLanguage: ["Korean", "Japanese"],
                   },
