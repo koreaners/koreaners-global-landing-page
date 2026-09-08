@@ -32,6 +32,26 @@ const getCorsHeaders = (request: NextRequest) => {
   } as const;
 };
 
+/**
+ * utm_source + referrer 로 Notion 「유입채널」 select 값을 추론.
+ * 순서 중요 — chatgpt 를 google 보다 먼저 봐야 referrer "chatgpt.com" 이 구글로 새지 않음.
+ */
+export function inferChannel(utmSource: unknown, referrer: unknown): string {
+  const ref = typeof referrer === "string" ? referrer.trim() : "";
+  const hay = `${typeof utmSource === "string" ? utmSource : ""} ${ref}`.toLowerCase();
+  const hit = (...needles: string[]) => needles.some((n) => hay.includes(n));
+
+  if (hit("chatgpt")) return "ChatGPT";
+  if (hit("perplexity", "gemini", "claude")) return "기타 AI";
+  if (hit("instagram")) return "인스타그램";
+  if (hit("threads")) return "Threads";
+  if (hit("facebook", "fb.com", "meta")) return "페이스북";
+  if (hit("naver")) return "네이버";
+  if (hit("google")) return "구글";
+  if (hit("exportvoucher")) return "수출바우처";
+  return ref ? "리퍼럴" : "다이렉트/미상";
+}
+
 // Notion 클라이언트 초기화
 const notion = new Client({
   auth: process.env.NOTION_TOKEN,
@@ -157,6 +177,7 @@ export async function POST(request: NextRequest) {
       utm_term,
       referrer,
       landing_page,
+      discovery_source,
       eventId,
     } = body;
 
@@ -245,6 +266,15 @@ export async function POST(request: NextRequest) {
     setRichText("utm_term", utm_term);
     setRichText("referrer", referrer);
     setRichText("landing_page", landing_page);
+
+    if (has(discovery_source)) {
+      (properties as Record<string, unknown>)["알게 된 경로"] = {
+        select: { name: clamp(trim(discovery_source), 50) },
+      };
+    }
+    (properties as Record<string, unknown>)["유입채널"] = {
+      select: { name: inferChannel(utm_source, referrer) },
+    };
 
     const response = await notion.pages.create({
       parent: {

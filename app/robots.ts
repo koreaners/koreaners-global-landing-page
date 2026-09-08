@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 // NOTE: Vercel 프로덕션에서는 이 파일이 public/robots.txt 보다 우선 서빙됨.
-// AI 크롤러 정책은 반드시 이 파일에 유지 (public/robots.txt 는 로컬/fallback).
+// AI 크롤러 정책은 반드시 이 파일에 유지 (정적 public/robots.txt 는 2026-09-08 삭제).
 
 const SHARED_DISALLOW = ["/admin/", "/api/"];
 

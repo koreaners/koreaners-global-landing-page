@@ -30,6 +30,17 @@ const fieldClass = (hasError = false) =>
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 유입 경로 셀렉트 — 저장값은 항상 한국어 원문, 표시 라벨만 로케일별
+const DISCOVERY_OPTIONS = [
+  { value: "구글 검색", labelKey: "formDiscoveryGoogle" },
+  { value: "네이버 검색", labelKey: "formDiscoveryNaver" },
+  { value: "ChatGPT 등 AI 답변", labelKey: "formDiscoveryAi" },
+  { value: "인스타그램·페이스북", labelKey: "formDiscoverySns" },
+  { value: "지인·거래처 소개", labelKey: "formDiscoveryReferral" },
+  { value: "수출바우처 메뉴판", labelKey: "formDiscoveryVoucher" },
+  { value: "기타", labelKey: "formDiscoveryEtc" },
+] as const;
+
 export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", compact = false }: { headingLevel?: "h1" | "h2"; instanceId?: string; compact?: boolean } = {}) {
   const { locale } = useLocale();
   const t = (key: Parameters<typeof getTranslation>[1]) =>
@@ -43,6 +54,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
     email: "",
     phone: "",
     message: "",
+    discovery_source: "",
     privacyConsent: false,
     marketingConsent: false,
   });
@@ -169,6 +181,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
         email: formData.email.trim(),
         phone: cleanPhone,
         message: formData.message.trim(),
+        discovery_source: formData.discovery_source || null,
         privacy_agreement: formData.privacyConsent,
         marketing_agreement: formData.marketingConsent,
         utm_source: utm.utm_source ?? null,
@@ -265,7 +278,9 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
@@ -427,6 +442,30 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
               </div>
             </div>
 
+            {/* 유입 경로 (선택) */}
+            <div>
+              <label
+                htmlFor={`${instanceId}-discovery_source`}
+                className="block text-xs uppercase tracking-wider text-white/60 mb-2"
+              >
+                {t("formDiscoveryLabel")}
+              </label>
+              <select
+                id={`${instanceId}-discovery_source`}
+                name="discovery_source"
+                value={formData.discovery_source}
+                onChange={handleChange}
+                className={fieldClass()}
+              >
+                <option value="">{t("formDiscoveryPlaceholder")}</option>
+                {DISCOVERY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Row 3: Message */}
             <div>
               <label
@@ -544,6 +583,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                         email: "",
                         phone: "",
                         message: "",
+                        discovery_source: "",
                         privacyConsent: false,
                         marketingConsent: false,
                       });
