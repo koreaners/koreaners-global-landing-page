@@ -9,6 +9,31 @@ import { safeJsonLdStringify } from "@/lib/json-ld";
 import { resolveThumbnailSrc, toAbsoluteUrl } from "@/lib/thumbnail";
 import { PortfolioDetailView } from "@/components/portfolio/portfolio-detail-view";
 
+// summary(Notion '요약')가 비어 있을 때 본문 첫 문단으로 description 생성
+function firstParagraph(html: string | null, max = 200): string | null {
+  if (!html) return null;
+  const m = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  const text = (m ? m[1] : html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return null;
+  return text.length > max ? text.slice(0, max - 1).trimEnd() + "…" : text;
+}
+
+function portfolioDescription(p: Portfolio): string {
+  const clientName = p.client_name?.trim();
+  return (
+    p.summary?.trim() ||
+    firstParagraph(p.content) ||
+    (clientName ? `${p.title.trim()} - ${clientName}` : p.title.trim())
+  );
+}
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -106,10 +131,7 @@ export async function generateMetadata({
     ? toAbsoluteUrl(siteUrl, resolveThumbnailSrc(portfolio.thumbnail_url))
     : `${siteUrl}/images/logo.png`;
 
-  // client_name 이 비어 있을 때 trailing dash 방지
-  const clientName = portfolio.client_name?.trim();
-  const description =
-    portfolio.summary || (clientName ? `${portfolio.title} - ${clientName}` : portfolio.title);
+  const description = portfolioDescription(portfolio);
 
   return {
     title: portfolio.title,
@@ -146,14 +168,15 @@ export default async function PortfolioDetailPage({ params }: PageProps) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.koreaners.co";
 
-  // JSON-LD: CreativeWork + BreadcrumbList
+  // JSON-LD: Article + BreadcrumbList
   const jsonLd = [
     {
       "@context": "https://schema.org",
-      "@type": "CreativeWork",
+      "@type": "Article",
       "@id": `${siteUrl}/portfolio/${id}`,
       name: portfolio.title,
-      description: portfolio.summary || (portfolio.client_name?.trim() ? `${portfolio.title} - ${portfolio.client_name.trim()}` : portfolio.title),
+      headline: portfolio.title.trim(),
+      description: portfolioDescription(portfolio),
       image: portfolio.thumbnail_url || undefined,
       datePublished: portfolio.published_at ?? portfolio.created_at,
       author: { "@id": "https://www.koreaners.co/#organization" },
