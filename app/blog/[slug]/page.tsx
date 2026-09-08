@@ -133,7 +133,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
     dateModified: blogPost.updated_at,
     author: {
       "@type": "Person",
-      "@id": "https://www.koreaners.co/#person-jo-in-hyuk",
+      "@id": `${siteUrl}/about#leo`,
       name: "조인혁",
       jobTitle: "BD 팀장",
       worksFor: { "@id": "https://www.koreaners.co/#organization" },

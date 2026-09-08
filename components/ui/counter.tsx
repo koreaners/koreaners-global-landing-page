@@ -11,7 +11,7 @@ interface CounterProps {
 }
 
 export function Counter({ end, duration = 2000, suffix = '', className }: CounterProps) {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(end)
   const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.3 })
   const hasAnimated = useRef(false)
 

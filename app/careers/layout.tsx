@@ -15,13 +15,16 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 function buildJobPostingLd(roles: CareerJob[]) {
-  return roles.map((role) => {
+  return roles.flatMap((role) => {
     // validThrough: datePosted + 90일 (Notion 에 명시적 만료일 없을 때 default)
     const datePosted = role.startDate ?? new Date().toISOString().slice(0, 10);
     const validThrough = new Date(datePosted);
     validThrough.setDate(validThrough.getDate() + 90);
 
-    return {
+    // 만료된 공고는 JobPosting 에서 제외 (Google 은 validThrough 지난 공고를 오류로 봄)
+    if (validThrough < new Date()) return [];
+
+    return [{
     "@context": "https://schema.org",
     "@type": "JobPosting",
     title: role.title,
@@ -57,7 +60,7 @@ function buildJobPostingLd(roles: CareerJob[]) {
       name: "KOREANERS",
       value: role.id,
     },
-    };
+    }];
   });
 }
 
