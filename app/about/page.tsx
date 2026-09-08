@@ -11,7 +11,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.koreaners.co'
 export const metadata: Metadata = {
   title: '회사 소개',
   description:
-    '코리너스는 일본 시장 전문 크로스보더 마케팅 에이전시입니다. 220명 이상의 주요 크리에이터, 70+ 브랜드 지원 경험, 데이터 기반 캠페인 운영으로 일본 진출을 돕습니다.',
+    '코리너스는 일본 시장 전문 크로스보더 마케팅 에이전시입니다. 220명 이상의 주요 크리에이터, 185+ 브랜드 지원 경험, 데이터 기반 캠페인 운영으로 일본 진출을 돕습니다.',
   alternates: { canonical: `${siteUrl}/about` },
   openGraph: {
     title: '코리너스 | 회사 소개',
@@ -67,12 +67,27 @@ export default function AboutPage() {
     ],
   }
 
+  // 블로그 BlogPosting author 와 동일한 Person 엔티티 (@id 로 연결)
+  const personJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    '@id': `${siteUrl}/about#leo`,
+    name: '조인혁',
+    jobTitle: 'BD 팀장',
+    worksFor: { '@id': 'https://www.koreaners.co/#organization' },
+    url: `${siteUrl}/about`,
+  }
+
   return (
     <main className="min-h-screen bg-background w-full max-w-full overflow-x-hidden">
       <Navigation />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLdStringify(personJsonLd) }}
       />
 
       {/* Hero */}
@@ -163,7 +178,7 @@ export default function AboutPage() {
             일본 시장 진출, 지금 시작하세요
           </h2>
           <p className="text-[#A8A29E] mb-8 max-w-xl mx-auto">
-            300개 이상의 브랜드가 코리너스와 함께 일본 시장에 진출했습니다.
+            185개 이상의 브랜드가 코리너스와 함께 일본 시장에 진출했습니다.
           </p>
           <Link
             href="/contact"

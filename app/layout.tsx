@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     template: "%s | 코리너스 KOREANERS",
   },
   description:
-    "크로스보더 인플루언서 마케팅 전문 대행사 코리너스. 70+ 브랜드, 220+ 주요 크리에이터. 인플루언서 캠페인, 시딩, 콘텐츠 제작, 데이터 리포팅까지 크로스보더 마케팅 전 과정을 설계하고 운영합니다.",
+    "크로스보더 인플루언서 마케팅 전문 대행사 코리너스. 185+ 브랜드, 220+ 주요 크리에이터. 인플루언서 캠페인, 시딩, 콘텐츠 제작, 데이터 리포팅까지 크로스보더 마케팅 전 과정을 설계하고 운영합니다.",
   keywords: [
     "코리너스",
     "KOREANERS",
@@ -89,7 +89,7 @@ export const metadata: Metadata = {
     siteName: "코리너스 KOREANERS",
     title: "코리너스 | KOREANERS - 크로스보더 인플루언서 마케팅 전문 에이전시",
     description:
-      "크로스보더 인플루언서 마케팅 전문 대행사 코리너스. 70+ 브랜드, 220+ 주요 크리에이터. 캠페인, 시딩, 콘텐츠, 리포팅까지.",
+      "크로스보더 인플루언서 마케팅 전문 대행사 코리너스. 185+ 브랜드, 220+ 주요 크리에이터. 캠페인, 시딩, 콘텐츠, 리포팅까지.",
     url: baseUrl,
     locale: "ko_KR",
     images: [
@@ -158,7 +158,7 @@ export default function RootLayout({
                 },
                 image: "https://www.koreaners.co/images/logo.png",
                 description:
-                  "크로스보더 인플루언서 마케팅 전문 대행사. 70+ 브랜드, 220+ 주요 크리에이터. 캠페인, 시딩, 콘텐츠, 리포팅까지.",
+                  "크로스보더 인플루언서 마케팅 전문 대행사. 185+ 브랜드, 220+ 주요 크리에이터. 캠페인, 시딩, 콘텐츠, 리포팅까지.",
                 foundingDate: "2022",
                 areaServed: [
                   { "@type": "Country", name: "South Korea" },
