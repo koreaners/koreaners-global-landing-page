@@ -335,7 +335,7 @@ export default function CareersContent({ initialJobs }: CareersContentProps) {
                               </Button>
                             </a>
                           )}
-                          <a href={job.applyUrl || 'mailto:leo@koreaners.com'} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+                          <a href={job.applyUrl || 'mailto:sales@koreaners.com'} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                             <Button size="lg" className="w-full sm:w-auto px-8 font-bold gradient-warm text-white rounded-[var(--radius-sm)] hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300">
                               {t('careersApply')}
                             </Button>

@@ -110,10 +110,10 @@ export default function PrivacyPolicyPage() {
               <li>
                 <strong className="text-white/80">이메일:</strong>{" "}
                 <a
-                  href="mailto:leo@koreaners.com"
+                  href="mailto:sales@koreaners.com"
                   className="text-blue-400 hover:underline"
                 >
-                  leo@koreaners.com
+                  sales@koreaners.com
                 </a>
               </li>
             </ul>
