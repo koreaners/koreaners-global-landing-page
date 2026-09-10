@@ -20,6 +20,13 @@ const nextConfig = {
       },
     ]
   },
+  // Figma Sites 임시 페이지를 /tripbridge 경로로 프록시 (2026-09-10). 주소창은 koreaners.co 유지
+  async rewrites() {
+    return [
+      { source: '/tripbridge', destination: 'https://match-monkey-04591201.figma.site/' },
+      { source: '/tripbridge/:path*', destination: 'https://match-monkey-04591201.figma.site/:path*' },
+    ]
+  },
   // 메타데이터(탭 제목 등)를 스트리밍 대신 초기 HTML에 포함시켜 'browser tab' 현상 방지
   htmlLimitedBots: /.*/,
   // Turbopack 설정 (Next.js 16 - 루트 레벨에 위치)
