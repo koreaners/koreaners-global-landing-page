@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const html = await (await fetch(ORIGIN, { cache: 'no-store' })).text()
-  return new Response(html.replace(/<title>[^<]*<\/title>/, '<title>TripBridge | Koreaners</title>'), {
-    headers: { 'content-type': 'text/html; charset=utf-8' },
-  })
+  const out = html
+    .replace(/<title>[^<]*<\/title>/, '<title>TripBridge | Koreaners</title>')
+    .replaceAll(`${ORIGIN}assets/`, '/tripbridge/assets/') // CORS 헤더가 없어 같은 도메인 경유로 로드
+  return new Response(out, { headers: { 'content-type': 'text/html; charset=utf-8' } })
 }
