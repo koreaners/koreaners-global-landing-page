@@ -23,7 +23,6 @@ const nextConfig = {
   // Figma Sites 임시 페이지를 /tripbridge 경로로 프록시 (2026-09-10). 주소창은 koreaners.co 유지
   async rewrites() {
     return [
-      { source: '/tripbridge', destination: 'https://match-monkey-04591201.figma.site/' },
       { source: '/tripbridge/:path*', destination: 'https://match-monkey-04591201.figma.site/:path*' },
     ]
   },
