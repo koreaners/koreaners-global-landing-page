@@ -169,6 +169,9 @@ export default function RootLayout({
                 sameAs: [
                   "https://www.instagram.com/koreaners_global",
                   "https://www.instagram.com/paripari.korea",
+                  "https://www.youtube.com/@Koreanerscom",
+                  "https://www.wanted.co.kr/company/41042",
+                  "https://www.saramin.co.kr/zf_user/company-info/view/csn/RG9zV0JaYUdIQ0VJWUZSQnd6UGNwUT09",
                 ],
                 address: {
                   "@type": "PostalAddress",

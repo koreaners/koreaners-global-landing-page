@@ -5,6 +5,7 @@ import { createStaticClient } from '@/lib/supabase/static'
 const STATIC_CONTENT_DATES: Record<string, string> = {
   '/about': '2026-04-02',
   '/service': '2026-03-29',
+  '/japan-influencer-marketing': '2026-09-14',
   '/careers': '2026-04-19',
   '/contact': '2026-07-06',
   '/privacy': '2025-09-01',
@@ -121,6 +122,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: `${baseUrl}/service`,
       lastModified: STATIC_CONTENT_DATES['/service'],
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/japan-influencer-marketing`,
+      lastModified: STATIC_CONTENT_DATES['/japan-influencer-marketing'],
       changeFrequency: 'monthly',
       priority: 0.9,
     },

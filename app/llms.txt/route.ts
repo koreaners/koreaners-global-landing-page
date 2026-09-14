@@ -33,10 +33,10 @@ export function GET() {
 
 ## 주요 실적
 
-- 185+ 브랜드 지원
-- 220+ 주요 크리에이터
-- 30만+ SNS 커뮤니티
-- 평균 ROI 250%
+- 185+ 브랜드 지원 (2022년 설립 이후 누적, 자체 집계)
+- 220+ 주요 크리에이터 (상시 협업 네트워크, 자체 집계)
+- 30만+ SNS 커뮤니티 (자체 집계)
+- 평균 ROI 250% (자체 캠페인 리포트 기준)
 - KOTRA 수출바우처 공식 수행기관
 
 ## 사이트 구조
@@ -44,6 +44,7 @@ export function GET() {
 - [홈페이지](https://www.koreaners.co): 서비스 개요 및 핵심 수치
 - [회사 소개](https://www.koreaners.co/about): 미션, 서비스, 차별점
 - [서비스](https://www.koreaners.co/service): 상세 서비스 소개 및 성과 데이터
+- [일본 인플루언서 마케팅 대행사 비교와 비용](https://www.koreaners.co/japan-influencer-marketing): 일본 현지 대행사와 한국 대행사 비교표, 크리에이터 티어별 단가, 견적 전 확인 항목 7가지
 - [크리에이터](https://www.koreaners.co/creator): 주요 크리에이터 풀
 - [포트폴리오](https://www.koreaners.co/portfolio): 캠페인 사례
 - [블로그](https://www.koreaners.co/blog): 일본 마케팅 인사이트 및 가이드
