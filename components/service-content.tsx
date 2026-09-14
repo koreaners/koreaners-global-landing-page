@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import Navigation from '@/components/navigation'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -135,6 +136,17 @@ export default function ServiceContent() {
                   </div>
                 ))}
               </div>
+
+              {/* 한국어 원문 그대로라 ko 로케일에서만 노출 */}
+              {locale === 'ko' && (
+                <p className="text-[#A8A29E] break-keep leading-relaxed mt-8">
+                  일본 현지 대행사와 한국 대행사의 차이와 티어별 단가는{' '}
+                  <Link href="/japan-influencer-marketing" className="text-[#FF4500] hover:underline">
+                    일본 인플루언서 마케팅 대행사 비교와 비용
+                  </Link>{' '}
+                  페이지에 정리했습니다.
+                </p>
+              )}
             </div>
 
             {/* Right: Stat cards stacked */}
