@@ -15,6 +15,7 @@ type Copy = {
   heroTitle2: string
   heroSub: string
   heroLead: string
+  heroDefinition: string
   brandsLabel: string
   brands: string[]
   brandsMore: string
@@ -33,6 +34,7 @@ type Copy = {
   vsBeforeTitle: string
   vsBefore: string[]
   vsAfterTitle: string
+  vsAfterCaption: string
   vsAfter: string[]
   stepsTitle: string
   steps: { no: string; title: string; desc: string; duration: string }[]
@@ -55,8 +57,10 @@ const COPY: Record<Locale, Copy> = {
     heroTitle2: '87% 줄었습니다',
     heroSub: '나노 인플루언서 여러 명이 한 매장에 방문한다면?',
     heroLead: '비용은 나누고, 노출은 커집니다',
-    brandsLabel: '함께한 브랜드',
-    brands: ['newmix', '감자밭', '마땡킴', '세예의원'],
+    heroDefinition:
+      '한국을 여행 중인 일본 나노 인플루언서가 코리너스가 짠 코스로 브랜드 3~4곳의 매장을 방문하고, 섭외비는 브랜드가 나눠 냅니다',
+    brandsLabel: '코리너스와 함께한 브랜드',
+    brands: ['newmix', '감자밭', '마뗑킴', '세예의원'],
     brandsMore: '외 200개+',
     ctaPrimary: '도입 문의하기',
     ctaSecondary: '성공 사례 보기',
@@ -78,8 +82,8 @@ const COPY: Record<Locale, Copy> = {
     coreNote1: '인플루언서는 이미 자신의 일정으로 한국을 여행 중이라,',
     coreNote2: '항공권·숙박비 없이 섭외비만 분담하면 됩니다',
     proofChips: [
-      { value: '¥2.3억', label: '뉴믹스 일본 매출' },
-      { value: '이세탄 1위', label: '감자밭 일본 팝업' },
+      { value: '¥2.3억', label: '뉴믹스 큐텐 메가와리 매출 (2025)' },
+      { value: '이세탄 1위', label: '감자밭 일본 팝업, 베이커리 부문 (2025)' },
     ],
     vsTitle: '무엇이 다른가요?',
     vsBeforeTitle: '기존 매크로 인플루언서',
@@ -91,6 +95,7 @@ const COPY: Record<Locale, Copy> = {
       '소규모 브랜드는 진입 어려움',
     ],
     vsAfterTitle: '트립브릿지 나노 인플루언서',
+    vsAfterCaption: '팔로워 3,000명 이상 일본인 인스타그램 크리에이터',
     vsAfter: [
       '비용 3~4개 브랜드와 분담, 약 20만원',
       '영상 10편+, 10개 커뮤니티 분산 노출',
@@ -101,18 +106,23 @@ const COPY: Record<Locale, Copy> = {
     stepsTitle: '단 3단계',
     steps: [
       { no: '01', title: '섭외', desc: '나노 인플루언서 선별·매칭', duration: '1주 이내' },
-      { no: '02', title: '매칭', desc: '브랜드 3~4곳과 여정 구성', duration: '여정 확정 후 3일' },
-      { no: '03', title: '콘텐츠 제작', desc: '일본어 영상 업로드·확산', duration: '방문 후 2주 내 업로드' },
+      {
+        no: '02',
+        title: '매칭',
+        desc: '브랜드 3~4곳과 여정 구성. 모객과 방문 운영은 코리너스가 맡습니다',
+        duration: '여정 확정 후 3일',
+      },
+      { no: '03', title: '콘텐츠 제작', desc: '일본어 영상 업로드·확산 (인스타그램 릴스)', duration: '방문 후 2주 내 업로드' },
     ],
     resultsTitle: '실제 협업 콘텐츠',
     resultsSub: '고감도 콘텐츠일수록 저장됩니다',
-    resultsNote: '트립브릿지 출시 전 캠페인을 포함한 코리너스 전체 실적입니다',
+    resultsNote: '이 실적은 모두 트립브릿지 출시(2026.9) 전 코리너스 캠페인 결과입니다',
     gallery: ['뉴믹스 · F&B', '감자밭 · 팝업·리테일', '카페 · F&B', '세예의원 · 클리닉', '메디큐브 · 뷰티'],
     resultChips: [
-      { value: '¥2.3억', label: '뉴믹스 매출 실적' },
-      { value: '이세탄 1위', label: '감자밭 베이커리' },
+      { value: '¥2.3억', label: '뉴믹스 큐텐 메가와리 매출 (2025)' },
+      { value: '이세탄 1위', label: '감자밭 일본 팝업, 베이커리 부문 (2025)' },
       { value: '858건', label: '세예의원 저장수' },
-      { value: '매출 150% 증가', label: '점당 매출' },
+      { value: '매출 150% 증가', label: '뉴믹스 점당 매출 증가' },
     ],
     closingTitle1: '약 20만원으로',
     closingTitle2: '일본 시장에 노출하세요',
@@ -125,8 +135,10 @@ const COPY: Record<Locale, Copy> = {
     heroTitle2: '87%減りました',
     heroSub: 'ナノインフルエンサーが複数人、一つの店舗を訪れたら？',
     heroLead: '費用は分け合い、露出は広がります',
-    brandsLabel: '一緒に取り組んだブランド',
-    brands: ['newmix', 'カムジャバッ', 'マテンキム', 'セイエ医院'],
+    heroDefinition:
+      '韓国を旅行中の日本人ナノインフルエンサーが、KOREANERSが組んだコースでブランド3~4社の店舗を訪問し、起用費はブランドが分担して支払います',
+    brandsLabel: 'KOREANERSと一緒に取り組んだブランド',
+    brands: ['newmix', 'カムジャバッ', 'マタンキム', 'セイエ医院'],
     brandsMore: '他200社+',
     ctaPrimary: '導入のお問い合わせ',
     ctaSecondary: '実績を見る',
@@ -148,8 +160,8 @@ const COPY: Record<Locale, Copy> = {
     coreNote1: 'インフルエンサーはすでに自分の予定で韓国を旅行中のため、',
     coreNote2: '航空券・宿泊費なしで起用費だけ分担すれば済みます',
     proofChips: [
-      { value: '¥2.3億', label: 'ニューミックス日本売上' },
-      { value: '伊勢丹1位', label: 'カムジャバッ 日本ポップアップ' },
+      { value: '¥2.3億', label: 'ニューミックス Qoo10メガ割 売上 (2025)' },
+      { value: '伊勢丹1位', label: 'カムジャバッ 日本ポップアップ、ベーカリー部門 (2025)' },
     ],
     vsTitle: '何が違うのですか？',
     vsBeforeTitle: '従来のマクロインフルエンサー',
@@ -161,6 +173,7 @@ const COPY: Record<Locale, Copy> = {
       '小規模ブランドは参入が困難',
     ],
     vsAfterTitle: 'トリップブリッジ ナノインフルエンサー',
+    vsAfterCaption: 'フォロワー3,000人以上の日本人インスタグラムクリエイター',
     vsAfter: [
       '費用は3~4社のブランドで分担、約20万ウォン',
       '動画10本+、10のコミュニティに分散露出',
@@ -171,12 +184,22 @@ const COPY: Record<Locale, Copy> = {
     stepsTitle: 'たった3ステップ',
     steps: [
       { no: '01', title: '起用', desc: 'ナノインフルエンサーの選定・マッチング', duration: '1週間以内' },
-      { no: '02', title: 'マッチング', desc: 'ブランド3~4社と行程を構成', duration: '行程確定後3日' },
-      { no: '03', title: 'コンテンツ制作', desc: '日本語動画のアップロード・拡散', duration: '訪問後2週間以内にアップロード' },
+      {
+        no: '02',
+        title: 'マッチング',
+        desc: 'ブランド3~4社と行程を構成。集客と訪問の運営はKOREANERSが担当します',
+        duration: '行程確定後3日',
+      },
+      {
+        no: '03',
+        title: 'コンテンツ制作',
+        desc: '日本語動画のアップロード・拡散（インスタグラムのリール）',
+        duration: '訪問後2週間以内にアップロード',
+      },
     ],
     resultsTitle: '実際のコラボコンテンツ',
     resultsSub: '感度の高いコンテンツほど保存されます',
-    resultsNote: 'TripBridge開始前のキャンペーンを含む、KOREANERS全体の実績です',
+    resultsNote: 'この実績はすべて、トリップブリッジ公開(2026年9月)前のKOREANERSキャンペーンの結果です',
     gallery: [
       'ニューミックス · F&B',
       'カムジャバッ · ポップアップ・リテール',
@@ -185,10 +208,10 @@ const COPY: Record<Locale, Copy> = {
       'メディキューブ · ビューティー',
     ],
     resultChips: [
-      { value: '¥2.3億', label: 'ニューミックス売上実績' },
-      { value: '伊勢丹1位', label: 'カムジャバッ ベーカリー' },
+      { value: '¥2.3億', label: 'ニューミックス Qoo10メガ割 売上 (2025)' },
+      { value: '伊勢丹1位', label: 'カムジャバッ 日本ポップアップ、ベーカリー部門 (2025)' },
       { value: '858件', label: 'セイエ医院の保存数' },
-      { value: '売上150%増加', label: '店舗あたり売上' },
+      { value: '売上150%増加', label: 'ニューミックス 店舗あたり売上の増加' },
     ],
     closingTitle1: '約20万ウォンで',
     closingTitle2: '日本市場に露出しましょう',
@@ -207,10 +230,51 @@ const CARD_LIGHT =
 const PILL = 'px-3 py-1.5 rounded-full bg-[#FF4500]/10 border border-[#FF4500]/20 text-[#FF4500] text-xs font-semibold break-keep'
 const BTN_PRIMARY =
   'inline-block gradient-warm text-white px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 text-center'
+// utm-tracking.ts 가 URL 파라미터를 first-touch 로 저장하고 footer-cta 문의에 실어 보낸다.
+const CTA_PRIMARY_HREF = '/contact?utm_source=tripbridge&utm_medium=landing'
+// process-timeline.tsx 의 도트 + 연결선 어휘 (라이트 섹션 색으로만 치환).
+const TL_DOT = 'w-2.5 h-2.5 rounded-full bg-[#FF4500] shrink-0'
+const TL_LINE_H = 'h-px flex-1 bg-gradient-to-r from-[#FF4500]/50 to-[var(--kn-dark)]/10'
+const TL_LINE_V = 'w-px flex-1 bg-gradient-to-b from-[#FF4500]/50 to-[var(--kn-dark)]/10 mt-1'
+const TL_INDEX = 'text-xs text-[#78716C]'
 
 export default function TripbridgeContent() {
   const { locale } = useLocale()
   const c = COPY[locale]
+
+  const coreItems = [
+    {
+      no: '01',
+      label: c.costFrom.label,
+      body: (
+        <div className="font-display font-bold text-5xl text-[var(--kn-dark)]">
+          {c.costFrom.value}
+          <span className="text-2xl">{c.costFrom.unit}</span>
+        </div>
+      ),
+    },
+    {
+      no: '02',
+      label: c.costSplit.label,
+      body: (
+        <div className="text-2xl md:text-3xl font-bold text-[var(--kn-dark)] break-keep">{c.costSplit.caption}</div>
+      ),
+    },
+    {
+      no: '03',
+      label: c.costResult.label,
+      body: (
+        <>
+          <div className="font-display font-bold text-5xl text-[#FF4500]">
+            {c.costResult.value}
+            <span className="text-2xl">{c.costResult.unit}</span>
+          </div>
+          <div className="text-sm font-bold text-[var(--kn-dark)] mt-2">{c.costResult.sub}</div>
+          <div className="text-sm font-bold text-[var(--kn-dark)] mt-1 break-keep">{c.costResult.note}</div>
+        </>
+      ),
+    },
+  ]
 
   return (
     <main className="min-h-screen bg-background w-full max-w-full overflow-x-hidden">
@@ -226,11 +290,12 @@ export default function TripbridgeContent() {
           </h1>
           <p className="text-xl md:text-2xl text-[#A8A29E] font-bold max-w-2xl mt-6 break-keep">{c.heroSub}</p>
           <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.heroLead}</p>
+          <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.heroDefinition}</p>
 
-          <div className="flex flex-wrap items-center gap-2 mt-8">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-8">
             <span className="text-xs text-[#A8A29E] mr-1">{c.brandsLabel}</span>
             {c.brands.map((brand) => (
-              <span key={brand} className={PILL}>
+              <span key={brand} className="text-xs uppercase tracking-wider text-[#A8A29E]">
                 {brand}
               </span>
             ))}
@@ -238,26 +303,29 @@ export default function TripbridgeContent() {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-6 mt-10">
-            <Link href="/contact" className={BTN_PRIMARY}>
+            <Link href={CTA_PRIMARY_HREF} className={BTN_PRIMARY}>
               {c.ctaPrimary}
             </Link>
             <Link
-              href="/portfolio"
+              href="#proof"
               className="text-sm uppercase tracking-wider font-bold text-[var(--kn-light)] border-b border-[var(--kn-light)]/30 hover:border-[#FF4500] hover:text-[#FF4500] pb-1 transition-colors duration-300 self-start sm:self-auto"
             >
               {c.ctaSecondary} →
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mt-16 max-w-xl">
-            {c.heroStats.map((stat, index) => (
-              <div key={stat.label} className={index < c.heroStats.length - 1 ? 'border-r border-white/10' : ''}>
-                <div className="font-display font-bold text-4xl sm:text-5xl gradient-warm-text leading-none whitespace-nowrap">
-                  {stat.value}
+          <div className="mt-16 max-w-xl">
+            <div className="grid grid-cols-2 gap-8">
+              {c.heroStats.map((stat, index) => (
+                <div key={stat.label} className={index < c.heroStats.length - 1 ? 'border-r border-white/10' : ''}>
+                  <div className="font-display font-bold text-4xl sm:text-5xl gradient-warm-text leading-none whitespace-nowrap">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm text-[#A8A29E] mt-3 break-keep">{stat.label}</div>
                 </div>
-                <div className="text-sm text-[#A8A29E] mt-3 break-keep">{stat.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <p className="text-xs text-[#A8A29E] mt-4 break-keep">{c.resultsNote}</p>
           </div>
         </div>
       </section>
@@ -275,45 +343,53 @@ export default function TripbridgeContent() {
             <span className="gradient-warm-text whitespace-nowrap">{c.coreTitle2}</span>
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-6 mt-16">
-            <div className={CARD_LIGHT}>
-              <div className="text-xs text-[#78716C] mb-2 break-keep">{c.costFrom.label}</div>
-              <div className="font-display font-bold text-5xl text-[var(--kn-dark)]">
-                {c.costFrom.value}
-                <span className="text-2xl">{c.costFrom.unit}</span>
-              </div>
-            </div>
-
-            <div className={CARD_LIGHT}>
-              <div className="text-xs text-[#78716C] mb-2 break-keep">{c.costSplit.label}</div>
-              <div className="text-2xl md:text-3xl font-bold text-[var(--kn-dark)] break-keep">{c.costSplit.caption}</div>
-            </div>
-
-            <div className={CARD_LIGHT}>
-              <div className="text-xs text-[#78716C] mb-2 break-keep">{c.costResult.label}</div>
-              <div className="font-display font-bold text-5xl text-[#FF4500]">
-                {c.costResult.value}
-                <span className="text-2xl">{c.costResult.unit}</span>
-              </div>
-              <div className="text-sm font-bold text-[var(--kn-dark)] mt-2">{c.costResult.sub}</div>
-              <div className="text-xs text-[#78716C] mt-1 break-keep">{c.costResult.note}</div>
-            </div>
-          </div>
-
-          <p className="text-lg text-[#78716C] max-w-2xl mt-12 leading-relaxed break-keep">
+          <p className="text-lg text-[#78716C] max-w-2xl mt-4 leading-relaxed break-keep">
             {c.coreNote1}
             <br />
             {c.coreNote2}
           </p>
 
-          <div className="grid sm:grid-cols-2 gap-3 max-w-xl mt-8">
-            {c.proofChips.map((chip) => (
-              <div key={chip.label} className="p-4 rounded-[var(--radius-sm)] bg-[var(--kn-card-light)] border border-[#FF4500]/20">
-                <div className="text-xs text-[#78716C] mb-1 break-keep">{chip.label}</div>
-                <div className="font-display font-bold text-3xl gradient-warm-text">{chip.value}</div>
+          {/* Desktop: horizontal timeline */}
+          <div className="hidden md:grid md:grid-cols-3 gap-6 mt-16">
+            {coreItems.map((item, i) => (
+              <div key={item.no} className="relative">
+                <div className="flex items-center mb-6">
+                  <span className={TL_DOT} />
+                  {i < coreItems.length - 1 && <span className={TL_LINE_H} />}
+                </div>
+                <div className={`${TL_INDEX} mb-3`}>{item.no}</div>
+                <div className="text-xs text-[#78716C] mb-2 break-keep">{item.label}</div>
+                {item.body}
               </div>
             ))}
           </div>
+
+          {/* Mobile: vertical timeline */}
+          <div className="md:hidden mt-12 space-y-6">
+            {coreItems.map((item, i) => (
+              <div key={item.no} className="flex gap-5">
+                <div className="flex flex-col items-center shrink-0">
+                  <span className={TL_DOT} />
+                  {i < coreItems.length - 1 && <span className={TL_LINE_V} />}
+                </div>
+                <div className="pb-2">
+                  <div className={`${TL_INDEX} mb-2`}>{item.no}</div>
+                  <div className="text-xs text-[#78716C] mb-2 break-keep">{item.label}</div>
+                  {item.body}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-end gap-6 sm:gap-12 mt-12">
+            {c.proofChips.map((chip) => (
+              <div key={chip.label} className="flex items-end gap-2">
+                <div className="font-display font-bold text-3xl gradient-warm-text leading-none">{chip.value}</div>
+                <div className="text-sm text-[#78716C] break-keep">{chip.label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-[#78716C] mt-3 break-keep">{c.resultsNote}</p>
         </div>
       </section>
 
@@ -323,7 +399,7 @@ export default function TripbridgeContent() {
           <SectionTag variant="dark">BEFORE VS TRIPBRIDGE</SectionTag>
           <h2 className={`${H2_DARK} max-w-3xl mt-8`}>{c.vsTitle}</h2>
 
-          <div className="grid md:grid-cols-2 gap-6 mt-16">
+          <div className="grid md:grid-cols-[1fr_2fr] gap-6 mt-16">
             <div className={CARD_DARK}>
               <div className="w-12 h-12 flex items-center justify-center mb-6">
                 <XCircle className="w-7 h-7 text-[#A8A29E]/70" />
@@ -339,11 +415,12 @@ export default function TripbridgeContent() {
               </div>
             </div>
 
-            <div className={CARD_DARK}>
+            <div className={`${CARD_DARK} hover:border-[#FF4500]/60`}>
               <div className="w-12 h-12 flex items-center justify-center mb-6">
                 <CheckCircle2 className="w-7 h-7 text-[#FF4500]/70" />
               </div>
-              <h3 className="text-xl font-bold text-[#FF4500] mb-6 break-keep">{c.vsAfterTitle}</h3>
+              <h3 className="text-xl font-bold text-[#FF4500] break-keep">{c.vsAfterTitle}</h3>
+              <p className="text-xs text-[#A8A29E] mt-1 mb-6 break-keep">{c.vsAfterCaption}</p>
               <div className="space-y-4">
                 {c.vsAfter.map((text) => (
                   <div key={text} className="flex gap-4">
@@ -367,14 +444,35 @@ export default function TripbridgeContent() {
 
           <h2 className={`${H2_LIGHT} max-w-3xl`}>{c.stepsTitle}</h2>
 
-          <div className="grid md:grid-cols-3 gap-6 mt-16">
-            {c.steps.map((step) => (
-              <div key={step.no} className={CARD_LIGHT}>
-                <div className="text-xs text-[#78716C] mb-2">{step.no}</div>
-                <h3 className="text-xl font-bold text-[var(--kn-dark)] mb-3 break-keep">{step.title}</h3>
-                <p className="text-[#78716C] leading-relaxed break-keep">{step.desc}</p>
-                <div className="mt-6">
-                  <span className={PILL}>{step.duration}</span>
+          {/* Desktop: horizontal timeline */}
+          <div className="hidden md:grid md:grid-cols-3 gap-6 mt-16">
+            {c.steps.map((step, i) => (
+              <div key={step.no} className="relative">
+                <div className="flex items-center mb-6">
+                  <span className={TL_DOT} />
+                  {i < c.steps.length - 1 && <span className={TL_LINE_H} />}
+                </div>
+                <div className="font-display font-bold text-5xl text-[#FF4500] mb-4">{step.no}</div>
+                <h3 className="text-lg font-bold text-[var(--kn-dark)] mb-2 break-keep">{step.title}</h3>
+                <p className="text-sm text-[#78716C] leading-relaxed break-keep">{step.desc}</p>
+                <div className="text-xs text-[#78716C] mt-2 break-keep">{step.duration}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile: vertical timeline */}
+          <div className="md:hidden mt-12 space-y-6">
+            {c.steps.map((step, i) => (
+              <div key={step.no} className="flex gap-5">
+                <div className="flex flex-col items-center shrink-0">
+                  <span className={TL_DOT} />
+                  {i < c.steps.length - 1 && <span className={TL_LINE_V} />}
+                </div>
+                <div className="pb-2">
+                  <div className="font-display font-bold text-3xl text-[#FF4500] leading-none mb-2">{step.no}</div>
+                  <h3 className="text-lg font-bold text-[var(--kn-dark)] mb-1 break-keep">{step.title}</h3>
+                  <p className="text-sm text-[#78716C] leading-relaxed break-keep">{step.desc}</p>
+                  <div className="text-xs text-[#78716C] mt-2 break-keep">{step.duration}</div>
                 </div>
               </div>
             ))}
@@ -419,7 +517,7 @@ export default function TripbridgeContent() {
           </h2>
           <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.closingDesc}</p>
           <div className="mt-10">
-            <Link href="/contact" className={BTN_PRIMARY}>
+            <Link href={CTA_PRIMARY_HREF} className={BTN_PRIMARY}>
               {c.ctaPrimary}
             </Link>
           </div>
