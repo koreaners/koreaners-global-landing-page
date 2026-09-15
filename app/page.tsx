@@ -53,7 +53,7 @@ export default function Page() {
       <Navigation />
       {/* 서버 렌더링 SEO 콘텐츠 — JS 미실행 크롤러(AI Overview, ChatGPT, Perplexity)가 핵심 콘텐츠를 읽을 수 있도록 */}
       <div className="sr-only" aria-hidden="false">
-        <h1>코리너스 — 크로스보더 인플루언서 마케팅 전문 대행사</h1>
+        <p>코리너스 — 크로스보더 인플루언서 마케팅 전문 대행사</p>
         <p>
           코리너스(KOREANERS)는 크로스보더 인플루언서 마케팅 전문 대행사입니다.
           일본 시장을 중심으로 220명 이상의 주요 크리에이터와 30만 SNS 커뮤니티를 활용하여

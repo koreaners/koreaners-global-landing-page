@@ -415,6 +415,8 @@
   "tbFormSuccess": "등록해 주셔서 감사합니다. 1영업일 이내에 Instagram DM 또는 이메일로 연락드리겠습니다.",
   "navSvcInfluencer": "인플루언서 마케팅",
   "navSvcInfluencerDesc": "우리 브랜드만을 위한 일본 인플루언서 캠페인",
+  "navJapanInfluencer": "일본 인플루언서 마케팅",
+  "navJapanInfluencerDesc": "일본 인플루언서 마케팅 대행사 비교와 비용",
   "navSvcTripbridge": "트립브릿지",
   "navSvcTripbridgeDesc": "방한 일본 인플루언서를 모으고 방문까지 운영하는 공동 캠페인, 브랜드끼리 비용을 나눠 저렴",
   "creatorTrackTripbridgeDesc": "방한 일정에 맞춰 식당, 카페, 클리닉 코스를 무료로 체험하고 릴스를 올리는 크리에이터 풀",
@@ -476,8 +478,8 @@
   "metaDesc:/about": "코리너스는 일본 시장 전문 크로스보더 마케팅 에이전시입니다. 220명 이상의 주요 크리에이터, 185+ 브랜드 지원 경험, 데이터 기반 캠페인 운영으로 일본 진출을 돕습니다.",
   "metaTitle:/tripbridge": "TripBridge | Koreaners",
   "metaDesc:/tripbridge": "방한 일본 인플루언서를 모객하고 매장 방문·촬영 운영을 대행합니다. 브랜드 3~4곳이 한 코스의 섭외비를 나눠 부담하는 트립브릿지.",
-  "metaTitle:/tripbridge/creator": "TripBridge 体験団 | Koreaners",
-  "metaDesc:/tripbridge/creator": "韓国のグルメ・カフェ・ビューティークリニックのコースを全額無料で体験し、リールを投稿すると原稿料もお支払いします。訪韓予定または韓国在住の日本人Instagramクリエイターを募集中。",
+  "metaTitle:/tripbridge/creator": "TripBridge 체험단 | Koreaners",
+  "metaDesc:/tripbridge/creator": "한국 여행 코스, 전부 무료. 릴스 올리면 원고료까지. 방한 예정이거나 한국에 거주 중인 일본인 Instagram 크리에이터를 모집합니다.",
   "logoWallTitle": "함께한 대표 브랜드",
   "logoWallMore": "포트폴리오 더보기"
 }
