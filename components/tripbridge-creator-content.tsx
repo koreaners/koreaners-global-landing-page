@@ -105,7 +105,6 @@ export default function TripbridgeCreatorContent() {
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key)
   const registerRef = useRef<HTMLElement>(null)
   const [registerVisible, setRegisterVisible] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
   const [bottomVisible, setBottomVisible] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
@@ -130,16 +129,20 @@ export default function TripbridgeCreatorContent() {
     return () => observer.disconnect()
   }, [])
 
-  // 페이지 최하단(main 마지막 자식) 도달 시에도 스티키 CTA를 감춘다 — footer는 main 밖이라 pb로 못 가림
+  // 페이지 최하단 도달 시에도 스티키 CTA를 감춘다.
+  // main 끝 센티널은 footer(854px)가 뷰포트(844px)보다 커서 최하단에서 화면 위로 밀려나 안 잡힌다 — 스크롤 위치로 판정한다.
   useEffect(() => {
-    const el = bottomRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setBottomVisible(entry.isIntersecting),
-      { threshold: 0 },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+    const onScroll = () =>
+      setBottomVisible(
+        window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 8,
+      )
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [])
 
   return (
@@ -293,8 +296,6 @@ export default function TripbridgeCreatorContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div ref={bottomRef} aria-hidden className="h-px" />
     </main>
   )
 }
