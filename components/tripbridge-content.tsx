@@ -269,7 +269,7 @@ export default function TripbridgeContent() {
 
           <h2 className={`${H2_LIGHT} max-w-3xl`}>
             <span>{c.coreTitle1}</span>{' '}
-            <span className="gradient-warm-text">{c.coreTitle2}</span>
+            <span className="gradient-warm-text whitespace-nowrap">{c.coreTitle2}</span>
           </h2>
 
           <div className="grid md:grid-cols-3 gap-6 mt-16">
