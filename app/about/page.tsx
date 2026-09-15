@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     title: '코리너스 | 회사 소개',
     description: '일본 시장 전문 크로스보더 마케팅 에이전시 코리너스. 220명 이상의 주요 크리에이터와 함께합니다.',
     url: `${siteUrl}/about`,
+    images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
 }
 

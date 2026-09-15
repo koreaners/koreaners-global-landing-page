@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     title: '코리너스 문의하기 | 일본 대만 마케팅 무료 상담',
     description: '일본, 대만 인플루언서 마케팅 전문 상담. 맞춤 전략 제안.',
     url: `${siteUrl}/contact`,
+    images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
 }
 

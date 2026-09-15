@@ -21,6 +21,7 @@ export async function generateMetadata({ searchParams }: BlogPageProps): Promise
       title: '코리너스 블로그 | 일본 마케팅 인사이트',
       description: '일본 인플루언서 마케팅 비용, 전략, 사례. 크로스보더 마케팅 전문가의 실전 인사이트.',
       url: canonical,
+      images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
     },
   }
 }
