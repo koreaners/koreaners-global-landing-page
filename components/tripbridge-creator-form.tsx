@@ -344,7 +344,7 @@ export function TripbridgeCreatorForm() {
           className={BOX_CLASS}
           aria-invalid={invalid === "consent" || undefined}
         />
-        <label htmlFor="tb-consent" className="flex-1 cursor-pointer">
+        <label htmlFor="tb-consent" className="flex-1 min-h-[44px] flex items-center cursor-pointer">
           <span className="text-sm text-[#A8A29E]">
             <button
               type="button"
