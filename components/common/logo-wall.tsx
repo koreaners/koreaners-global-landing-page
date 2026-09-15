@@ -5,6 +5,8 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/contexts/locale-context";
+import { getTranslation } from "@/lib/translations";
 
 type Logo = { slug: string; ext: string; name: string; href?: string; scale?: number };
 
@@ -85,10 +87,13 @@ function MarqueeRow({ logos, direction }: { logos: Logo[]; direction: "left" | "
 }
 
 export function LogoWall() {
+  const { locale } = useLocale();
+  const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key);
+
   return (
     <section className="bg-[var(--kn-light)] px-0 py-16 overflow-hidden">
       <h2 className="font-display font-bold text-2xl md:text-3xl text-[var(--kn-dark)] mb-10 text-center px-6">
-        함께한 대표 브랜드
+        {t("logoWallTitle")}
       </h2>
       <div className="space-y-2">
         <MarqueeRow logos={ROW1} direction="left" />
@@ -101,7 +106,7 @@ export function LogoWall() {
           size="lg"
           className="border-[var(--kn-dark)]/20 text-[var(--kn-dark)] hover:border-[#FF4500] hover:text-[#FF4500] hover:bg-transparent"
         >
-          <Link href="/portfolio">포트폴리오 더보기</Link>
+          <Link href="/portfolio">{t("logoWallMore")}</Link>
         </Button>
       </div>
     </section>

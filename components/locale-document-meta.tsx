@@ -38,21 +38,36 @@ export function LocaleDocumentMeta() {
     const descKey = `metaDesc:${pathname}` as TranslationKey
 
     if (locale === 'ja') {
-      // ponytail: 라우트 전환 직후 document.title 이 아직 이전 페이지 값일 수 있어, 우리가 쓴 JP 제목이면 보관하지 않는다.
-      if (!server.current[pathname] && document.title !== lastApplied.current) {
-        server.current[pathname] = {
-          title: document.title,
-          description: meta?.getAttribute('content') ?? '',
+      const apply = () => {
+        // ponytail: 라우트 전환 직후 document.title 이 아직 이전 페이지 값일 수 있어, 우리가 쓴 JP 제목이면 보관하지 않는다.
+        // 재적용 때는 server.current 가 이미 차 있어 JP 제목이 서버값으로 덮어써지지 않는다.
+        if (!server.current[pathname] && document.title !== lastApplied.current) {
+          server.current[pathname] = {
+            title: document.title,
+            description: meta?.getAttribute('content') ?? '',
+          }
         }
+        const title = getTranslation('ja', titleKey)
+        const description = getTranslation('ja', descKey)
+        if (title) {
+          document.title = title
+          lastApplied.current = title
+        }
+        if (description) meta?.setAttribute('content', description)
       }
-      const title = getTranslation('ja', titleKey)
-      const description = getTranslation('ja', descKey)
-      if (title) {
-        document.title = title
-        lastApplied.current = title
+
+      apply()
+      // 새로고침·직접 진입에서는 Next 의 <title> 수화가 첫 적용을 덮어쓴다. 수화 이후 한 번 더 적용한다.
+      let inner = 0
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(apply)
+      })
+      const timer = setTimeout(apply, 0)
+      return () => {
+        cancelAnimationFrame(outer)
+        cancelAnimationFrame(inner)
+        clearTimeout(timer)
       }
-      if (description) meta?.setAttribute('content', description)
-      return
     }
 
     // 'ko' — 서버 렌더값 복원. 보관분이 없으면 ko 번역으로 폴백.
