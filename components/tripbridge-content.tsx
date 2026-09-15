@@ -3,10 +3,10 @@
 import Link from 'next/link'
 import Navigation from '@/components/navigation'
 import { SectionTag } from '@/components/ui/section-tag'
+import { CheckCircle2, XCircle } from 'lucide-react'
 import { useLocale } from '@/contexts/locale-context'
 import type { Locale } from '@/contexts/locale-context'
 
-type Bullet = { icon: string; text: string }
 type Stat = { value: string; label: string }
 
 type Copy = {
@@ -28,12 +28,12 @@ type Copy = {
   costResult: { label: string; value: string; unit: string; sub: string; note: string }
   coreNote1: string
   coreNote2: string
-  proofChips: { icon: string; value: string; label: string }[]
+  proofChips: Stat[]
   vsTitle: string
   vsBeforeTitle: string
-  vsBefore: Bullet[]
+  vsBefore: string[]
   vsAfterTitle: string
-  vsAfter: Bullet[]
+  vsAfter: string[]
   stepsTitle: string
   steps: { no: string; title: string; desc: string; duration: string }[]
   resultsTitle: string
@@ -45,10 +45,6 @@ type Copy = {
   closingDesc: string
   closingNote: string
 }
-
-// 브랜드 칩 배경색은 원본 번들 값 그대로 (로케일 무관).
-const BRAND_BG = ['#7C2D12', '#78350F', '#14532D', '#3B0764']
-const SPLIT_ICONS = ['🍽️', '👗', '💄', '🏥']
 
 // 한국어 문자열은 기존 /tripbridge 번들에서 추출한 원문 그대로 사용한다.
 const COPY: Record<Locale, Copy> = {
@@ -81,25 +77,25 @@ const COPY: Record<Locale, Copy> = {
     coreNote1: '인플루언서는 이미 자신의 일정으로 한국을 여행 중이라,',
     coreNote2: '항공권·숙박비 없이 섭외비만 분담하면 됩니다',
     proofChips: [
-      { icon: '💴', value: '¥2.3억', label: '뉴믹스 일본 매출' },
-      { icon: '🏆', value: '이세탄 1위', label: '감자밭 팝업' },
+      { value: '¥2.3억', label: '뉴믹스 일본 매출' },
+      { value: '이세탄 1위', label: '감자밭 팝업' },
     ],
     vsTitle: '무엇이 다른가요?',
     vsBeforeTitle: '기존 매크로 인플루언서',
     vsBefore: [
-      { icon: '💸', text: '섭외비 150만원 이상 전액 부담' },
-      { icon: '🎥', text: '영상 1편, 커뮤니티 1곳' },
-      { icon: '📢', text: '광고로 읽히는 단일 노출' },
-      { icon: '✈️', text: '항공·숙박비까지 브랜드 지출' },
-      { icon: '📉', text: '소규모 브랜드는 진입 어려움' },
+      '섭외비 150만원 이상 전액 부담',
+      '영상 1편, 커뮤니티 1곳',
+      '광고로 읽히는 단일 노출',
+      '항공·숙박비까지 브랜드 지출',
+      '소규모 브랜드는 진입 어려움',
     ],
     vsAfterTitle: '트립브릿지 나노 인플루언서',
     vsAfter: [
-      { icon: '🤝', text: '비용 3~4개 브랜드와 분담, 약 20만원' },
-      { icon: '📱', text: '영상 10편+, 10개 커뮤니티 분산 노출' },
-      { icon: '🌊', text: '여행 콘텐츠로 자연스럽게 소비' },
-      { icon: '🎒', text: '인플루언서 이미 자비로 방한 중' },
-      { icon: '🚀', text: '소규모 브랜드도 즉시 시작 가능' },
+      '비용 3~4개 브랜드와 분담, 약 20만원',
+      '영상 10편+, 10개 커뮤니티 분산 노출',
+      '여행 콘텐츠로 자연스럽게 소비',
+      '인플루언서 이미 자비로 방한 중',
+      '소규모 브랜드도 즉시 시작 가능',
     ],
     stepsTitle: '단 3단계',
     steps: [
@@ -150,25 +146,25 @@ const COPY: Record<Locale, Copy> = {
     coreNote1: 'インフルエンサーはすでに自分の予定で韓国を旅行中のため、',
     coreNote2: '航空券・宿泊費なしで起用費だけ分担すれば済みます',
     proofChips: [
-      { icon: '💴', value: '¥2.3億', label: 'ニューミックス日本売上' },
-      { icon: '🏆', value: '伊勢丹1位', label: 'カムジャバッ ポップアップ' },
+      { value: '¥2.3億', label: 'ニューミックス日本売上' },
+      { value: '伊勢丹1位', label: 'カムジャバッ ポップアップ' },
     ],
     vsTitle: '何が違うのですか？',
     vsBeforeTitle: '従来のマクロインフルエンサー',
     vsBefore: [
-      { icon: '💸', text: '起用費150万ウォン以上を全額負担' },
-      { icon: '🎥', text: '動画1本、コミュニティ1か所' },
-      { icon: '📢', text: '広告と受け取られる単発の露出' },
-      { icon: '✈️', text: '航空・宿泊費までブランドの支出' },
-      { icon: '📉', text: '小規模ブランドは参入が困難' },
+      '起用費150万ウォン以上を全額負担',
+      '動画1本、コミュニティ1か所',
+      '広告と受け取られる単発の露出',
+      '航空・宿泊費までブランドの支出',
+      '小規模ブランドは参入が困難',
     ],
     vsAfterTitle: 'トリップブリッジ ナノインフルエンサー',
     vsAfter: [
-      { icon: '🤝', text: '費用は3~4社のブランドで分担、約20万ウォン' },
-      { icon: '📱', text: '動画10本+、10のコミュニティに分散露出' },
-      { icon: '🌊', text: '旅行コンテンツとして自然に消費' },
-      { icon: '🎒', text: 'インフルエンサーはすでに自費で訪韓中' },
-      { icon: '🚀', text: '小規模ブランドもすぐに開始可能' },
+      '費用は3~4社のブランドで分担、約20万ウォン',
+      '動画10本+、10のコミュニティに分散露出',
+      '旅行コンテンツとして自然に消費',
+      'インフルエンサーはすでに自費で訪韓中',
+      '小規模ブランドもすぐに開始可能',
     ],
     stepsTitle: 'たった3ステップ',
     steps: [
@@ -198,14 +194,16 @@ const COPY: Record<Locale, Copy> = {
   },
 }
 
-function Arrow() {
-  return (
-    <div className="flex items-center justify-center py-2 md:py-0 md:px-1 text-[#A8A29E]" aria-hidden>
-      <span className="hidden md:inline text-2xl leading-none">&rarr;</span>
-      <span className="md:hidden text-2xl leading-none">&darr;</span>
-    </div>
-  )
-}
+// service-content.tsx 의 클래스만 사용한다 (섹션 리듬·태그·h2·카드·스탯·아이콘).
+const H2_DARK = 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight break-keep'
+const H2_LIGHT = 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--kn-dark)] leading-tight break-keep'
+const CARD_DARK =
+  'bg-surface-1 rounded-[var(--radius)] border border-[var(--border)] p-8 hover:border-[#FF4500]/40 transition-all duration-300'
+const CARD_LIGHT =
+  'bg-[var(--kn-card-light)] rounded-[var(--radius)] border border-[var(--kn-dark)]/5 p-8 hover:border-[#FF4500]/40 transition-all duration-300'
+const PILL = 'px-3 py-1.5 rounded-full bg-[#FF4500]/10 border border-[#FF4500]/20 text-[#FF4500] text-xs font-semibold break-keep'
+const BTN_PRIMARY =
+  'inline-block gradient-warm text-white px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 text-center'
 
 export default function TripbridgeContent() {
   const { locale } = useLocale()
@@ -216,189 +214,165 @@ export default function TripbridgeContent() {
       <Navigation />
 
       {/* Hero — Dark */}
-      <section className="pt-32 sm:pt-40 pb-20 md:pb-28 px-6 lg:px-24 bg-background hero-glow">
+      <section className="pt-32 sm:pt-40 pb-24 md:pb-32 lg:pb-40 px-6 lg:px-24 bg-background hero-glow">
         <div className="max-w-7xl mx-auto relative z-10">
           <SectionTag variant="dark">{c.heroTag}</SectionTag>
-          <h1 className="heading-kr text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white leading-tight break-keep mt-8">
-            {c.heroTitle1}
-            <br />
+          <h1 className="heading-kr text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight break-keep max-w-4xl mt-8">
+            <span>{c.heroTitle1}</span>{' '}
             <span className="gradient-warm-text">{c.heroTitle2}</span>
           </h1>
-          <p className="text-xl md:text-2xl font-bold text-white max-w-2xl mt-6 leading-relaxed break-keep">
-            {c.heroSub}
-          </p>
+          <p className="text-xl md:text-2xl text-[#A8A29E] font-bold max-w-2xl mt-6 break-keep">{c.heroSub}</p>
           <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.heroLead}</p>
 
           <div className="flex flex-wrap items-center gap-2 mt-8">
-            <span className="text-xs text-[#A8A29E]">{c.brandsLabel}</span>
-            {c.brands.map((brand, i) => (
-              <span
-                key={brand}
-                className="px-2.5 py-1 rounded text-xs font-bold text-white"
-                style={{ background: BRAND_BG[i] }}
-              >
+            <span className="text-xs text-[#A8A29E] mr-1">{c.brandsLabel}</span>
+            {c.brands.map((brand) => (
+              <span key={brand} className={PILL}>
                 {brand}
               </span>
             ))}
             <span className="text-xs text-[#A8A29E]">{c.brandsMore}</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mt-10">
-            <Link
-              href="/contact"
-              className="gradient-warm text-white px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 text-center"
-            >
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6 mt-10">
+            <Link href="/contact" className={BTN_PRIMARY}>
               {c.ctaPrimary}
             </Link>
             <Link
               href="/portfolio"
-              className="bg-transparent text-[var(--foreground)] px-8 py-4 text-sm font-bold uppercase tracking-wider border border-[#A8A29E]/30 rounded-[var(--radius-sm)] hover:border-[#FF4500]/60 hover:bg-white/5 transition-all duration-300 text-center"
+              className="text-sm uppercase tracking-wider font-bold text-[var(--kn-light)] border-b border-[var(--kn-light)]/30 hover:border-[#FF4500] hover:text-[#FF4500] pb-1 transition-colors duration-300 self-start sm:self-auto"
             >
-              {c.ctaSecondary}
+              {c.ctaSecondary} →
             </Link>
           </div>
 
-          <div className="flex gap-10 pt-8 mt-12 border-t border-white/10">
-            {c.heroStats.map((stat) => (
-              <div key={stat.label}>
-                <div className="font-display font-bold text-2xl md:text-3xl text-white">{stat.value}</div>
-                <div className="text-xs text-[#A8A29E] mt-1 break-keep">{stat.label}</div>
+          <div className="grid grid-cols-2 gap-8 mt-16 max-w-xl">
+            {c.heroStats.map((stat, index) => (
+              <div key={stat.label} className={index < c.heroStats.length - 1 ? 'border-r border-white/10' : ''}>
+                <div className="font-display font-bold text-4xl sm:text-5xl gradient-warm-text leading-none whitespace-nowrap">
+                  {stat.value}
+                </div>
+                <div className="text-sm text-[#A8A29E] mt-3 break-keep">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Core value — Dark */}
-      <section className="py-16 md:py-24 px-6 lg:px-24 bg-background border-t border-white/5">
-        <div className="max-w-5xl mx-auto text-center">
-          <SectionTag variant="dark">CORE VALUE</SectionTag>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight break-keep mt-6 mb-12">
-            {c.coreTitle1}
-            <br />
-            {c.coreTitle2}
+      {/* Core value — Light */}
+      <section className="py-16 md:py-24 lg:py-28 px-6 lg:px-24 bg-[var(--kn-light)]">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-16">
+            <SectionTag variant="light">CORE VALUE</SectionTag>
+            <div className="h-px flex-1 bg-[var(--kn-dark)]/10" />
+          </div>
+
+          <h2 className={`${H2_LIGHT} max-w-3xl`}>
+            <span>{c.coreTitle1}</span>{' '}
+            <span className="gradient-warm-text">{c.coreTitle2}</span>
           </h2>
 
-          <div className="flex flex-col md:flex-row md:items-stretch gap-2">
-            <div className="flex-1 rounded-[var(--radius)] p-7 bg-white/5 border border-white/10">
-              <p className="text-xs text-[#A8A29E] mb-3 break-keep">{c.costFrom.label}</p>
-              <p className="font-display font-bold text-4xl md:text-5xl text-white">
+          <div className="grid md:grid-cols-3 gap-6 mt-16">
+            <div className={CARD_LIGHT}>
+              <div className="text-xs text-[#78716C] mb-2 break-keep">{c.costFrom.label}</div>
+              <div className="font-display font-bold text-5xl text-[var(--kn-dark)]">
                 {c.costFrom.value}
-                <span className="text-2xl font-bold">{c.costFrom.unit}</span>
-              </p>
-            </div>
-
-            <Arrow />
-
-            <div className="flex-1 rounded-[var(--radius)] p-7 bg-white/5 border border-white/10">
-              <p className="text-xs text-[#A8A29E] mb-3 break-keep">{c.costSplit.label}</p>
-              <div className="flex items-center justify-center gap-2 text-2xl" aria-hidden>
-                {SPLIT_ICONS.map((icon) => (
-                  <span key={icon}>{icon}</span>
-                ))}
+                <span className="text-2xl">{c.costFrom.unit}</span>
               </div>
-              <p className="text-sm text-white mt-3 break-keep">{c.costSplit.caption}</p>
             </div>
 
-            <Arrow />
+            <div className={CARD_LIGHT}>
+              <div className="text-xs text-[#78716C] mb-2 break-keep">{c.costSplit.label}</div>
+              <div className="text-2xl md:text-3xl font-bold text-[var(--kn-dark)] break-keep">{c.costSplit.caption}</div>
+            </div>
 
-            <div className="flex-1 rounded-[var(--radius)] p-7 gradient-warm shadow-lg shadow-[#FF4500]/20">
-              <p className="text-xs font-bold text-white/70 mb-1 break-keep">{c.costResult.label}</p>
-              <div className="font-display font-bold text-6xl md:text-7xl text-white leading-none">
+            <div className={CARD_LIGHT}>
+              <div className="text-xs text-[#78716C] mb-2 break-keep">{c.costResult.label}</div>
+              <div className="font-display font-bold text-5xl text-[#FF4500]">
                 {c.costResult.value}
-                <span className="text-[0.42em]">{c.costResult.unit}</span>
+                <span className="text-2xl">{c.costResult.unit}</span>
               </div>
-              <p className="font-bold text-sm text-white/90 mt-1">{c.costResult.sub}</p>
-              <p className="text-xs text-white/70 mt-1 break-keep">{c.costResult.note}</p>
+              <div className="text-sm font-bold text-[var(--kn-dark)] mt-2">{c.costResult.sub}</div>
+              <div className="text-xs text-[#78716C] mt-1 break-keep">{c.costResult.note}</div>
             </div>
           </div>
 
-          <p className="text-[#A8A29E] leading-relaxed break-keep mt-10">
+          <p className="text-lg text-[#78716C] max-w-2xl mt-12 leading-relaxed break-keep">
             {c.coreNote1}
             <br />
             {c.coreNote2}
           </p>
 
-          <div className="flex flex-wrap justify-center gap-3 mt-8">
+          <div className="grid sm:grid-cols-2 gap-3 max-w-xl mt-8">
             {c.proofChips.map((chip) => (
-              <div
-                key={chip.label}
-                className="px-4 py-2 rounded-full flex items-center gap-2 bg-white/5 border border-white/10"
-              >
-                <span aria-hidden>{chip.icon}</span>
-                <span className="text-sm font-bold text-[#FF4500]">{chip.value}</span>
-                <span className="text-xs text-[#A8A29E] break-keep">{chip.label}</span>
+              <div key={chip.label} className="p-4 rounded-[var(--radius-sm)] bg-[var(--kn-card-light)] border border-[#FF4500]/20">
+                <div className="text-xs text-[#78716C] mb-1 break-keep">{chip.label}</div>
+                <div className="font-display font-bold text-3xl gradient-warm-text">{chip.value}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Before vs TripBridge — Light */}
-      <section className="py-16 md:py-24 px-6 lg:px-24 bg-[var(--kn-light)]">
-        <div className="max-w-5xl mx-auto">
-          <SectionTag variant="light">BEFORE VS TRIPBRIDGE</SectionTag>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--kn-dark)] leading-tight break-keep mt-6 mb-10">
-            {c.vsTitle}
-          </h2>
+      {/* Before vs TripBridge — Dark */}
+      <section className="py-16 md:py-24 lg:py-28 px-6 lg:px-24 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <SectionTag variant="dark">BEFORE VS TRIPBRIDGE</SectionTag>
+          <h2 className={`${H2_DARK} max-w-3xl mt-8`}>{c.vsTitle}</h2>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="rounded-[var(--radius)] p-8 bg-[#E8E2DA] border border-[var(--kn-dark)]/5">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="w-6 h-6 rounded-full bg-[#C9C3BB] text-white text-xs flex items-center justify-center">
-                  ✕
-                </span>
-                <span className="font-bold text-[var(--kn-dark)]/70 break-keep">{c.vsBeforeTitle}</span>
+          <div className="grid md:grid-cols-2 gap-6 mt-16">
+            <div className={CARD_DARK}>
+              <div className="w-12 h-12 flex items-center justify-center mb-6">
+                <XCircle className="w-7 h-7 text-[#A8A29E]/70" />
               </div>
-              <ul className="space-y-3">
-                {c.vsBefore.map((item) => (
-                  <li key={item.text} className="flex items-start gap-3 text-[#78716C] break-keep">
-                    <span aria-hidden>{item.icon}</span>
-                    <span>{item.text}</span>
-                  </li>
+              <h3 className="text-xl font-bold text-[#A8A29E] mb-6 break-keep">{c.vsBeforeTitle}</h3>
+              <div className="space-y-4">
+                {c.vsBefore.map((text) => (
+                  <div key={text} className="flex gap-4">
+                    <XCircle className="w-5 h-5 text-[#A8A29E]/50 flex-shrink-0 mt-0.5" />
+                    <p className="text-[#A8A29E] leading-relaxed break-keep">{text}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
 
-            <div className="rounded-[var(--radius)] p-8 bg-[var(--kn-card-light)] border-2 border-[#FF4500]">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="w-6 h-6 rounded-full gradient-warm text-white text-xs flex items-center justify-center">
-                  ✓
-                </span>
-                <span className="font-bold text-[var(--kn-dark)] break-keep">{c.vsAfterTitle}</span>
+            <div className={CARD_DARK}>
+              <div className="w-12 h-12 flex items-center justify-center mb-6">
+                <CheckCircle2 className="w-7 h-7 text-[#FF4500]/70" />
               </div>
-              <ul className="space-y-3">
-                {c.vsAfter.map((item) => (
-                  <li key={item.text} className="flex items-start gap-3 text-[var(--kn-dark)] break-keep">
-                    <span aria-hidden>{item.icon}</span>
-                    <span>{item.text}</span>
-                  </li>
+              <h3 className="text-xl font-bold text-[#FF4500] mb-6 break-keep">{c.vsAfterTitle}</h3>
+              <div className="space-y-4">
+                {c.vsAfter.map((text) => (
+                  <div key={text} className="flex gap-4">
+                    <CheckCircle2 className="w-5 h-5 text-[#FF4500]/70 flex-shrink-0 mt-0.5" />
+                    <p className="text-white leading-relaxed break-keep">{text}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* How it works — Light */}
-      <section className="py-16 md:py-24 px-6 lg:px-24 bg-[var(--kn-light)] border-t border-[var(--kn-dark)]/10">
-        <div className="max-w-5xl mx-auto">
-          <SectionTag variant="light">HOW IT WORKS</SectionTag>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--kn-dark)] leading-tight break-keep mt-6 mb-12">
-            {c.stepsTitle}
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-6">
+      <section className="py-16 md:py-24 lg:py-28 px-6 lg:px-24 bg-[var(--kn-light)]">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-16">
+            <SectionTag variant="light">HOW IT WORKS</SectionTag>
+            <div className="h-px flex-1 bg-[var(--kn-dark)]/10" />
+          </div>
+
+          <h2 className={`${H2_LIGHT} max-w-3xl`}>{c.stepsTitle}</h2>
+
+          <div className="grid md:grid-cols-3 gap-6 mt-16">
             {c.steps.map((step) => (
-              <div
-                key={step.no}
-                className="bg-[var(--kn-card-light)] border border-[var(--kn-dark)]/5 rounded-[var(--radius)] p-8"
-              >
-                <span className="text-xs font-bold text-[#FF4500]">{step.no}</span>
-                <h3 className="text-xl font-bold text-[var(--kn-dark)] mt-1 mb-2 break-keep">{step.title}</h3>
+              <div key={step.no} className={CARD_LIGHT}>
+                <div className="text-xs text-[#78716C] mb-2">{step.no}</div>
+                <h3 className="text-xl font-bold text-[var(--kn-dark)] mb-3 break-keep">{step.title}</h3>
                 <p className="text-[#78716C] leading-relaxed break-keep">{step.desc}</p>
-                <span className="inline-block text-xs font-bold text-[#FF4500] bg-[#FF4500]/10 rounded-full px-2.5 py-1 mt-4 break-keep">
-                  {step.duration}
-                </span>
+                <div className="mt-6">
+                  <span className={PILL}>{step.duration}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -406,33 +380,25 @@ export default function TripbridgeContent() {
       </section>
 
       {/* Real results — Dark */}
-      <section id="proof" className="py-16 md:py-24 px-6 lg:px-24 bg-background">
-        <div className="max-w-5xl mx-auto">
+      <section id="proof" className="py-16 md:py-24 lg:py-28 px-6 lg:px-24 bg-background">
+        <div className="max-w-7xl mx-auto">
           <SectionTag variant="dark">REAL RESULTS</SectionTag>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight break-keep mt-6">
-            {c.resultsTitle}
-          </h2>
-          <p className="text-sm text-[#A8A29E] mt-2 break-keep">{c.resultsSub}</p>
+          <h2 className={`${H2_DARK} max-w-3xl mt-8`}>{c.resultsTitle}</h2>
+          <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.resultsSub}</p>
 
-          <div className="flex flex-wrap gap-3 mt-10">
+          <div className="flex gap-2 flex-wrap mt-10">
             {c.gallery.map((label) => (
-              <span
-                key={label}
-                className="px-4 py-2 rounded-full text-sm font-semibold text-white bg-white/5 border border-white/10 break-keep"
-              >
+              <span key={label} className={PILL}>
                 {label}
               </span>
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-10">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
             {c.resultChips.map((chip) => (
-              <div
-                key={chip.label}
-                className="px-4 py-2 rounded-full flex items-center gap-1.5 bg-white/5 border border-white/10"
-              >
-                <span className="text-sm font-bold text-[#FF4500]">{chip.value}</span>
-                <span className="text-xs text-[#A8A29E] break-keep">{chip.label}</span>
+              <div key={chip.label} className={CARD_DARK}>
+                <div className="text-xs text-[#A8A29E] mb-2 break-keep">{chip.label}</div>
+                <div className="font-display font-bold text-3xl md:text-4xl text-[#FF4500] break-keep">{chip.value}</div>
               </div>
             ))}
           </div>
@@ -440,21 +406,19 @@ export default function TripbridgeContent() {
       </section>
 
       {/* Get started — Dark */}
-      <section className="py-16 md:py-24 px-6 lg:px-24 bg-background border-t border-white/5">
-        <div className="max-w-3xl mx-auto text-center">
+      <section className="py-16 md:py-24 lg:py-28 px-6 lg:px-24 bg-background">
+        <div className="max-w-7xl mx-auto">
           <SectionTag variant="dark">GET STARTED</SectionTag>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight break-keep mt-6">
-            {c.closingTitle1}
-            <br />
-            {c.closingTitle2}
+          <h2 className={`${H2_DARK} max-w-4xl mt-8`}>
+            <span>{c.closingTitle1}</span>{' '}
+            <span className="gradient-warm-text">{c.closingTitle2}</span>
           </h2>
-          <p className="text-[#A8A29E] mt-4 break-keep">{c.closingDesc}</p>
-          <Link
-            href="/contact"
-            className="inline-block mt-8 gradient-warm text-white px-10 py-4 text-sm font-bold uppercase tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20"
-          >
-            {c.ctaPrimary}
-          </Link>
+          <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.closingDesc}</p>
+          <div className="mt-10">
+            <Link href="/contact" className={BTN_PRIMARY}>
+              {c.ctaPrimary}
+            </Link>
+          </div>
           <p className="text-xs text-[#A8A29E] mt-4 break-keep">{c.closingNote}</p>
         </div>
       </section>
