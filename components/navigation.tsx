@@ -236,7 +236,7 @@ export default function Navigation() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 min-w-[2.25rem] hover:bg-card border-0 flex-shrink-0"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-card border-0 flex-shrink-0"
                     aria-label="메뉴 열기"
                   >
                     <Menu className="h-5 w-5 text-white" />
@@ -251,6 +251,27 @@ export default function Navigation() {
                       {t('menu')}
                     </SheetTitle>
                   </SheetHeader>
+                  {/* 시트가 헤더 토글을 덮으므로 시트 안에도 동일한 언어 토글을 둔다 */}
+                  <div className="mb-4 flex items-center gap-1 relative z-10">
+                    <button
+                      type="button"
+                      onClick={() => setLocale('ko')}
+                      aria-label="한국어로 전환"
+                      aria-pressed={locale === 'ko'}
+                      className={`rounded-md min-w-[44px] min-h-[44px] px-3 text-sm font-bold transition-colors flex items-center justify-center border ${locale === 'ko' ? 'bg-white text-black border-white' : 'bg-card/50 text-white/70 border-white/20 hover:text-white hover:border-white/40'}`}
+                    >
+                      KR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLocale('ja')}
+                      aria-label="日本語に切り替え"
+                      aria-pressed={locale === 'ja'}
+                      className={`rounded-md min-w-[44px] min-h-[44px] px-3 text-sm font-bold transition-colors flex items-center justify-center border ${locale === 'ja' ? 'bg-white text-black border-white' : 'bg-card/50 text-white/70 border-white/20 hover:text-white hover:border-white/40'}`}
+                    >
+                      JP
+                    </button>
+                  </div>
                   <nav className="flex flex-col gap-0 relative z-10">
                     {menuItems.filter((m) => m.href !== '/contact').map((item, index) => (
                       <div key={item.href} className="contents">
@@ -315,7 +336,7 @@ export default function Navigation() {
             )}
             {!mounted && (
               <span
-                className="inline-flex h-9 w-9 min-w-[2.25rem] items-center justify-center flex-shrink-0 invisible"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center flex-shrink-0 invisible"
                 aria-hidden
               >
                 <Menu className="h-5 w-5 text-white" />

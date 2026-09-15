@@ -105,6 +105,8 @@ export default function TripbridgeCreatorContent() {
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key)
   const registerRef = useRef<HTMLElement>(null)
   const [registerVisible, setRegisterVisible] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const [bottomVisible, setBottomVisible] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
 
@@ -122,6 +124,18 @@ export default function TripbridgeCreatorContent() {
     if (!el) return
     const observer = new IntersectionObserver(
       ([entry]) => setRegisterVisible(entry.isIntersecting),
+      { threshold: 0 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // 페이지 최하단(main 마지막 자식) 도달 시에도 스티키 CTA를 감춘다 — footer는 main 밖이라 pb로 못 가림
+  useEffect(() => {
+    const el = bottomRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setBottomVisible(entry.isIntersecting),
       { threshold: 0 },
     )
     observer.observe(el)
@@ -219,7 +233,7 @@ export default function TripbridgeCreatorContent() {
       {/* Sticky CTA — 모바일만, 등록 섹션이 보이면 감춘다 */}
       <div
         className={`md:hidden fixed bottom-0 inset-x-0 z-40 p-4 bg-background/90 backdrop-blur-md border-t border-border transition-opacity duration-200 ${
-          registerVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
+          registerVisible || bottomVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
       >
         <button
@@ -279,6 +293,8 @@ export default function TripbridgeCreatorContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div ref={bottomRef} aria-hidden className="h-px" />
     </main>
   )
 }

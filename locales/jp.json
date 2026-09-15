@@ -163,6 +163,7 @@
   "formSubmitting": "送信中...",
   "toastRequiredConsent": "必須同意",
   "toastRequiredConsentDesc": "個人情報の収集・利用にご同意ください。",
+  "formCheckInputsTitle": "入力内容をご確認ください",
   "toastInputError": "入力エラー",
   "toastNameRequired": "お名前をご入力ください。",
   "toastCompanyRequired": "会社名をご入力ください。",
