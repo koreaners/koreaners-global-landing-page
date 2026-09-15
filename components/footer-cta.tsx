@@ -102,12 +102,6 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
     e.preventDefault();
     setInvalid("");
 
-    if (!formData.privacyConsent)
-      return fail(
-        "toastRequiredConsentDesc",
-        "privacyConsent",
-        `#${instanceId}-privacyConsent`,
-      );
     if (!formData.name?.trim())
       return fail("toastNameRequired", "name", `#${instanceId}-name`);
     if (!formData.company?.trim())
@@ -126,6 +120,12 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
       return fail("toastPhoneInvalid", "phone", `#${instanceId}-phone`);
     if (!formData.message?.trim())
       return fail("toastMessageRequired", "message", `#${instanceId}-message`);
+    if (!formData.privacyConsent)
+      return fail(
+        "toastRequiredConsentDesc",
+        "privacyConsent",
+        `#${instanceId}-privacyConsent`,
+      );
 
     try {
       setSubmitting(true);
