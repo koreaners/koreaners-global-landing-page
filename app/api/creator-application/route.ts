@@ -100,6 +100,13 @@ export async function POST(request: NextRequest) {
       message,
       track_type,
       locale,
+      residence,
+      visit_period,
+      follower_range,
+      categories,
+      utm_source,
+      utm_campaign,
+      utm_content,
     } = body;
 
     // 필수 필드 검증
@@ -133,11 +140,38 @@ export async function POST(request: NextRequest) {
       ? clamp(trim(tiktok_url), MAX_LEN.url)
       : null;
     const safeX = has(x_url) ? clamp(trim(x_url), MAX_LEN.url) : null;
-    const safeMessage = has(message)
+    const safeTrackType =
+      track_type === "tripbridge"
+        ? "tripbridge"
+        : track_type === "partner"
+          ? "partner"
+          : "exclusive";
+    const safeLocale = locale === "ja" ? "ja" : "ko";
+
+    // tripbridge 전용 필드는 Notion 속성을 늘리지 않고 Message 한 줄로 접어 넣는다.
+    const tripbridgeLine =
+      safeTrackType === "tripbridge"
+        ? [
+            "[tripbridge]",
+            `residence=${trim(residence) || "-"}`,
+            `visit=${trim(visit_period) || "-"}`,
+            `followers=${trim(follower_range) || "-"}`,
+            `categories=${
+              (Array.isArray(categories) ? categories.map(trim).filter(Boolean) : [])
+                .join(",") || "-"
+            }`,
+            `utm=${trim(utm_source) || "-"}/${trim(utm_campaign) || "-"}/${trim(utm_content) || "-"}`,
+          ].join(" ")
+        : null;
+
+    const rawMessage = has(message)
       ? clamp(trim(message), MAX_LEN.message)
       : null;
-    const safeTrackType = track_type === "partner" ? "partner" : "exclusive";
-    const safeLocale = locale === "ja" ? "ja" : "ko";
+    const safeMessage =
+      clamp(
+        [tripbridgeLine, rawMessage].filter(Boolean).join("\n"),
+        MAX_LEN.message,
+      ) || null;
 
     const properties: Record<string, any> = {
       Name: { title: [{ text: { content: safeName } }] },
@@ -181,7 +215,7 @@ export async function POST(request: NextRequest) {
 
     // Meta CAPI: CompleteRegistration 이벤트 서버사이드 전송 (non-blocking)
     sendCAPIEvent({
-      eventName: "CompleteRegistration",
+      eventName: safeTrackType === "tripbridge" ? "Lead" : "CompleteRegistration",
       email: safeEmail,
       phone: safePhone || undefined,
       sourceUrl: request.headers.get("referer") || "https://koreaners.co/creator",

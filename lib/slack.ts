@@ -20,7 +20,7 @@ interface CreatorApplicationData {
   tiktok_url?: string;
   x_url?: string;
   message?: string;
-  track_type: "exclusive" | "partner";
+  track_type: "exclusive" | "partner" | "tripbridge";
   locale: "ko" | "ja";
 }
 
@@ -109,7 +109,12 @@ export async function sendSlackCreatorApplication(
   }
 
   const localeEmoji = data.locale === "ko" ? "🇰🇷" : "🇯🇵";
-  const trackLabel = data.track_type === "exclusive" ? "Exclusive" : "Partner";
+  const trackLabel =
+    data.track_type === "exclusive"
+      ? "Exclusive"
+      : data.track_type === "tripbridge"
+        ? "TRIP BRIDGE"
+        : "Partner";
 
   const info = [
     `*이름:* ${data.name}`,
