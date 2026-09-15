@@ -139,7 +139,7 @@ export default function TripbridgeCreatorContent() {
 
       {/* Benefits — Light */}
       <section className="py-16 md:py-24 px-6 lg:px-24 bg-[var(--kn-light)]">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <SectionTag variant="light">{c.benefitsTag}</SectionTag>
           <div className="grid gap-6 mt-8 md:grid-cols-3">
             {c.benefits.map((b) => (
@@ -159,7 +159,7 @@ export default function TripbridgeCreatorContent() {
 
       {/* Steps — Dark */}
       <section className="py-16 md:py-24 px-6 lg:px-24 bg-background">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <SectionTag variant="dark">{c.stepsTag}</SectionTag>
           <div className="grid gap-4 mt-8 md:grid-cols-3">
             {c.steps.map((step) => (
