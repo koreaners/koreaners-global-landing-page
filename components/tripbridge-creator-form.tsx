@@ -99,7 +99,7 @@ export function TripbridgeCreatorForm({
 
   const fail = (descKey: Key, field?: string, selector?: string) => {
     toast({
-      title: t("creatorToastSubmitFail"),
+      title: t("formCheckInputsTitle"),
       description: t(descKey),
       variant: "destructive",
     });
@@ -185,7 +185,11 @@ export function TripbridgeCreatorForm({
       }
     } catch (err) {
       console.error("Error submitting tripbridge application:", err);
-      fail("creatorToastSubmitFailDesc");
+      toast({
+        title: t("creatorToastSubmitFail"),
+        description: t("creatorToastSubmitFailDesc"),
+        variant: "destructive",
+      });
     } finally {
       setSubmitting(false);
     }

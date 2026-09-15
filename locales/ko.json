@@ -163,6 +163,7 @@
   "formSubmitting": "처리 중...",
   "toastRequiredConsent": "필수 동의",
   "toastRequiredConsentDesc": "개인정보 수집 및 이용에 동의해주세요.",
+  "formCheckInputsTitle": "입력을 확인해 주세요",
   "toastInputError": "입력 오류",
   "toastNameRequired": "이름을 입력해주세요.",
   "toastCompanyRequired": "회사명을 입력해주세요.",
