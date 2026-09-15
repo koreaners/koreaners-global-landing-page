@@ -1066,7 +1066,7 @@ git commit -am "feat: roll out hero-sub shader backdrop across sub pages with pe
 
 - [ ] **Step 1: about 스탯 블록** 을 Task 4.2 의 카드 어휘로 정돈 + CountUp 적용 (수치는 기존 값 그대로).
 
-- [ ] **Step 2: JP 표기.** `lib/translations.ts` 에서 `コリアナース` 검색. **머지 전 Leo 1줄 컨펌 필수** — 권고안은 `コリアナーズ` (KOREANERS 의 -ners 발음. 현행 표기는 "코리아 널스(간호사)"로 읽힐 여지). 컨펌 후 치환, 미컨펌 시 이 스텝만 보류하고 PR 본문에 명시.
+- [ ] **Step 2: JP 표기.** `lib/translations.ts` 에서 `コリナース` 검색. **머지 전 Leo 1줄 컨펌 필수** — 권고안은 `コリアナーズ` (KOREANERS 의 -ners 발음. 현행 표기는 "코리아 널스(간호사)"로 읽힐 여지). 컨펌 후 치환, 미컨펌 시 이 스텝만 보류하고 PR 본문에 명시.
 
 - [ ] **Step 3: 접근성 마감.** (a) `globals.css` 에 전역 포커스 스타일:
 
