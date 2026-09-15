@@ -8,31 +8,22 @@ import { FooterCTA } from "@/components/footer-cta";
 import { ChannelTalk } from "@/components/common/channel-talk";
 import { LogoWall } from "@/components/common/logo-wall";
 import { ShaderBackdrop } from "@/components/ui/shader-backdrop";
+import { useLocale } from "@/contexts/locale-context";
+import { getTranslation } from "@/lib/translations";
 
 // 수치 SoT: meta-ads-automation/config/verified_numbers.json > ad_safe_claims
 // 이 배열 밖의 수치를 추가하려면 verified_numbers 검증 절차를 먼저 거칠 것
+// 라벨/단위는 final-cta.tsx 와 동일 트리오 — 키를 공유한다
 const STATS = [
-  { value: "220명+", label: "크리에이터 네트워크" },
-  { value: "185개+", label: "누적 협업 브랜드" },
-  { value: "10곳", label: "일본 현지 미디어 직접 연결" },
+  { num: "220", suffix: (l: string) => (l === "ja" ? "名+" : "명+"), labelKey: "finalCtaStat2" as const },
+  { num: "185", suffix: (l: string) => (l === "ja" ? "+" : "개+"), labelKey: "finalCtaStat3" as const },
+  { num: "10", suffix: (l: string) => (l === "ja" ? "社" : "곳"), labelKey: "finalCtaStat4" as const },
 ];
 
 const PROCESS = [
-  {
-    step: "01",
-    title: "무료 상담 신청",
-    desc: "폼 작성은 1분이면 충분합니다. 담당 매니저가 확인 후 바로 연락드립니다.",
-  },
-  {
-    step: "02",
-    title: "맞춤 제안",
-    desc: "브랜드와 목표에 맞는 크리에이터 조합과 캠페인 구조를 설계해 제안드립니다.",
-  },
-  {
-    step: "03",
-    title: "캠페인 실행",
-    desc: "크리에이터 섭외부터 콘텐츠 제작, 성과 리포트까지 코리너스가 직접 운영합니다.",
-  },
+  { step: "01", titleKey: "contactProcess1Title" as const, descKey: "contactProcess1Desc" as const },
+  { step: "02", titleKey: "contactProcess2Title" as const, descKey: "contactProcess2Desc" as const },
+  { step: "03", titleKey: "contactProcess3Title" as const, descKey: "contactProcess3Desc" as const },
 ];
 
 function scrollToForm() {
@@ -40,6 +31,9 @@ function scrollToForm() {
 }
 
 export default function ContactLanding() {
+  const { locale } = useLocale();
+  const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key);
+
   useEffect(() => {
     if (typeof window.fbq === "function") {
       window.fbq("track", "ViewContent", { content_name: "contact_landing" });
@@ -56,24 +50,22 @@ export default function ContactLanding() {
         <ShaderBackdrop variant="hero-sub" seed={9} className="absolute!" />
         <div className="relative z-10 max-w-3xl mx-auto">
           <p className="inline-block rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#FF4500] bg-white/10 mb-6">
-            수출바우처 공식 수행기관
+            {t("voucherOfficialAgency")}
           </p>
           <h1 className="heading-kr font-display font-bold uppercase text-4xl md:text-5xl leading-[0.95] text-[var(--foreground)] mb-6">
-            일본, 대만 진출은
+            {t("contactHero1")}
             <br />
-            <span className="gradient-warm-text">코리너스입니다</span>
+            <span className="gradient-warm-text">{t("contactHero2")}</span>
           </h1>
           <p className="text-lg text-[#A8A29E] mb-8">
-            현지 크리에이터 리뷰 하나로 인지도부터 매출까지 이어집니다.
-            코리너스가 크리에이터 섭외부터 콘텐츠 제작, 성과 리포트까지
-            캠페인 전 과정을 직접 운영합니다.
+            {t("contactHeroDesc")}
           </p>
           <Button
             size="lg"
             onClick={scrollToForm}
             className="gradient-warm text-white uppercase tracking-wider hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20"
           >
-            무료 상담 받기
+            {t("contactHeroCta")}
           </Button>
         </div>
       </section>
@@ -82,9 +74,9 @@ export default function ContactLanding() {
       <section className="bg-[var(--kn-light)] px-6 py-12 border-y border-[var(--kn-dark)]/10">
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           {STATS.map((s) => (
-            <div key={s.label}>
-              <p className="font-display font-bold text-4xl text-[var(--kn-dark)]">{s.value}</p>
-              <p className="text-sm text-[#78716C] mt-2">{s.label}</p>
+            <div key={s.labelKey}>
+              <p className="font-display font-bold text-4xl text-[var(--kn-dark)]">{s.num}{s.suffix(locale)}</p>
+              <p className="text-sm text-[#78716C] mt-2">{t(s.labelKey)}</p>
             </div>
           ))}
         </div>
@@ -99,8 +91,8 @@ export default function ContactLanding() {
           {PROCESS.map((p) => (
             <div key={p.step}>
               <p className="text-sm font-bold text-[#FF4500]">{p.step}</p>
-              <h3 className="font-display font-bold text-xl text-[var(--kn-dark)] mt-2 mb-3">{p.title}</h3>
-              <p className="text-sm text-[#78716C]">{p.desc}</p>
+              <h3 className="font-display font-bold text-xl text-[var(--kn-dark)] mt-2 mb-3">{t(p.titleKey)}</h3>
+              <p className="text-sm text-[#78716C]">{t(p.descKey)}</p>
             </div>
           ))}
         </div>
