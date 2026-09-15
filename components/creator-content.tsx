@@ -11,7 +11,6 @@ import {
   Target,
   X,
   Plus,
-  ArrowDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -255,7 +254,6 @@ function CreatorContent() {
               className="group px-12 py-5 text-lg font-bold uppercase tracking-wider gradient-warm text-white rounded-[var(--radius-sm)] hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300"
             >
               {locale === "ja" ? "合流する" : "합류하기"}
-              <ArrowDown className="ml-3 w-6 h-6 animate-bounce-slow" />
             </Button>
           </div>
 

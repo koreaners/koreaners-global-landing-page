@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Navigation from "@/components/navigation";
 
 export const metadata: Metadata = {
   title: "페이지를 찾을 수 없습니다",
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-[var(--kn-dark)] px-6 text-center">
+      <Navigation />
       <p className="text-sm font-bold uppercase tracking-widest text-[#FF4500]">
         404
       </p>

@@ -472,7 +472,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                 />
                 <label
                   htmlFor={`${instanceId}-privacyConsent`}
-                  className="flex-1 cursor-pointer group"
+                  className="flex-1 min-h-[44px] flex items-center cursor-pointer group"
                 >
                   <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
                     <button
@@ -501,7 +501,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                 />
                 <label
                   htmlFor={`${instanceId}-marketingConsent`}
-                  className="flex-1 cursor-pointer group"
+                  className="flex-1 min-h-[44px] flex items-center cursor-pointer group"
                 >
                   <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
                     <button
