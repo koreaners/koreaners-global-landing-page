@@ -109,6 +109,8 @@ export function TripbridgeCreatorForm({
     e.preventDefault();
     setInvalid("");
 
+    if (!form.name.trim())
+      return fail("creatorToastNameRequired", "name", "#tb-name");
     if (!form.instagram_url.trim())
       return fail("creatorToastInstagramRequired", "instagram_url", "#tb-instagram");
     if (!form.residence)
@@ -201,7 +203,23 @@ export function TripbridgeCreatorForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      <div>
+        <label htmlFor="tb-name" className={LABEL_CLASS}>
+          {t("tbFormName")} <span className="text-[#FF4500]">*</span>
+        </label>
+        <input
+          type="text"
+          id="tb-name"
+          required
+          autoComplete="name"
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          className={INPUT_CLASS}
+          aria-invalid={invalid === "name" || undefined}
+        />
+      </div>
+
       <div>
         <label htmlFor="tb-instagram" className={LABEL_CLASS}>
           {t("tbFormInstagram")} <span className="text-[#FF4500]">*</span>
@@ -305,20 +323,6 @@ export function TripbridgeCreatorForm({
           ))}
         </div>
       </fieldset>
-
-      <div>
-        <label htmlFor="tb-name" className={LABEL_CLASS}>
-          {t("tbFormName")}
-        </label>
-        <input
-          type="text"
-          id="tb-name"
-          autoComplete="name"
-          value={form.name}
-          onChange={(e) => set("name", e.target.value)}
-          className={INPUT_CLASS}
-        />
-      </div>
 
       <div>
         <label htmlFor="tb-message" className={LABEL_CLASS}>
