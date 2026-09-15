@@ -38,7 +38,7 @@ export function CreatorTrackSection({
 
         <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-6">
           {locale === "ja"
-            ? "コリアナースと共に成長する\nクリエイターを募集しています"
+            ? "コリナースと共に成長する\nクリエイターを募集しています"
             : "코리너스와 함께 성장할\n크리에이터를 모집합니다"}
         </h2>
         <p className="text-base md:text-lg text-[#A8A29E] max-w-3xl">
