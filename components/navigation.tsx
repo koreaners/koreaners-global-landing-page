@@ -170,11 +170,11 @@ export default function Navigation() {
                         <DropdownMenuItem
                           key={svc.href}
                           asChild
-                          className="focus:bg-background hover:bg-background cursor-pointer rounded-[var(--radius-sm)] p-3"
+                          className="flex-col items-start gap-1 focus:bg-background hover:bg-background cursor-pointer rounded-[var(--radius-sm)] p-3"
                         >
-                          <Link href={svc.href} className="block">
+                          <Link href={svc.href}>
                             <span className="block font-bold text-sm text-white">{t(svc.titleKey)}</span>
-                            <span className="block text-xs text-[#A8A29E] mt-1 whitespace-normal break-keep">
+                            <span className="block text-xs text-[#A8A29E] whitespace-normal break-keep">
                               {t(svc.descKey)}
                             </span>
                           </Link>
