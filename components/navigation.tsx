@@ -140,6 +140,7 @@ export default function Navigation() {
                     modal={false}
                   >
                     <div
+                      className="flex"
                       onMouseEnter={() => setServiceOpen(true)}
                       onMouseLeave={() => setServiceOpen(false)}
                     >
