@@ -34,7 +34,7 @@ const COPY: Record<Locale, Copy> = {
   ja: {
     heroTitle: '韓国旅行コース、全部無料。リールを投稿すれば原稿料も',
     heroSub:
-      '9〜10月に韓国を訪れる、または韓国在住の日本人Instagramクリエイターを募集しています',
+      '訪韓予定または韓国在住の日本人Instagramクリエイターを募集しています',
     cta: '体験団プールに登録する',
     benefitsTag: 'BENEFITS',
     benefits: [
@@ -67,7 +67,7 @@ const COPY: Record<Locale, Copy> = {
   ko: {
     heroTitle: '한국 여행 코스, 전부 무료. 릴스 올리면 원고료까지',
     heroSub:
-      '9~10월에 한국을 방문하거나 한국에 거주 중인 일본인 Instagram 크리에이터를 모집합니다',
+      '방한 예정이거나 한국에 거주 중인 일본인 Instagram 크리에이터를 모집합니다',
     cta: '체험단 풀에 등록하기',
     benefitsTag: 'BENEFITS',
     benefits: [

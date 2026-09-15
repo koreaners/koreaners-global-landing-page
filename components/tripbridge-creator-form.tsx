@@ -24,15 +24,10 @@ const RESIDENCE: [string, Key][] = [
   ["other", "tbFormResidenceOther"],
 ];
 const VISIT: [string, Key][] = [
-  ["2026-09", "tbFormVisitSep"],
-  ["2026-10", "tbFormVisitOct"],
-  ["2026-11+", "tbFormVisitNovPlus"],
+  ["within_1m", "tbFormVisit1m"],
+  ["1_3m", "tbFormVisit1to3m"],
+  ["3m_plus", "tbFormVisit3mPlus"],
   ["resident", "tbFormVisitResident"],
-];
-const FOLLOWERS: [string, Key][] = [
-  ["lt3k", "tbFormFollowersLt3k"],
-  ["3k-10k", "tbFormFollowers3k10k"],
-  ["gt10k", "tbFormFollowersGt10k"],
 ];
 const CATEGORIES: [string, Key][] = [
   ["gourmet", "tbFormCatGourmet"],
@@ -69,7 +64,6 @@ export function TripbridgeCreatorForm({
     residence: "",
     visit_period: "",
     email: "",
-    follower_range: "",
     name: "",
     message: "",
   });
@@ -134,7 +128,6 @@ export function TripbridgeCreatorForm({
       message: form.message.trim() || null,
       residence: form.residence,
       visit_period: form.visit_period,
-      follower_range: form.follower_range || null,
       categories: categories.length ? categories : null,
       utm_source: utm.utm_source || null,
       utm_campaign: utm.utm_campaign || null,
@@ -173,7 +166,6 @@ export function TripbridgeCreatorForm({
           residence: "",
           visit_period: "",
           email: "",
-          follower_range: "",
           name: "",
           message: "",
         });
@@ -288,25 +280,6 @@ export function TripbridgeCreatorForm({
           aria-invalid={invalid === "email" || undefined}
         />
       </div>
-
-      <fieldset>
-        <legend className={LABEL_CLASS}>{t("tbFormFollowers")}</legend>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {FOLLOWERS.map(([value, key]) => (
-            <label key={value} className={CHOICE_CLASS}>
-              <input
-                type="radio"
-                name="follower_range"
-                value={value}
-                checked={form.follower_range === value}
-                onChange={() => set("follower_range", value)}
-                className={BOX_CLASS}
-              />
-              {t(key)}
-            </label>
-          ))}
-        </div>
-      </fieldset>
 
       <fieldset>
         <legend className={LABEL_CLASS}>{t("tbFormCategories")}</legend>
