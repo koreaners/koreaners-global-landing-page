@@ -38,6 +38,7 @@ type Copy = {
   steps: { no: string; title: string; desc: string; duration: string }[]
   resultsTitle: string
   resultsSub: string
+  resultsNote: string
   gallery: string[]
   resultChips: Stat[]
   closingTitle1: string
@@ -78,7 +79,7 @@ const COPY: Record<Locale, Copy> = {
     coreNote2: '항공권·숙박비 없이 섭외비만 분담하면 됩니다',
     proofChips: [
       { value: '¥2.3억', label: '뉴믹스 일본 매출' },
-      { value: '이세탄 1위', label: '감자밭 팝업' },
+      { value: '이세탄 1위', label: '감자밭 일본 팝업' },
     ],
     vsTitle: '무엇이 다른가요?',
     vsBeforeTitle: '기존 매크로 인플루언서',
@@ -105,6 +106,7 @@ const COPY: Record<Locale, Copy> = {
     ],
     resultsTitle: '실제 협업 콘텐츠',
     resultsSub: '고감도 콘텐츠일수록 저장됩니다',
+    resultsNote: '트립브릿지 출시 전 캠페인을 포함한 코리너스 전체 실적입니다',
     gallery: ['뉴믹스 · F&B', '감자밭 · 팝업·리테일', '카페 · F&B', '세예의원 · 클리닉', '메디큐브 · 뷰티'],
     resultChips: [
       { value: '¥2.3억', label: '뉴믹스 매출 실적' },
@@ -147,7 +149,7 @@ const COPY: Record<Locale, Copy> = {
     coreNote2: '航空券・宿泊費なしで起用費だけ分担すれば済みます',
     proofChips: [
       { value: '¥2.3億', label: 'ニューミックス日本売上' },
-      { value: '伊勢丹1位', label: 'カムジャバッ ポップアップ' },
+      { value: '伊勢丹1位', label: 'カムジャバッ 日本ポップアップ' },
     ],
     vsTitle: '何が違うのですか？',
     vsBeforeTitle: '従来のマクロインフルエンサー',
@@ -174,6 +176,7 @@ const COPY: Record<Locale, Copy> = {
     ],
     resultsTitle: '実際のコラボコンテンツ',
     resultsSub: '感度の高いコンテンツほど保存されます',
+    resultsNote: 'TripBridge開始前のキャンペーンを含む、KOREANERS全体の実績です',
     gallery: [
       'ニューミックス · F&B',
       'カムジャバッ · ポップアップ・リテール',
@@ -385,6 +388,7 @@ export default function TripbridgeContent() {
           <SectionTag variant="dark">REAL RESULTS</SectionTag>
           <h2 className={`${H2_DARK} max-w-3xl mt-8`}>{c.resultsTitle}</h2>
           <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.resultsSub}</p>
+          <p className="text-sm text-[#A8A29E] max-w-2xl mt-2 leading-relaxed break-keep">{c.resultsNote}</p>
 
           <div className="flex gap-2 flex-wrap mt-10">
             {c.gallery.map((label) => (
