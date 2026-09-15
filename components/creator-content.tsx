@@ -11,7 +11,6 @@ import {
   Target,
   X,
   Plus,
-  ArrowDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -117,7 +116,7 @@ function CreatorContent() {
 
     if (!formData.name.trim()) {
       toast({
-        title: t("creatorToastSubmitFail"),
+        title: t("formCheckInputsTitle"),
         description: t("creatorToastNameRequired"),
         variant: "destructive",
       });
@@ -125,7 +124,7 @@ function CreatorContent() {
     }
     if (!formData.email.trim()) {
       toast({
-        title: t("creatorToastSubmitFail"),
+        title: t("formCheckInputsTitle"),
         description: t("creatorToastEmailRequired"),
         variant: "destructive",
       });
@@ -133,7 +132,7 @@ function CreatorContent() {
     }
     if (!formData.instagram_url.trim()) {
       toast({
-        title: t("creatorToastSubmitFail"),
+        title: t("formCheckInputsTitle"),
         description: t("creatorToastInstagramRequired"),
         variant: "destructive",
       });
@@ -251,15 +250,10 @@ function CreatorContent() {
               {t("creatorHeroDesc")}
             </p>
             <Button
-              onClick={() => {
-                document
-                  .getElementById("join-us")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
+              onClick={() => setApplyModalOpen(true)}
               className="group px-12 py-5 text-lg font-bold uppercase tracking-wider gradient-warm text-white rounded-[var(--radius-sm)] hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300"
             >
               {locale === "ja" ? "合流する" : "합류하기"}
-              <ArrowDown className="ml-3 w-6 h-6 animate-bounce-slow" />
             </Button>
           </div>
 

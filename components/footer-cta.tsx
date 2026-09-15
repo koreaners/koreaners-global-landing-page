@@ -66,6 +66,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
   const [emailError, setEmailError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState(false);
+  const [invalid, setInvalid] = useState("");
 
   const validateEmail = () => {
     const v = formData.email.trim();
@@ -80,84 +81,51 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
     );
   };
 
+  /** 첫 실패 필드로 스크롤 + 포커스 (iOS Safari 네이티브 말풍선 대체) */
+  const fail = (
+    descKey: Parameters<typeof getTranslation>[1],
+    field: string,
+    selector: string,
+  ) => {
+    toast({
+      title: t("formCheckInputsTitle"),
+      description: t(descKey),
+      variant: "destructive",
+    });
+    setInvalid(field);
+    const el = document.querySelector<HTMLElement>(selector);
+    el?.scrollIntoView({ block: "center" });
+    el?.focus({ preventScroll: true });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setInvalid("");
 
-    if (!formData.privacyConsent) {
-      toast({
-        title: t("toastRequiredConsent"),
-        description: t("toastRequiredConsentDesc"),
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.name?.trim()) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastNameRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!formData.company?.trim()) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastCompanyRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!formData.position?.trim()) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastPositionRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!formData.email || !formData.email.trim()) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastEmailRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!formData.email.includes("@")) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastEmailInvalid"),
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!formData.name?.trim())
+      return fail("toastNameRequired", "name", `#${instanceId}-name`);
+    if (!formData.company?.trim())
+      return fail("toastCompanyRequired", "company", `#${instanceId}-company`);
+    if (!formData.position?.trim())
+      return fail("toastPositionRequired", "position", `#${instanceId}-position`);
+    if (!formData.email?.trim())
+      return fail("toastEmailRequired", "email", `#${instanceId}-email`);
+    if (!formData.email.includes("@"))
+      return fail("toastEmailInvalid", "email", `#${instanceId}-email`);
 
     const cleanPhone = formData.phone.replace(/[^0-9]/g, "");
-    if (!cleanPhone || cleanPhone.length === 0) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastPhoneRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastPhoneInvalid"),
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!formData.message?.trim()) {
-      toast({
-        title: t("toastInputError"),
-        description: t("toastMessageRequired"),
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!cleanPhone)
+      return fail("toastPhoneRequired", "phone", `#${instanceId}-phone`);
+    if (cleanPhone.length < 10 || cleanPhone.length > 11)
+      return fail("toastPhoneInvalid", "phone", `#${instanceId}-phone`);
+    if (!formData.message?.trim())
+      return fail("toastMessageRequired", "message", `#${instanceId}-message`);
+    if (!formData.privacyConsent)
+      return fail(
+        "toastRequiredConsentDesc",
+        "privacyConsent",
+        `#${instanceId}-privacyConsent`,
+      );
 
     try {
       setSubmitting(true);
@@ -315,7 +283,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
           )}
 
           {/* Right: form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} noValidate className="space-y-6">
             {/* Row 1: Name, Company, Position */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -330,6 +298,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                   id={`${instanceId}-name`}
                   name="name"
                   required
+                  aria-invalid={invalid === "name" || undefined}
                   value={formData.name}
                   onChange={handleChange}
                   className={fieldClass()}
@@ -349,6 +318,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                   id={`${instanceId}-company`}
                   name="company"
                   required
+                  aria-invalid={invalid === "company" || undefined}
                   autoComplete="organization"
                   value={formData.company}
                   onChange={handleChange}
@@ -369,6 +339,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                   id={`${instanceId}-position`}
                   name="position"
                   required
+                  aria-invalid={invalid === "position" || undefined}
                   autoComplete="organization-title"
                   value={formData.position}
                   onChange={handleChange}
@@ -399,7 +370,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                     if (emailError) setEmailError(null);
                   }}
                   onBlur={validateEmail}
-                  aria-invalid={!!emailError}
+                  aria-invalid={!!emailError || invalid === "email"}
                   className={fieldClass(!!emailError)}
                   placeholder="example@domain.com"
                 />
@@ -428,7 +399,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                     if (phoneError) setPhoneError(null);
                   }}
                   onBlur={validatePhone}
-                  aria-invalid={!!phoneError}
+                  aria-invalid={!!phoneError || invalid === "phone"}
                   className={fieldClass(!!phoneError)}
                   placeholder={t("formPlaceholderPhone")}
                 />
@@ -478,6 +449,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                 id={`${instanceId}-message`}
                 name="message"
                 required
+                aria-invalid={invalid === "message" || undefined}
                 rows={4}
                 value={formData.message}
                 onChange={handleChange}
@@ -493,13 +465,14 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                   type="checkbox"
                   id={`${instanceId}-privacyConsent`}
                   name="privacyConsent"
+                  aria-invalid={invalid === "privacyConsent" || undefined}
                   checked={formData.privacyConsent}
                   onChange={handleChange}
                   className="w-5 h-5 rounded-[var(--radius-sm)] border-2 border-white/30 bg-transparent checked:bg-white checked:border-white focus:ring-2 focus:ring-white transition-all cursor-pointer shrink-0"
                 />
                 <label
                   htmlFor={`${instanceId}-privacyConsent`}
-                  className="flex-1 cursor-pointer group"
+                  className="flex-1 min-h-[44px] flex items-center cursor-pointer group"
                 >
                   <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
                     <button
@@ -528,7 +501,7 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                 />
                 <label
                   htmlFor={`${instanceId}-marketingConsent`}
-                  className="flex-1 cursor-pointer group"
+                  className="flex-1 min-h-[44px] flex items-center cursor-pointer group"
                 >
                   <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
                     <button
