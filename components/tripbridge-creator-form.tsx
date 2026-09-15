@@ -206,7 +206,7 @@ export function TripbridgeCreatorForm() {
         <legend className={LABEL_CLASS}>
           {t("tbFormResidence")} <span className="text-[#FF4500]">*</span>
         </legend>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {RESIDENCE.map(([value, key], i) => (
             <label key={value} className={CHOICE_CLASS}>
               <input
@@ -228,7 +228,7 @@ export function TripbridgeCreatorForm() {
         <legend className={LABEL_CLASS}>
           {t("tbFormVisitPeriod")} <span className="text-[#FF4500]">*</span>
         </legend>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {VISIT.map(([value, key], i) => (
             <label key={value} className={CHOICE_CLASS}>
               <input
@@ -266,7 +266,7 @@ export function TripbridgeCreatorForm() {
 
       <fieldset>
         <legend className={LABEL_CLASS}>{t("tbFormFollowers")}</legend>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {FOLLOWERS.map(([value, key]) => (
             <label key={value} className={CHOICE_CLASS}>
               <input
@@ -285,7 +285,7 @@ export function TripbridgeCreatorForm() {
 
       <fieldset>
         <legend className={LABEL_CLASS}>{t("tbFormCategories")}</legend>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {CATEGORIES.map(([value, key]) => (
             <label key={value} className={CHOICE_CLASS}>
               <input

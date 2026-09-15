@@ -139,9 +139,9 @@ export default function TripbridgeCreatorContent() {
 
       {/* Benefits — Light */}
       <section className="py-16 md:py-24 px-6 lg:px-24 bg-[var(--kn-light)]">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionTag variant="light">{c.benefitsTag}</SectionTag>
-          <div className="grid gap-6 mt-8">
+          <div className="grid gap-6 mt-8 md:grid-cols-3">
             {c.benefits.map((b) => (
               <div
                 key={b.title}
@@ -159,9 +159,9 @@ export default function TripbridgeCreatorContent() {
 
       {/* Steps — Dark */}
       <section className="py-16 md:py-24 px-6 lg:px-24 bg-background">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <SectionTag variant="dark">{c.stepsTag}</SectionTag>
-          <div className="grid gap-4 mt-8">
+          <div className="grid gap-4 mt-8 md:grid-cols-3">
             {c.steps.map((step) => (
               <div key={step.no} className="flex gap-4 items-start">
                 <span className="text-xs font-bold text-[#FF4500] mt-1">{step.no}</span>
@@ -186,7 +186,7 @@ export default function TripbridgeCreatorContent() {
         ref={registerRef}
         className="py-16 md:py-24 px-6 lg:px-24 bg-surface-1 scroll-mt-24 pb-32 md:pb-24"
       >
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 break-keep">
             {c.registerHeading}
           </h2>
