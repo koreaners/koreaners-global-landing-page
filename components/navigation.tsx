@@ -174,7 +174,7 @@ export default function Navigation() {
                         >
                           <Link href={svc.href}>
                             <span className="block font-bold text-sm text-white">{t(svc.titleKey)}</span>
-                            <span className="block text-xs text-[#A8A29E] whitespace-normal break-keep">
+                            <span className="block text-xs text-[#A8A29E] whitespace-normal break-keep [overflow-wrap:anywhere]">
                               {t(svc.descKey)}
                             </span>
                           </Link>
