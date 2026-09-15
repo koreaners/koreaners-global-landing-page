@@ -85,9 +85,9 @@ export default function Navigation() {
     { href: '/contact', labelKey: 'contact' },
   ]
 
-  const serviceItems: { href: string; titleKey: TranslationKey }[] = [
-    { href: '/service', titleKey: 'navSvcInfluencer' },
-    { href: '/tripbridge', titleKey: 'navSvcTripbridge' },
+  const serviceItems: { href: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
+    { href: '/service', titleKey: 'navSvcInfluencer', descKey: 'navSvcInfluencerDesc' },
+    { href: '/tripbridge', titleKey: 'navSvcTripbridge', descKey: 'navSvcTripbridgeDesc' },
   ]
 
   const effectiveLocale = mounted ? locale : 'ko'
@@ -164,7 +164,7 @@ export default function Navigation() {
                       sideOffset={0}
                       onMouseEnter={() => setServiceOpen(true)}
                       onMouseLeave={() => setServiceOpen(false)}
-                      className="min-w-[16rem] w-max bg-surface-1 border-border p-2"
+                      className="w-[22rem] bg-surface-1 border-border p-2"
                     >
                       {serviceItems.map((svc) => (
                         <DropdownMenuItem
@@ -172,8 +172,11 @@ export default function Navigation() {
                           asChild
                           className="focus:bg-background hover:bg-background cursor-pointer rounded-[var(--radius-sm)] p-3"
                         >
-                          <Link href={svc.href} className="block whitespace-nowrap font-bold text-sm text-white">
-                            {t(svc.titleKey)}
+                          <Link href={svc.href} className="block">
+                            <span className="block font-bold text-sm text-white">{t(svc.titleKey)}</span>
+                            <span className="block text-xs text-[#A8A29E] mt-1 whitespace-normal break-keep">
+                              {t(svc.descKey)}
+                            </span>
                           </Link>
                         </DropdownMenuItem>
                       ))}
