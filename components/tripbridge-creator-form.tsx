@@ -12,10 +12,10 @@ import { getTranslation } from "@/lib/translations";
 type Key = Parameters<typeof getTranslation>[1];
 
 const INPUT_CLASS =
-  "w-full px-4 py-3.5 bg-surface-2 border border-[var(--border)] text-white placeholder:text-[#A8A29E] focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500] transition-all";
+  "w-full px-4 py-3.5 bg-surface-2 border border-[var(--border)] text-[16px] text-white placeholder:text-[#A8A29E] focus:outline-none focus:ring-2 focus:ring-[#FF4500] focus:border-[#FF4500] transition-all";
 const LABEL_CLASS = "block text-sm font-bold text-white mb-2";
 const CHOICE_CLASS =
-  "flex items-center gap-2 px-4 py-3 bg-surface-2 border border-[var(--border)] text-sm text-white cursor-pointer hover:border-[#FF4500]/60 transition-colors";
+  "flex min-h-[44px] items-center gap-2 px-4 py-3 bg-surface-2 border border-[var(--border)] text-sm text-white cursor-pointer hover:border-[#FF4500]/60 transition-colors";
 const BOX_CLASS = "w-5 h-5 accent-[#FF4500] cursor-pointer shrink-0";
 
 const RESIDENCE: [string, Key][] = [
@@ -77,6 +77,7 @@ export function TripbridgeCreatorForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
+  const [invalid, setInvalid] = useState("");
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -90,21 +91,33 @@ export function TripbridgeCreatorForm() {
   const set = (k: keyof typeof form, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const fail = (descKey: Key) =>
+  const fail = (descKey: Key, field?: string, selector?: string) => {
     toast({
       title: t("creatorToastSubmitFail"),
       description: t(descKey),
       variant: "destructive",
     });
+    if (field && selector) {
+      setInvalid(field);
+      const el = document.querySelector<HTMLElement>(selector);
+      el?.scrollIntoView({ block: "center" });
+      el?.focus({ preventScroll: true });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setInvalid("");
 
-    if (!form.instagram_url.trim()) return fail("creatorToastInstagramRequired");
-    if (!form.residence) return fail("tbFormResidence");
-    if (!form.visit_period) return fail("tbFormVisitPeriod");
-    if (!form.email.trim()) return fail("creatorToastEmailRequired");
-    if (!consent) return fail("tbFormPrivacy");
+    if (!form.instagram_url.trim())
+      return fail("creatorToastInstagramRequired", "instagram_url", "#tb-instagram");
+    if (!form.residence)
+      return fail("tbFormResidence", "residence", 'input[name="residence"]');
+    if (!form.visit_period)
+      return fail("tbFormVisitPeriod", "visit_period", 'input[name="visit_period"]');
+    if (!form.email.trim())
+      return fail("creatorToastEmailRequired", "email", "#tb-email");
+    if (!consent) return fail("tbFormPrivacy", "consent", "#tb-consent");
 
     const { url: instagram_url, handle } = normaliseInstagram(form.instagram_url);
     const payload = {
@@ -185,6 +198,7 @@ export function TripbridgeCreatorForm() {
           onChange={(e) => set("instagram_url", e.target.value)}
           className={INPUT_CLASS}
           placeholder="@id"
+          aria-invalid={invalid === "instagram_url" || undefined}
         />
       </div>
 
@@ -193,7 +207,7 @@ export function TripbridgeCreatorForm() {
           {t("tbFormResidence")} <span className="text-[#FF4500]">*</span>
         </legend>
         <div className="grid grid-cols-1 gap-2">
-          {RESIDENCE.map(([value, key]) => (
+          {RESIDENCE.map(([value, key], i) => (
             <label key={value} className={CHOICE_CLASS}>
               <input
                 type="radio"
@@ -202,6 +216,7 @@ export function TripbridgeCreatorForm() {
                 checked={form.residence === value}
                 onChange={() => set("residence", value)}
                 className={BOX_CLASS}
+                aria-invalid={(invalid === "residence" && i === 0) || undefined}
               />
               {t(key)}
             </label>
@@ -214,7 +229,7 @@ export function TripbridgeCreatorForm() {
           {t("tbFormVisitPeriod")} <span className="text-[#FF4500]">*</span>
         </legend>
         <div className="grid grid-cols-1 gap-2">
-          {VISIT.map(([value, key]) => (
+          {VISIT.map(([value, key], i) => (
             <label key={value} className={CHOICE_CLASS}>
               <input
                 type="radio"
@@ -223,6 +238,9 @@ export function TripbridgeCreatorForm() {
                 checked={form.visit_period === value}
                 onChange={() => set("visit_period", value)}
                 className={BOX_CLASS}
+                aria-invalid={
+                  (invalid === "visit_period" && i === 0) || undefined
+                }
               />
               {t(key)}
             </label>
@@ -242,6 +260,7 @@ export function TripbridgeCreatorForm() {
           onChange={(e) => set("email", e.target.value)}
           className={INPUT_CLASS}
           placeholder="example@email.com"
+          aria-invalid={invalid === "email" || undefined}
         />
       </div>
 
@@ -323,6 +342,7 @@ export function TripbridgeCreatorForm() {
           checked={consent}
           onChange={(e) => setConsent(e.target.checked)}
           className={BOX_CLASS}
+          aria-invalid={invalid === "consent" || undefined}
         />
         <label htmlFor="tb-consent" className="flex-1 cursor-pointer">
           <span className="text-sm text-[#A8A29E]">
@@ -350,7 +370,7 @@ export function TripbridgeCreatorForm() {
       <Button
         type="submit"
         disabled={submitting}
-        className="w-full gradient-warm text-white rounded-[var(--radius-sm)] py-4 text-base font-bold hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full min-h-[44px] gradient-warm text-white rounded-[var(--radius-sm)] py-4 text-base font-bold hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? t("formSubmitting") : t("tbFormSubmit")}
       </Button>
