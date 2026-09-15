@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SectionTag } from "@/components/ui/section-tag";
 import { Zap, Users, Sparkles, Award, Target, TrendingUp } from "lucide-react";
@@ -50,7 +51,7 @@ export function CreatorTrackSection({
       {/* Track Selection Heading */}
       <div className="mb-12 sm:mb-16">
         <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
-          {locale === "ja" ? "2つの合流ジャーニー" : "두 가지 합류 여정"}
+          {locale === "ja" ? "3つの合流ジャーニー" : "세 가지 합류 여정"}
         </h3>
         <p className="text-sm sm:text-base md:text-lg text-[#A8A29E] max-w-3xl">
           {locale === "ja"
@@ -59,7 +60,7 @@ export function CreatorTrackSection({
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Exclusive Creator Track */}
         <div className="overflow-hidden bg-surface-1 rounded-[var(--radius)] border border-[var(--border)] hover:border-[#FF4500]/60 transition-all duration-300">
           <div className="p-8 sm:p-10">
@@ -266,6 +267,62 @@ export function CreatorTrackSection({
                   {locale === "ja" ? "合流申し込む" : "합류 신청하기"}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TripBridge 체험단 Track */}
+        <div className="overflow-hidden bg-surface-1 rounded-[var(--radius)] border border-[var(--border)] hover:border-[#FF4500]/60 transition-all duration-300">
+          <div className="p-8 sm:p-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-surface-2 border border-[var(--border)] rounded-[var(--radius-sm)]">
+                <Sparkles className="w-7 h-7 text-[#FF4500]/70" />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-white">
+                {locale === "ja" ? "TripBridge 体験団" : "트립브릿지 체험단"}
+              </h3>
+            </div>
+
+            <p className="text-[#A8A29E] mb-8 text-sm sm:text-base leading-relaxed">
+              {t("creatorTrackTripbridgeDesc")}
+            </p>
+
+            <div className="space-y-4 mb-10">
+              <div className="flex gap-3">
+                <Users className="w-5 h-5 text-[#FF4500] flex-shrink-0 mt-0.5" />
+                <h4 className="font-bold text-white">
+                  {locale === "ja"
+                    ? "フォロワー3,000人から"
+                    : "팔로워 3,000명부터"}
+                </h4>
+              </div>
+
+              <div className="flex gap-3">
+                <Award className="w-5 h-5 text-[#FF4500] flex-shrink-0 mt-0.5" />
+                <h4 className="font-bold text-white">
+                  {locale === "ja"
+                    ? "コース全額無料＋原稿料あり"
+                    : "코스 전액 무료 + 소정의 원고료"}
+                </h4>
+              </div>
+
+              <div className="flex gap-3">
+                <Target className="w-5 h-5 text-[#FF4500] flex-shrink-0 mt-0.5" />
+                <h4 className="font-bold text-white">
+                  {locale === "ja"
+                    ? "予約と動線はKOREANERSが運営"
+                    : "예약과 동선은 코리너스가 운영"}
+                </h4>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-border">
+              <Link
+                href="/tripbridge/creator"
+                className="w-full h-12 px-8 text-base font-bold gradient-warm text-white rounded-[var(--radius-sm)] inline-flex items-center justify-center hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300"
+              >
+                {t("creatorTrackTripbridgeCta")}
+              </Link>
             </div>
           </div>
         </div>

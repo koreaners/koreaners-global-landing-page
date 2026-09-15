@@ -6,6 +6,7 @@ import { safeJsonLdStringify } from "@/lib/json-ld";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { FooterWrapper } from "@/components/layout/footer-wrapper";
 import { LocaleProvider } from "@/contexts/locale-context";
 import { ScrollToTop } from "@/components/common/ScrollToTop";
@@ -282,6 +283,7 @@ export default function RootLayout({
           <FooterWrapper />
         </LocaleProvider>
         <Toaster />
+        <ShadcnToaster />
         <AgentationProvider />
         <Analytics />
         {/* GA4 - 환경변수로 관리 */}
