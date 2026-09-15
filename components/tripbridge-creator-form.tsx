@@ -53,7 +53,13 @@ function normaliseInstagram(raw: string) {
   return { url: isUrl ? v : `https://instagram.com/${handle}`, handle };
 }
 
-export function TripbridgeCreatorForm() {
+export function TripbridgeCreatorForm({
+  onSuccess,
+  onCancel,
+}: {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+} = {}) {
   const { locale } = useLocale();
   const t = (key: Key) => getTranslation(locale, key);
   const { toast } = useToast();
@@ -161,7 +167,22 @@ export function TripbridgeCreatorForm() {
         console.error("[Tripbridge] Notion 저장 실패 (무시):", err);
       });
 
-      setSubmitted(true);
+      if (onSuccess) {
+        setForm({
+          instagram_url: "",
+          residence: "",
+          visit_period: "",
+          email: "",
+          follower_range: "",
+          name: "",
+          message: "",
+        });
+        setCategories([]);
+        setConsent(false);
+        onSuccess();
+      } else {
+        setSubmitted(true);
+      }
     } catch (err) {
       console.error("Error submitting tripbridge application:", err);
       fail("creatorToastSubmitFailDesc");
@@ -374,6 +395,17 @@ export function TripbridgeCreatorForm() {
       >
         {submitting ? t("formSubmitting") : t("tbFormSubmit")}
       </Button>
+
+      {onCancel && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="w-full min-h-[44px] border-[var(--border)] text-white hover:bg-card"
+        >
+          {t("dialogCancel")}
+        </Button>
+      )}
     </form>
   );
 }

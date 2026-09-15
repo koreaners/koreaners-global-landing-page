@@ -1,11 +1,22 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import Navigation from '@/components/navigation'
 import { SectionTag } from '@/components/ui/section-tag'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { TripbridgeCreatorForm } from '@/components/tripbridge-creator-form'
 import { useLocale } from '@/contexts/locale-context'
 import type { Locale } from '@/contexts/locale-context'
+import { getTranslation } from '@/lib/translations'
 
 type Copy = {
   heroTitle: string
@@ -91,8 +102,11 @@ const COPY: Record<Locale, Copy> = {
 export default function TripbridgeCreatorContent() {
   const { locale, setLocale } = useLocale()
   const c = COPY[locale]
+  const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key)
   const registerRef = useRef<HTMLElement>(null)
   const [registerVisible, setRegisterVisible] = useState(false)
+  const [applyOpen, setApplyOpen] = useState(false)
+  const [successOpen, setSuccessOpen] = useState(false)
 
   // 광고 유입은 일본어가 기본. 사용자가 고른 적 없을 때만 ja로 한 번 맞춘다.
   useEffect(() => {
@@ -128,12 +142,13 @@ export default function TripbridgeCreatorContent() {
           <p className="text-base sm:text-lg text-[#A8A29E] mt-6 leading-relaxed break-keep">
             {c.heroSub}
           </p>
-          <a
-            href="#register"
+          <button
+            type="button"
+            onClick={() => setApplyOpen(true)}
             className="inline-block mt-10 gradient-warm text-white px-8 py-4 text-sm font-bold tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20"
           >
             {c.cta}
-          </a>
+          </button>
         </div>
       </section>
 
@@ -190,7 +205,13 @@ export default function TripbridgeCreatorContent() {
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 break-keep">
             {c.registerHeading}
           </h2>
-          <TripbridgeCreatorForm />
+          <button
+            type="button"
+            onClick={() => setApplyOpen(true)}
+            className="inline-block gradient-warm text-white px-8 py-4 text-sm font-bold tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20"
+          >
+            {c.cta}
+          </button>
         </div>
       </section>
 
@@ -200,13 +221,63 @@ export default function TripbridgeCreatorContent() {
           registerVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
       >
-        <a
-          href="#register"
+        <button
+          type="button"
+          onClick={() => setApplyOpen(true)}
           className="flex w-full items-center justify-center gradient-warm text-white py-4 text-sm font-bold rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300"
         >
           {c.cta}
-        </a>
+        </button>
       </div>
+
+      {/* 신청 폼 모달 */}
+      <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90dvh] overflow-y-auto bg-background border-[var(--border)] p-0">
+          <div className="p-8 sm:p-10">
+            <DialogHeader className="mb-8">
+              <DialogTitle className="text-3xl font-bold text-white text-left break-keep">
+                {c.registerHeading}
+              </DialogTitle>
+              <DialogDescription className="pt-4 text-base text-[#A8A29E] text-left break-keep">
+                {c.heroSub}
+              </DialogDescription>
+            </DialogHeader>
+
+            <TripbridgeCreatorForm
+              onSuccess={() => {
+                setApplyOpen(false)
+                setSuccessOpen(true)
+              }}
+              onCancel={() => setApplyOpen(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 접수 완료 모달 */}
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <DialogContent className="sm:max-w-md bg-card border-[var(--border)]">
+          <DialogHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-[#FF4500]/10 border border-[#FF4500]/20">
+              <CheckCircle2 className="h-10 w-10 text-[#FF4500]" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-white">
+              {t('welcomePopupSuccess')}
+            </DialogTitle>
+            <DialogDescription className="pt-4 text-base leading-relaxed text-[#A8A29E] break-keep">
+              {t('tbFormSuccess')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={() => setSuccessOpen(false)}
+              className="w-full sm:w-auto px-8 font-bold gradient-warm text-white rounded-[var(--radius-sm)] hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300"
+            >
+              {t('dialogConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
