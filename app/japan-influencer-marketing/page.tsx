@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     description:
       '일본 현지 대행사와 한국 대행사의 차이, 크리에이터 티어별 단가(나노 15~20만 원, 마이크로 20~35만 원부터), 견적 전 확인 항목 7가지, 코리너스의 운영 방식과 사례를 한 페이지에 정리했습니다.',
     url: pageUrl,
+    images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
 }
 

@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     title: '코리너스 서비스 | 일본 인플루언서 마케팅 대행사',
     description: '일본 인플루언서 캠페인, 대량 시딩, 콘텐츠 제작, 데이터 리포팅. 220+ 주요 크리에이터 네트워크.',
     url: `${siteUrl}/service`,
+    images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
 }
 

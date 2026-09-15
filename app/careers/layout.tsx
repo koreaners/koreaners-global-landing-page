@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "채용 | 코리너스 KOREANERS",
     description: "코리너스 채용 정보. 크로스보더 마케팅 인재를 찾습니다.",
+    images: [{ url: "/images/logo.png", width: 800, height: 400, alt: "코리너스 KOREANERS" }],
   },
 };
 

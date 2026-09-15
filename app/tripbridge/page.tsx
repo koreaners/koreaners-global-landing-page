@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     title: 'TripBridge | Koreaners',
     description: '방한 일본 인플루언서 모객, 방문·촬영 운영 대행, 브랜드 분담 가격.',
     url: `${siteUrl}/tripbridge`,
+    images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
 }
 

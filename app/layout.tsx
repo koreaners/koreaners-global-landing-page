@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { FooterWrapper } from "@/components/layout/footer-wrapper";
 import { LocaleProvider } from "@/contexts/locale-context";
+import { LocaleDocumentMeta } from "@/components/locale-document-meta";
 import { ScrollToTop } from "@/components/common/ScrollToTop";
 import { UtmTracker } from "@/components/common/UtmTracker";
 import ClarityProvider from "./ClarityProvider";
@@ -110,13 +111,7 @@ export const metadata: Metadata = {
       "크로스보더 인플루언서 마케팅, 시딩, 콘텐츠 제작까지. 글로벌 마케팅 전문 에이전시.",
     images: ["/images/logo.png"],
   },
-  alternates: {
-    canonical: baseUrl,
-    languages: {
-      'ko': baseUrl,
-      'x-default': baseUrl,
-    },
-  },
+  // canonical은 루트에 두지 않는다 — 루트에 두면 자체 alternates가 없는 하위 페이지가 전부 "/"로 고정됨.
   robots: {
     index: true,
     follow: true,
@@ -276,6 +271,7 @@ export default function RootLayout({
           }}
         />
         <LocaleProvider>
+          <LocaleDocumentMeta />
           <ClarityProvider />
           <ScrollToTop />
           <UtmTracker />

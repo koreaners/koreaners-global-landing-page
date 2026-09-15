@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     title: '코리너스 크리에이터 | 일본 인플루언서 네트워크',
     description: '220+ 일본 주요 크리에이터. 뷰티, 패션, F&B 등 카테고리별 검증된 인플루언서.',
     url: `${siteUrl}/creator`,
+    images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
 }
 
