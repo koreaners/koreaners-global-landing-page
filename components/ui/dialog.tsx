@@ -117,6 +117,8 @@ function DialogTitle({
   )
 }
 
+// wrap-anywhere(overflow-wrap:anywhere): JP 본문은 공백이 없어 break-keep(word-break:keep-all)이 걸리면
+// min-content 폭이 문장 전체가 되어 그리드 아이템이 다이얼로그 밖으로 넘친다. break-words 로는 min-content 가 안 줄어든다.
 function DialogDescription({
   className,
   ...props
@@ -124,7 +126,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn('text-muted-foreground text-sm wrap-anywhere', className)}
       {...props}
     />
   )
