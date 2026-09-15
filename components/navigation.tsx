@@ -13,6 +13,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useLocale } from '@/contexts/locale-context'
 import { getTranslation, type TranslationKey } from '@/lib/translations'
 
@@ -27,6 +33,7 @@ export default function Navigation() {
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [serviceOpen, setServiceOpen] = useState(false)
   const navRef = useRef<HTMLElement>(null)
   const scrollbarWidthRef = useRef(0)
 
@@ -78,6 +85,11 @@ export default function Navigation() {
     { href: '/contact', labelKey: 'contact' },
   ]
 
+  const serviceItems: { href: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
+    { href: '/service', titleKey: 'navSvcInfluencer', descKey: 'navSvcInfluencerDesc' },
+    { href: '/tripbridge', titleKey: 'navSvcTripbridge', descKey: 'navSvcTripbridgeDesc' },
+  ]
+
   const effectiveLocale = mounted ? locale : 'ko'
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(effectiveLocale, key)
 
@@ -119,6 +131,59 @@ export default function Navigation() {
             </div>
             {menuItems.filter((m) => m.href !== '/contact').map((item) => {
               const isActive = pathname === item.href
+              if (item.href === '/service') {
+                return (
+                  <DropdownMenu
+                    key={item.href}
+                    open={serviceOpen}
+                    onOpenChange={setServiceOpen}
+                    modal={false}
+                  >
+                    <div
+                      onMouseEnter={() => setServiceOpen(true)}
+                      onMouseLeave={() => setServiceOpen(false)}
+                    >
+                      <DropdownMenuTrigger asChild>
+                        <Link
+                          href={item.href}
+                          /* pointerdown 기본동작을 막아 Radix 토글 대신 링크 이동이 그대로 동작 */
+                          onPointerDown={(e) => e.preventDefault()}
+                          className={`relative py-2 font-bold text-sm group whitespace-nowrap transition-all duration-200 outline-none ${
+                            isActive ? 'text-white' : 'text-white/80 hover:text-white'
+                          }`}
+                        >
+                          {item.label}
+                          <span className={`absolute bottom-0 left-0 h-0.5 bg-[#FF4500] transition-all duration-200 ${
+                            isActive ? 'w-full' : 'w-0 group-hover:w-full'
+                          }`} />
+                        </Link>
+                      </DropdownMenuTrigger>
+                    </div>
+                    <DropdownMenuContent
+                      align="start"
+                      sideOffset={0}
+                      onMouseEnter={() => setServiceOpen(true)}
+                      onMouseLeave={() => setServiceOpen(false)}
+                      className="w-[22rem] bg-surface-1 border-border p-2"
+                    >
+                      {serviceItems.map((svc) => (
+                        <DropdownMenuItem
+                          key={svc.href}
+                          asChild
+                          className="focus:bg-background hover:bg-background cursor-pointer rounded-[var(--radius-sm)] p-3"
+                        >
+                          <Link href={svc.href} className="block">
+                            <span className="block font-bold text-sm text-white">{t(svc.titleKey)}</span>
+                            <span className="block text-xs text-[#A8A29E] mt-1 whitespace-normal break-keep">
+                              {t(svc.descKey)}
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )
+              }
               return (
                 <Link
                   key={item.href}
@@ -187,8 +252,8 @@ export default function Navigation() {
                   </SheetHeader>
                   <nav className="flex flex-col gap-0 relative z-10">
                     {menuItems.filter((m) => m.href !== '/contact').map((item, index) => (
+                      <div key={item.href} className="contents">
                       <Link
-                        key={item.href}
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
                         className={`group flex items-center justify-between hover:bg-background active:bg-card transition-all duration-200 py-4 px-5 rounded-[var(--radius-sm)] text-base sm:text-sm font-bold tracking-tight relative z-10 border-b border-border break-words ${
@@ -203,6 +268,21 @@ export default function Navigation() {
                         </span>
                         <ChevronRight className="h-4 w-4 text-white/40 flex-shrink-0 group-hover:text-white group-hover:translate-x-1 transition-all duration-200" />
                       </Link>
+                      {item.href === '/service' &&
+                        serviceItems.map((svc) => (
+                          <Link
+                            key={svc.href}
+                            href={svc.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center justify-between py-3 pl-9 pr-5 text-sm font-bold text-white/70 hover:text-white hover:bg-background active:bg-card transition-all duration-200 border-b border-border break-words"
+                            style={{
+                              animation: `fadeInSlide 0.3s ease-out ${index * 60}ms both`,
+                            }}
+                          >
+                            <span className="break-words min-w-0">{t(svc.titleKey)}</span>
+                          </Link>
+                        ))}
+                      </div>
                     ))}
                     {/* 문의하기: 데스크탑 버튼과 동일한 Solid CTA 스타일, 하단 격리 */}
                     <Link
