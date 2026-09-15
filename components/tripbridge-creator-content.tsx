@@ -202,9 +202,10 @@ export default function TripbridgeCreatorContent() {
         className="py-16 md:py-24 px-6 lg:px-24 bg-surface-1 scroll-mt-24 pb-32 md:pb-24"
       >
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 break-keep">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4 break-keep">
             {c.registerHeading}
           </h2>
+          <p className="text-base text-[#A8A29E] mb-8 break-keep">{c.heroSub}</p>
           <button
             type="button"
             onClick={() => setApplyOpen(true)}

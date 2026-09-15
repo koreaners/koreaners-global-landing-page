@@ -388,10 +388,11 @@ export function TripbridgeCreatorForm({
         type="privacy"
       />
 
+      <div className="flex flex-col gap-3 sm:flex-row-reverse sm:justify-start">
       <Button
         type="submit"
         disabled={submitting}
-        className="w-full min-h-[44px] gradient-warm text-white rounded-[var(--radius-sm)] py-4 text-base font-bold hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full sm:w-auto sm:px-8 min-h-[44px] gradient-warm text-white rounded-[var(--radius-sm)] py-4 text-base font-bold hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? t("formSubmitting") : t("tbFormSubmit")}
       </Button>
@@ -401,11 +402,12 @@ export function TripbridgeCreatorForm({
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="w-full min-h-[44px] border-[var(--border)] text-white hover:bg-card"
+          className="w-full sm:w-auto sm:px-8 min-h-[44px] border-[var(--border)] text-white hover:bg-card"
         >
           {t("dialogCancel")}
         </Button>
       )}
+      </div>
     </form>
   );
 }
