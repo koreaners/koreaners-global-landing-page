@@ -61,12 +61,11 @@ const COPY: Record<Locale, Copy> = {
       '한국을 여행 중인 일본 나노 인플루언서가 코리너스가 짠 코스로 브랜드 3~4곳의 매장을 방문하고, 섭외비는 브랜드가 나눠 냅니다',
     brandsLabel: '코리너스와 함께한 브랜드',
     brands: ['newmix', '감자밭', '마뗑킴', '세예의원'],
-    brandsMore: '외 200개+',
+    brandsMore: '외 185개',
     ctaPrimary: '도입 문의하기',
     ctaSecondary: '성공 사례 보기',
     heroStats: [
-      { value: '200개+', label: '누적 참여 브랜드' },
-      { value: '1,600편', label: '업로드 영상' },
+      { value: '185개', label: '누적 참여 브랜드' },
     ],
     coreTitle1: '같은 섭외, 더 많은 브랜드,',
     coreTitle2: '더 낮은 비용',
@@ -121,7 +120,6 @@ const COPY: Record<Locale, Copy> = {
     resultChips: [
       { value: '¥2.3억', label: '뉴믹스 큐텐 메가와리 매출 (2025)' },
       { value: '이세탄 1위', label: '감자밭 일본 팝업, 베이커리 부문 (2025)' },
-      { value: '858건', label: '세예의원 저장수' },
       { value: '매출 150% 증가', label: '뉴믹스 점당 매출 증가' },
     ],
     closingTitle1: '약 20만원으로',
@@ -139,12 +137,11 @@ const COPY: Record<Locale, Copy> = {
       '韓国を旅行中の日本人ナノインフルエンサーが、KOREANERSが組んだコースでブランド3~4社の店舗を訪問し、起用費はブランドが分担して支払います',
     brandsLabel: 'KOREANERSと一緒に取り組んだブランド',
     brands: ['newmix', 'カムジャバッ', 'マタンキム', 'セイエ医院'],
-    brandsMore: '他200社+',
+    brandsMore: '他185社',
     ctaPrimary: '導入のお問い合わせ',
     ctaSecondary: '実績を見る',
     heroStats: [
-      { value: '200社+', label: '累計参加ブランド' },
-      { value: '1,600本', label: 'アップロード動画' },
+      { value: '185社', label: '累計参加ブランド' },
     ],
     coreTitle1: '同じ起用で、より多くのブランドへ、',
     coreTitle2: 'より低い費用',
@@ -210,7 +207,6 @@ const COPY: Record<Locale, Copy> = {
     resultChips: [
       { value: '¥2.3億', label: 'ニューミックス Qoo10メガ割 売上 (2025)' },
       { value: '伊勢丹1位', label: 'カムジャバッ 日本ポップアップ、ベーカリー部門 (2025)' },
-      { value: '858件', label: 'セイエ医院の保存数' },
       { value: '売上150%増加', label: 'ニューミックス 店舗あたり売上の増加' },
     ],
     closingTitle1: '約20万ウォンで',
@@ -315,7 +311,7 @@ export default function TripbridgeContent() {
           </div>
 
           <div className="mt-16 max-w-xl">
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8">
               {c.heroStats.map((stat, index) => (
                 <div key={stat.label} className={index < c.heroStats.length - 1 ? 'border-r border-white/10' : ''}>
                   <div className="font-display font-bold text-4xl sm:text-5xl gradient-warm-text leading-none whitespace-nowrap">
@@ -496,7 +492,7 @@ export default function TripbridgeContent() {
             ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
+          <div className="grid sm:grid-cols-3 gap-6 mt-10">
             {c.resultChips.map((chip) => (
               <div key={chip.label} className={CARD_DARK}>
                 <div className="text-xs text-[#A8A29E] mb-2 break-keep">{chip.label}</div>
