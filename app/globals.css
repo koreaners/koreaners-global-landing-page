@@ -118,8 +118,8 @@ footer {
     outline-offset: 2px;
   }
   html {
-    /* 전역 90% 축소: 16px → 15px, rem 단위 일괄 적용 */
-    font-size: 15px;
+    /* 루트 16px: 모바일 본문 최소 14px 기준 (text-sm=14px) */
+    font-size: 16px;
   }
   /* iOS focus zoom guard */
   input:not([type=checkbox]):not([type=radio]), textarea, select {
