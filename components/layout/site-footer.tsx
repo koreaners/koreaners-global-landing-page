@@ -72,6 +72,15 @@ export function SiteFooter() {
                 {item.label}
               </Link>
             ))}
+            {/* 한국어 전용 페이지라 ko 로케일에서만 노출 */}
+            {locale === 'ko' && (
+              <Link
+                href="/japan-influencer-marketing"
+                className="text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit"
+              >
+                {t('navJapanInfluencer')}
+              </Link>
+            )}
           </nav>
 
           {/* 3) 연락 + 팔로우 */}

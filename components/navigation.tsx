@@ -87,7 +87,6 @@ export default function Navigation() {
 
   const serviceItems: { href: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
     { href: '/service', titleKey: 'navSvcInfluencer', descKey: 'navSvcInfluencerDesc' },
-    { href: '/japan-influencer-marketing', titleKey: 'navJapanInfluencer', descKey: 'navJapanInfluencerDesc' },
     { href: '/tripbridge', titleKey: 'navSvcTripbridge', descKey: 'navSvcTripbridgeDesc' },
   ]
 
