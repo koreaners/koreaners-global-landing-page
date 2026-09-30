@@ -105,6 +105,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 export async function sendSlackBrandBrief(
   answers: Record<string, string | string[]>,
   fields: { key: string; label: string }[],
+  notionPageId?: string | null,
 ): Promise<void> {
   // 문의 웹훅(SLACK_WEBHOOK_INQUIRIES)은 구 Slack 앱 제거로 죽어 있다(404 no_service).
   // #문의-인바운드-웹 에 글을 올리는 Assistant Bot 토큰으로 직접 게시한다 (inquiry-responder 람다와 같은 명의·채널).
@@ -156,6 +157,14 @@ export async function sendSlackBrandBrief(
     for (const f of rest) {
       blocks.push({ type: "section", text: { type: "mrkdwn", text: `*${f.label}*\n${val(f.key)}` } });
     }
+  }
+
+  // 문의 알림과 같은 구조: 마지막 줄에 Notion 페이지 링크
+  if (notionPageId) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `📋 <https://www.notion.so/${notionPageId.replace(/-/g, "")}|Notion에서 확인>` },
+    });
   }
 
   try {
