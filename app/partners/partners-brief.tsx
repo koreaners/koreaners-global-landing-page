@@ -177,7 +177,12 @@ export default function PartnersBrief() {
       <Navigation />
 
       <section className="relative bg-[var(--kn-dark)] hero-glow px-6 pt-32 md:pt-36 pb-16 text-center">
-        <ShaderBackdrop variant="hero-sub" seed={11} className="absolute!" />
+        {/* 아래가 같은 어두운 배경 섹션이라 글로우가 경계에서 잘려 보인다 → 하단으로 페이드 */}
+        <ShaderBackdrop
+          variant="hero-sub"
+          seed={11}
+          className="absolute! [mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)]"
+        />
         <div className="relative z-10 max-w-3xl mx-auto">
           <p className="inline-block rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#FF4500] bg-white/10 mb-6">
             Partnership Brief
