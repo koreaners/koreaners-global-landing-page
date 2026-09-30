@@ -139,7 +139,10 @@ export async function sendSlackBrandBrief(
       text: { type: "plain_text", text: `📋 새 브랜드 사전 정보 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`, emoji: true },
     },
     { type: "section", fields: summary.map((text) => ({ type: "mrkdwn", text })) },
-    { type: "section", text: { type: "mrkdwn", text: [line("products", "제품"), line("selling_points", "핵심 셀링포인트")].filter(Boolean).join("\n\n") || " " } },
+    // section text 상한 3000자 — 항목당 1500자로 자르고 블록을 나눈다
+    ...[line("products", "제품"), line("selling_points", "핵심 셀링포인트")]
+      .filter((x): x is string => !!x)
+      .map((text) => ({ type: "section", text: { type: "mrkdwn", text } })),
     {
       type: "context",
       elements: [{ type: "mrkdwn", text: `작성 ${answered.length} / ${fields.length}개 항목 · 최종 의사결정: ${val("decision_maker")}` }],
@@ -149,7 +152,6 @@ export async function sendSlackBrandBrief(
   const rest = answered.filter((f) => !summaryKeys.includes(f.key) && f.key !== "brand_name");
   if (rest.length) {
     blocks.push({ type: "divider" });
-    // section text 상한 3000자 — 항목별 블록으로 나눈다 (최대 19블록)
     for (const f of rest) {
       blocks.push({ type: "section", text: { type: "mrkdwn", text: `*${f.label}*\n${val(f.key)}` } });
     }
