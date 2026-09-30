@@ -136,7 +136,7 @@ export async function sendSlackBrandBrief(
   const blocks: Record<string, unknown>[] = [
     {
       type: "header",
-      text: { type: "plain_text", text: `📋 새 브랜드 사전 정보 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`, emoji: true },
+      text: { type: "plain_text", text: `📋 사전 인터뷰 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`, emoji: true },
     },
     { type: "section", fields: summary.map((text) => ({ type: "mrkdwn", text })) },
     // section text 상한 3000자 — 항목당 1500자로 자르고 블록을 나눈다
