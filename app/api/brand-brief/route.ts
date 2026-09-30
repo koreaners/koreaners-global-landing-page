@@ -36,8 +36,14 @@ function validate(raw: unknown): { answers: BriefAnswers } | { error: string } {
 }
 
 // Notion 「브랜드 사전 인터뷰」 DB 에 열람용 사본을 만든다. 원본은 Supabase — 실패해도 제출은 성공.
-// 요약 항목은 속성으로, 전체 답변은 본문에 섹션별로. 「리드」 관계 칸은 비워 둔다(수동 연결).
+// 훑어보는 항목은 속성(칼럼)으로, 나머지 서술형 답변은 본문에 섹션별 불렛(질문 아래 답변)으로. 「리드」 관계 칸은 비워 둔다(수동 연결).
 // 성공 시 page id, 생략·실패 시 null.
+// 속성으로 올린 문항. 여기 없는 문항만 본문에 남는다. 바꿀 때 Notion DB 칼럼도 함께 바꾼다.
+const NOTION_COLUMN_KEYS = new Set([
+  "brand_name", "contact_name", "contact_title", "email", "decision_maker", "desired_schedule",
+  "target_countries", "budget_range", "campaign_goal", "products", "selling_points", "target_metrics",
+  "overseas_awareness", "content_usage", "intro_deck_url",
+]);
 async function saveToNotion(answers: BriefAnswers): Promise<string | null> {
   const token = process.env.NOTION_TOKEN;
   const databaseId = process.env.NOTION_BRAND_BRIEF_DB_ID;
@@ -62,19 +68,28 @@ async function saveToNotion(answers: BriefAnswers): Promise<string | null> {
     이메일: { email: text("email") },
     의사결정자: { rich_text: rich(text("decision_maker")) },
     "희망 일정": { rich_text: rich(text("desired_schedule")) },
+    제품: { rich_text: rich(text("products")) },
+    셀링포인트: { rich_text: rich(text("selling_points")) },
+    "목표 수치": { rich_text: rich(text("target_metrics")) },
   };
   if (list("target_countries").length) properties["타겟 국가"] = { multi_select: list("target_countries").map(option) };
   if (text("budget_range")) properties["예산"] = { select: option(text("budget_range")) };
   if (text("campaign_goal")) properties["목표"] = { select: option(text("campaign_goal")) };
+  if (text("overseas_awareness")) properties["해외 인지도"] = { select: option(text("overseas_awareness")) };
+  if (list("content_usage").length) properties["콘텐츠 활용"] = { multi_select: list("content_usage").map(option) };
+  if (text("intro_deck_url")) properties["소개서 링크"] = { url: text("intro_deck_url") };
 
   const children: Record<string, unknown>[] = [];
   for (const group of BRIEF_STEPS.flatMap((s) => s.groups)) {
-    const answered = group.fields.filter((f) => text(f.key));
+    const answered = group.fields.filter((f) => !NOTION_COLUMN_KEYS.has(f.key) && text(f.key));
     if (!answered.length) continue;
     if (group.title) children.push({ heading_3: { rich_text: rich(group.title) } });
     for (const f of answered) {
       children.push({
-        paragraph: { rich_text: [{ text: { content: `${f.label}\n` }, annotations: { bold: true } }, ...rich(text(f.key))] },
+        bulleted_list_item: {
+          rich_text: [{ text: { content: f.label }, annotations: { bold: true } }],
+          children: [{ bulleted_list_item: { rich_text: rich(text(f.key)) } }],
+        },
       });
     }
   }
