@@ -306,7 +306,7 @@ export default function PartnersBrief() {
                   >
                     <span className="flex items-center justify-center gap-2">
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {step < last ? `다음 (${step + 2} / ${BRIEF_STEPS.length})` : "제출하기"}
+                      {step < last ? `다음 (${step + 1} / ${BRIEF_STEPS.length})` : "제출하기"}
                     </span>
                   </button>
                 </div>
