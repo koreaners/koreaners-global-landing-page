@@ -1,4 +1,4 @@
--- 브랜드 사전 정보 시트 (/partners). 컬럼은 lib/brand-brief.ts 의 질문 key 와 1:1.
+-- 브랜드 사전 정보 시트 (/brand-brief). 컬럼은 lib/brand-brief.ts 의 질문 key 와 1:1.
 create table if not exists public.brand_briefs (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),

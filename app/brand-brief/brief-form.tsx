@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Navigation from "@/components/navigation";
+import Link from "next/link";
+import { Logo } from "@/components/logo";
 import { ShaderBackdrop } from "@/components/ui/shader-backdrop";
 import { BRIEF_STEPS, type BriefField, type BriefGroup } from "@/lib/brand-brief";
 import { CheckCircle2, ChevronDown, Loader2 } from "lucide-react";
@@ -123,7 +124,7 @@ function Group({ g, collapsible }: { g: BriefGroup; collapsible?: boolean }) {
   );
 }
 
-export default function PartnersBrief() {
+export default function BriefForm() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -189,10 +190,16 @@ export default function PartnersBrief() {
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden">
-      <Navigation />
-
-      {/* 히어로: 다른 서브페이지와 같은 구성 */}
+      {/* 링크로만 전달하는 독립 페이지 — 사이트 메뉴·푸터 없이 로고만 (푸터는 footer-wrapper 에서 제외) */}
       <section className="relative bg-[var(--kn-dark)] hero-glow px-6 pt-32 md:pt-36 pb-14 text-center">
+        <div className="absolute! top-0 inset-x-0 z-20! px-6 md:px-12 lg:px-24">
+          <div className="mx-auto max-w-7xl h-16 sm:h-20 flex items-center">
+            <Link href="/" className="hover:opacity-80 transition-opacity flex items-center gap-2 sm:gap-3">
+              <Logo variant="header" />
+              <span className="font-display font-bold text-lg uppercase tracking-tight text-white">KOREANERS</span>
+            </Link>
+          </div>
+        </div>
         {/* 아래가 같은 어두운 배경 섹션이라 글로우가 경계에서 잘려 보인다 → 하단으로 페이드 */}
         <ShaderBackdrop
           variant="hero-sub"
@@ -215,10 +222,10 @@ export default function PartnersBrief() {
       </section>
 
       {/* 폼: 문의 폼(footer-cta)과 같은 2단 구성 — 왼쪽 제목, 오른쪽 입력 */}
-      <section ref={formTop} className="bg-background py-24 md:py-32 px-6 lg:px-24 scroll-mt-16">
+      <section ref={formTop} className="bg-background py-24 md:py-32 px-6 lg:px-24">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-16 items-start">
-            <div className="lg:sticky lg:top-28">
+            <div className="lg:sticky lg:top-12">
               <h2 className="font-display font-bold text-6xl lg:text-8xl uppercase text-white leading-[0.85]">
                 <span className="italic text-[#FF4500]">BRAND</span>
                 <br />

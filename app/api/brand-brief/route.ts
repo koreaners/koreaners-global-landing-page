@@ -4,7 +4,7 @@ import { createStaticClient } from "@/lib/supabase/static";
 import { sendSlackBrandBrief } from "@/lib/slack";
 import { BRIEF_FIELDS, type BriefAnswers } from "@/lib/brand-brief";
 
-// 브랜드 사전 정보 시트 (/partners) 제출 → Supabase brand_briefs + Slack 알림.
+// 브랜드 사전 정보 시트 (/brand-brief) 제출 → Supabase brand_briefs + Slack 알림.
 // anon 키 + 공개 insert 정책 (inquiries 와 동일). preview·production 모두 같은 env 로 동작.
 
 const MAX = { short: 500, email: 254, long: 5000, option: 200 } as const;
