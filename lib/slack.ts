@@ -99,6 +99,65 @@ export async function sendSlackInquiry(data: InquiryData): Promise<void> {
   await sendSlackWebhook(webhookUrl, blocks, "inquiry");
 }
 
+// 사용자 입력을 mrkdwn 에 넣을 때 <!channel>·링크 위장을 막는다.
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+export async function sendSlackBrandBrief(
+  answers: Record<string, string | string[]>,
+  fields: { key: string; label: string }[],
+): Promise<void> {
+  const webhookUrl = process.env.SLACK_WEBHOOK_INQUIRIES;
+  if (!webhookUrl) {
+    console.error("[Slack] SLACK_WEBHOOK_INQUIRIES env not set — brand brief alert dropped");
+    return;
+  }
+
+  const val = (k: string) => {
+    const v = answers[k];
+    const s = Array.isArray(v) ? v.join(", ") : (v ?? "");
+    return esc(s.slice(0, 1500));
+  };
+  const answered = fields.filter((f) => val(f.key));
+  const summaryKeys = [
+    "contact_name", "contact_title", "email", "target_countries", "budget_range",
+    "campaign_goal", "desired_schedule", "products", "selling_points", "decision_maker",
+  ];
+  const line = (k: string, label: string) => (val(k) ? `*${label}*\n${val(k)}` : null);
+
+  const summary = [
+    `*담당자*\n${val("contact_name")} (${val("contact_title")})`,
+    line("email", "이메일"),
+    line("target_countries", "타겟 국가"),
+    line("budget_range", "예산"),
+    line("campaign_goal", "목표"),
+    line("desired_schedule", "희망 일정"),
+  ].filter((x): x is string => !!x);
+
+  const blocks: Record<string, unknown>[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: `📋 새 브랜드 사전 정보 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`, emoji: true },
+    },
+    { type: "section", fields: summary.map((text) => ({ type: "mrkdwn", text })) },
+    { type: "section", text: { type: "mrkdwn", text: [line("products", "제품"), line("selling_points", "핵심 셀링포인트")].filter(Boolean).join("\n\n") || " " } },
+    {
+      type: "context",
+      elements: [{ type: "mrkdwn", text: `작성 ${answered.length} / ${fields.length}개 항목 · 최종 의사결정: ${val("decision_maker")}` }],
+    },
+  ];
+
+  const rest = answered.filter((f) => !summaryKeys.includes(f.key) && f.key !== "brand_name");
+  if (rest.length) {
+    blocks.push({ type: "divider" });
+    // section text 상한 3000자 — 항목별 블록으로 나눈다 (최대 19블록)
+    for (const f of rest) {
+      blocks.push({ type: "section", text: { type: "mrkdwn", text: `*${f.label}*\n${val(f.key)}` } });
+    }
+  }
+
+  await sendSlackWebhook(webhookUrl, blocks, "brand-brief");
+}
+
 export async function sendSlackCreatorApplication(
   data: CreatorApplicationData,
 ): Promise<void> {
