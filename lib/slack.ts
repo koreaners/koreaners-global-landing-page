@@ -106,9 +106,11 @@ export async function sendSlackBrandBrief(
   answers: Record<string, string | string[]>,
   fields: { key: string; label: string }[],
 ): Promise<void> {
-  const webhookUrl = process.env.SLACK_WEBHOOK_INQUIRIES;
-  if (!webhookUrl) {
-    console.error("[Slack] SLACK_WEBHOOK_INQUIRIES env not set — brand brief alert dropped");
+  // 문의 웹훅(SLACK_WEBHOOK_INQUIRIES)은 구 Slack 앱 제거로 죽어 있다(404 no_service).
+  // #문의-인바운드-웹 에 글을 올리는 Assistant Bot 토큰으로 직접 게시한다 (inquiry-responder 람다와 같은 명의·채널).
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) {
+    console.error("[Slack] SLACK_BOT_TOKEN env not set — brand brief alert dropped");
     return;
   }
 
@@ -133,10 +135,11 @@ export async function sendSlackBrandBrief(
     line("desired_schedule", "희망 일정"),
   ].filter((x): x is string => !!x);
 
+  const title = `📋 사전 인터뷰 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`;
   const blocks: Record<string, unknown>[] = [
     {
       type: "header",
-      text: { type: "plain_text", text: `📋 사전 인터뷰 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`, emoji: true },
+      text: { type: "plain_text", text: title, emoji: true },
     },
     { type: "section", fields: summary.map((text) => ({ type: "mrkdwn", text })) },
     // section text 상한 3000자 — 항목당 1500자로 자르고 블록을 나눈다
@@ -157,7 +160,22 @@ export async function sendSlackBrandBrief(
     }
   }
 
-  await sendSlackWebhook(webhookUrl, blocks, "brand-brief");
+  try {
+    const res = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        channel: process.env.SLACK_WEB_INBOX_CHANNEL_ID ?? "C0AHMSK2UA0",
+        text: title, // 알림 미리보기용
+        blocks,
+      }),
+    });
+    // chat.postMessage 는 실패해도 HTTP 200 — body 의 ok 로 판정
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    if (!body.ok) console.error(`[Slack] brand-brief post failed: status=${res.status} error=${body.error}`);
+  } catch (error) {
+    console.error("[Slack] brand-brief fetch error:", error);
+  }
 }
 
 export async function sendSlackCreatorApplication(
