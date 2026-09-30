@@ -4,47 +4,49 @@ import { useRef, useState } from "react";
 import Navigation from "@/components/navigation";
 import { ShaderBackdrop } from "@/components/ui/shader-backdrop";
 import { BRIEF_STEPS, type BriefField, type BriefGroup } from "@/lib/brand-brief";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, Loader2 } from "lucide-react";
 
+// footer-cta.tsx (문의 폼) 와 같은 필드·라벨·체크박스·버튼 스타일 (내보내지 않는 상수라 복사)
 const FIELD =
-  "w-full bg-[var(--kn-dark)] rounded-[var(--radius-sm)] text-white text-[15px] px-4 py-3 border border-white/10 transition-colors duration-200 outline-none placeholder:text-white/25 hover:border-white/20 focus:ring-1 focus:ring-[#FF4500]/30 focus:border-[#FF4500]";
-const LABEL = "block text-sm font-medium text-white/90";
-const HELP = "text-xs leading-relaxed text-white/45 mt-1";
-const CHIP =
-  "inline-flex items-center min-h-[40px] rounded-full border border-white/15 px-4 text-sm text-white/70 cursor-pointer select-none transition-colors duration-200 hover:border-white/35 has-[:checked]:border-[#FF4500] has-[:checked]:bg-[#FF4500]/12 has-[:checked]:text-white has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#FF4500]/40";
+  "w-full bg-surface-2 rounded-[var(--radius-sm)] text-white px-4 py-3 border border-white/10 transition-all duration-300 outline-none placeholder:text-white/20 focus:ring-1 focus:ring-[#FF4500]/30 focus:border-[#FF4500]";
+const LABEL = "block text-xs uppercase tracking-wider text-white/60 mb-2";
+const HINT = "mt-1.5 text-xs text-white/30";
+const CHECKBOX =
+  "w-5 h-5 rounded-[var(--radius-sm)] border-2 border-white/30 bg-transparent checked:bg-white checked:border-white focus:ring-2 focus:ring-white transition-all cursor-pointer shrink-0";
+// 선택지는 입력칸과 같은 면·테두리, 선택 시 포커스 색
+const OPTION =
+  "inline-flex items-center bg-surface-2 rounded-[var(--radius-sm)] border border-white/10 px-4 py-3 text-sm text-white/60 cursor-pointer select-none transition-all duration-300 hover:text-white/80 has-[:checked]:border-[#FF4500] has-[:checked]:text-white has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-[#FF4500]/30";
 const OTHER = "__other";
 
-// help 의 「예) …」 부분은 placeholder 로, 앞부분만 설명으로 보여준다
+// help 의 「예) …」 부분은 placeholder 로, 앞부분만 입력칸 아래 힌트로 보여준다
 const splitHelp = (help?: string) => {
   const [desc, ex] = (help ?? "").split(/\s*예\)\s*/);
   return { desc: desc.trim(), placeholder: ex ? `예) ${ex.trim()}` : undefined };
 };
-const isWide = (f: BriefField) => f.type === "long" || f.type === "radio" || f.type === "checkbox" || splitHelp(f.help).desc.length > 28;
+const isHalf = (f: BriefField) => (f.type === "short" || f.type === "email") && splitHelp(f.help).desc.length <= 28;
 
-function Field({ f }: { f: BriefField }) {
+function Field({ f, wide }: { f: BriefField; wide: boolean }) {
   const id = `pb-${f.key}`;
   const { desc, placeholder } = splitHelp(f.help);
   const label = (
     <>
-      {f.label}
-      {f.required && <span className="ml-1 text-[#FF4500]">*</span>}
+      {f.label} {f.required && <span className="text-white/60">*</span>}
     </>
   );
-  const wide = isWide(f) ? "md:col-span-2" : "";
+  const span = wide ? "md:col-span-2" : "";
 
   if (f.type === "radio" || f.type === "checkbox") {
     return (
-      <fieldset className={`group/choice ${wide}`}>
+      <fieldset className={`group/choice ${span}`}>
         <legend className={LABEL}>{label}</legend>
-        {desc && <p className={HELP}>{desc}</p>}
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-2">
           {(f.options ?? []).map((o) => (
-            <label key={o} className={CHIP}>
+            <label key={o} className={OPTION}>
               <input type={f.type} name={f.key} value={o} className="sr-only" />
               {o}
             </label>
           ))}
-          <label className={CHIP}>
+          <label className={OPTION}>
             <input type={f.type} name={f.key} value={OTHER} data-other className="sr-only" />
             기타
           </label>
@@ -54,56 +56,69 @@ function Field({ f }: { f: BriefField }) {
           type="text"
           placeholder="직접 입력"
           aria-label={`${f.label} 기타`}
-          className={`${FIELD} mt-3 hidden group-has-[[data-other]:checked]/choice:block`}
+          className={`${FIELD} mt-2 hidden group-has-[[data-other]:checked]/choice:block`}
         />
+        {desc && <p className={HINT}>{desc}</p>}
       </fieldset>
     );
   }
 
   return (
-    <div className={wide}>
+    <div className={span}>
       <label htmlFor={id} className={LABEL}>{label}</label>
-      {desc && <p className={HELP}>{desc}</p>}
       {f.type === "long" ? (
-        <textarea id={id} name={f.key} required={f.required} rows={3} placeholder={placeholder} className={`${FIELD} mt-2 resize-y`} />
+        <textarea id={id} name={f.key} required={f.required} rows={4} placeholder={placeholder} className={`${FIELD} resize-none`} />
       ) : (
-        <input id={id} name={f.key} type={f.type === "email" ? "email" : "text"} required={f.required} placeholder={placeholder} className={`${FIELD} mt-2`} />
+        <input id={id} name={f.key} type={f.type === "email" ? "email" : "text"} required={f.required} placeholder={placeholder} className={FIELD} />
       )}
+      {desc && <p className={HINT}>{desc}</p>}
+    </div>
+  );
+}
+
+function Fields({ g }: { g: BriefGroup }) {
+  // 짧은 입력칸은 2열. 짝이 없는 마지막 칸은 한 줄을 다 쓴다
+  let run = 0;
+  const wide = g.fields.map((f, i) => {
+    if (!isHalf(f)) {
+      run = 0;
+      return true;
+    }
+    run += 1;
+    const next = g.fields[i + 1];
+    return run % 2 === 1 && (!next || !isHalf(next));
+  });
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+      {g.fields.map((f, i) => (
+        <Field key={f.key} f={f} wide={wide[i]} />
+      ))}
     </div>
   );
 }
 
 function Group({ g, collapsible }: { g: BriefGroup; collapsible?: boolean }) {
-  const body = (
-    <>
-      {g.help && <p className="text-xs text-white/45 mb-5">{g.help}</p>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-        {g.fields.map((f) => (
-          <Field key={f.key} f={f} />
-        ))}
-      </div>
-    </>
-  );
-
   if (collapsible) {
     return (
-      <details className="group/acc rounded-[var(--radius)] border border-white/10 bg-white/[0.02] open:bg-white/[0.04] transition-colors">
-        <summary className="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-          <span className="text-[15px] font-medium text-white">{g.title}</span>
-          <span className="flex items-center gap-3 text-xs text-white/40">
+      <details className="group/acc bg-surface-2 rounded-[var(--radius-sm)] border border-white/10 open:bg-transparent transition-colors duration-300">
+        <summary className="flex items-center justify-between gap-4 px-4 py-3 cursor-pointer list-none text-white [&::-webkit-details-marker]:hidden">
+          {g.title}
+          <span className="flex items-center gap-3 text-xs text-white/30">
             {g.fields.length}문항
-            <ChevronDown className="h-4 w-4 transition-transform duration-200 group-open/acc:rotate-180" />
+            <ChevronDown className="h-4 w-4 text-white/60 transition-transform duration-300 group-open/acc:rotate-180" />
           </span>
         </summary>
-        <div className="px-5 pb-6 pt-1">{body}</div>
+        <div className="px-4 pb-6 pt-3">
+          {g.help && <p className="text-xs text-white/30 mb-5">{g.help}</p>}
+          <Fields g={g} />
+        </div>
       </details>
     );
   }
-
   return (
     <div>
-      {g.title && <h3 className="text-xs font-bold uppercase tracking-widest text-[#FF4500] mb-5">{g.title}</h3>}
-      {body}
+      {g.title && <p className="text-sm font-bold text-[#FF4500] mb-5">{g.title}</p>}
+      <Fields g={g} />
     </div>
   );
 }
@@ -114,7 +129,7 @@ export default function PartnersBrief() {
   const [done, setDone] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const formTop = useRef<HTMLDivElement>(null);
   const last = BRIEF_STEPS.length - 1;
 
   // 숨겨진 단계는 브라우저 기본 검증이 포커스를 못 잡으므로 단계별로 직접 검사한다
@@ -131,7 +146,7 @@ export default function PartnersBrief() {
 
   const go = (i: number) => {
     setStep(i);
-    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    formTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -164,7 +179,7 @@ export default function PartnersBrief() {
         throw new Error(data.error || "제출 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       }
       setDone(true);
-      cardRef.current?.scrollIntoView({ block: "start" });
+      formTop.current?.scrollIntoView({ block: "start" });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "제출 중 오류가 발생했습니다.");
     } finally {
@@ -176,7 +191,8 @@ export default function PartnersBrief() {
     <main className="min-h-screen w-full max-w-full overflow-x-hidden">
       <Navigation />
 
-      <section className="relative bg-[var(--kn-dark)] hero-glow px-6 pt-32 md:pt-36 pb-16 text-center">
+      {/* 히어로: 다른 서브페이지와 같은 구성 */}
+      <section className="relative bg-[var(--kn-dark)] hero-glow px-6 pt-32 md:pt-36 pb-14 text-center">
         {/* 아래가 같은 어두운 배경 섹션이라 글로우가 경계에서 잘려 보인다 → 하단으로 페이드 */}
         <ShaderBackdrop
           variant="hero-sub"
@@ -185,126 +201,119 @@ export default function PartnersBrief() {
         />
         <div className="relative z-10 max-w-3xl mx-auto">
           <p className="inline-block rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#FF4500] bg-white/10 mb-6">
-            Partnership Brief
+            Brand Brief
           </p>
-          <h1 className="heading-kr font-display font-bold text-4xl md:text-5xl leading-[1.1] text-[var(--foreground)] mb-6">
+          <h1 className="heading-kr font-display font-bold uppercase text-4xl md:text-5xl leading-[1.05] text-[var(--foreground)] mb-6">
             브랜드에 꼭 맞는 제안을 위한
             <br />
             <span className="gradient-warm-text">사전 정보 시트</span>
           </h1>
-          <p className="text-base md:text-lg text-[#A8A29E]">
-            답변해주신 내용은 제안서 작성과 캠페인 기획에만 활용됩니다.
+          <p className="text-lg text-[#A8A29E]">
+            미팅 전에 브랜드와 캠페인 정보를 알려주시면, 그에 맞춘 제안서를 준비해 뵙겠습니다.
           </p>
-          <ul className="mt-8 flex flex-wrap justify-center gap-2 text-xs text-white/70">
-            {["약 5분", "필수 7문항", "나머지는 아는 범위에서"].map((t) => (
-              <li key={t} className="rounded-full border border-white/15 bg-black/20 px-3 py-1.5">{t}</li>
-            ))}
-          </ul>
         </div>
       </section>
 
-      <section className="bg-background px-4 md:px-6 py-14 md:py-20">
-        <div
-          ref={cardRef}
-          className="max-w-3xl mx-auto scroll-mt-24 rounded-[var(--radius-lg)] border border-white/10 bg-surface-1 shadow-2xl shadow-black/30"
-        >
-          {done ? (
-            <div className="px-6 py-16 md:py-20 text-center">
-              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full gradient-warm">
-                <Check className="h-7 w-7 text-white" />
-              </div>
-              <h2 className="font-display text-2xl font-bold text-white mb-3">제출이 완료됐습니다</h2>
-              <p className="text-white/70">
-                보내주신 내용은 코리너스 팀이 검토한 뒤,
-                <br className="hidden md:block" /> 미팅 때 브랜드에 맞춘 제안으로 준비해 뵙겠습니다.
+      {/* 폼: 문의 폼(footer-cta)과 같은 2단 구성 — 왼쪽 제목, 오른쪽 입력 */}
+      <section ref={formTop} className="bg-background py-24 md:py-32 px-6 lg:px-24 scroll-mt-16">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-16 items-start">
+            <div className="lg:sticky lg:top-28">
+              <h2 className="font-display font-bold text-6xl lg:text-8xl uppercase text-white leading-[0.85]">
+                <span className="italic text-[#FF4500]">BRAND</span>
+                <br />
+                BRIEF
+              </h2>
+              <p className="text-base text-white/60 mt-8 leading-relaxed">
+                답변해주신 내용은 제안서 작성과 캠페인 기획에만 활용됩니다. 필수는 7문항이고, 나머지는 아는 범위에서 편하게 적어주세요. 약 5분 걸립니다.
               </p>
-              <p className="mt-6 text-sm text-white/45">
-                링크로 전달하지 못한 파일은 sales@koreaners.com 으로 보내주세요. (메일 제목에 브랜드명)
-              </p>
+              {!done && (
+                <ol className="mt-10 space-y-3">
+                  {BRIEF_STEPS.map((s, i) => (
+                    <li key={s.title} aria-current={i === step ? "step" : undefined}>
+                      <button
+                        type="button"
+                        disabled={i >= step}
+                        onClick={() => go(i)}
+                        className={`flex items-baseline gap-4 text-left transition-colors duration-300 ${
+                          i === step ? "text-white" : i < step ? "text-white/60 hover:text-white cursor-pointer" : "text-white/30"
+                        }`}
+                      >
+                        <span className={`text-sm font-bold ${i <= step ? "text-[#FF4500]" : ""}`}>0{i + 1}</span>
+                        <span className="text-base">{s.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} noValidate>
-              {/* 단계 표시 */}
-              <ol className="grid grid-cols-3 border-b border-white/10">
-                {BRIEF_STEPS.map((s, i) => (
-                  <li
-                    key={s.title}
-                    aria-current={i === step ? "step" : undefined}
-                    className={`relative px-4 md:px-6 py-4 md:py-5 ${i > 0 ? "border-l border-white/10" : ""}`}
-                  >
-                    <p className={`text-xs font-bold tracking-widest ${i <= step ? "text-[#FF4500]" : "text-white/30"}`}>
-                      {i < step ? <Check className="inline h-3.5 w-3.5 -mt-0.5" /> : `0${i + 1}`}
-                    </p>
-                    <p className={`mt-1 text-sm md:text-[15px] font-medium ${i === step ? "text-white" : "text-white/40"}`}>{s.title}</p>
-                    <span className={`absolute inset-x-0 bottom-[-1px] h-0.5 ${i <= step ? "gradient-warm" : "bg-transparent"}`} />
-                  </li>
-                ))}
-              </ol>
 
-              {BRIEF_STEPS.map((s, i) => (
-                <div
-                  key={s.title}
-                  ref={(el) => {
-                    stepRefs.current[i] = el;
-                  }}
-                  className={i === step ? "px-5 md:px-10 pt-8 md:pt-10" : "hidden"}
-                >
-                  <p className="text-sm text-white/55 mb-8">{s.desc}</p>
-                  <div className={s.collapsible ? "space-y-3" : "space-y-10"}>
-                    {s.groups.map((g) => (
-                      <Group key={g.title} g={g} collapsible={s.collapsible} />
-                    ))}
-                  </div>
-
-                  {i === last && (
-                    <label className="mt-8 flex items-start gap-3 cursor-pointer text-sm text-white/60">
-                      <input
-                        name="privacy"
-                        type="checkbox"
-                        required
-                        className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-white/30 accent-[#FF4500]"
-                      />
-                      <span>
-                        제안서 작성과 캠페인 기획을 위한 담당자 정보(성함·직함·이메일) 수집과 이용에 동의합니다.
-                        <span className="ml-1 text-[#FF4500]">*</span>
-                      </span>
-                    </label>
-                  )}
+            {done ? (
+              <div>
+                <div className="mb-6 flex h-16 w-16 items-center justify-center bg-white/10 rounded-[var(--radius)]">
+                  <CheckCircle2 className="h-10 w-10 text-white" />
                 </div>
-              ))}
-
-              <div className="flex items-center justify-between gap-3 px-5 md:px-10 py-8 md:py-10">
-                {step > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => go(step - 1)}
-                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-white/15 px-5 py-3.5 text-sm text-white/70 hover:border-white/35 hover:text-white transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft className="h-4 w-4" /> 이전
-                  </button>
-                ) : (
-                  <span className="text-xs text-white/35">
-                    <span className="text-[#FF4500]">*</span> 표시는 필수 항목입니다
-                  </span>
-                )}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex items-center justify-center gap-2 min-w-[140px] gradient-warm text-white px-7 py-3.5 text-sm font-bold tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {step < last ? (
-                    <>
-                      다음 <ArrowRight className="h-4 w-4" />
-                    </>
-                  ) : (
-                    "제출하기"
-                  )}
-                </button>
+                <p className="text-2xl font-bold text-white">제출이 완료됐습니다</p>
+                <p className="pt-4 text-base leading-relaxed text-white/60">
+                  보내주신 내용은 코리너스 팀이 검토한 뒤, 미팅 때 브랜드에 맞춘 제안으로 준비해 뵙겠습니다.
+                  <br />
+                  링크로 전달하지 못한 파일은 sales@koreaners.com 으로 보내주세요. (메일 제목에 브랜드명)
+                </p>
               </div>
-              {submitError && <p className="px-5 md:px-10 pb-8 -mt-4 text-right text-sm text-[#FF4500]">{submitError}</p>}
-            </form>
-          )}
+            ) : (
+              <form onSubmit={handleSubmit} noValidate className="space-y-6">
+                {BRIEF_STEPS.map((s, i) => (
+                  <div
+                    key={s.title}
+                    ref={(el) => {
+                      stepRefs.current[i] = el;
+                    }}
+                    className={i === step ? "" : "hidden"}
+                  >
+                    <p className="text-base text-white/60 mb-8">{s.desc}</p>
+                    <div className={s.collapsible ? "space-y-3" : "space-y-10"}>
+                      {s.groups.map((g) => (
+                        <Group key={g.title} g={g} collapsible={s.collapsible} />
+                      ))}
+                    </div>
+
+                    {i === last && (
+                      <div className="flex items-center gap-3 mt-6">
+                        <input id="pb-privacy" name="privacy" type="checkbox" required className={CHECKBOX} />
+                        <label htmlFor="pb-privacy" className="flex-1 min-h-[44px] flex items-center cursor-pointer text-sm text-white/60">
+                          제안서 작성과 캠페인 기획을 위한 담당자 정보(성함·직함·이메일) 수집과 이용에 동의합니다.
+                          <span className="ml-1">*</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div className="flex gap-3">
+                  {step > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => go(step - 1)}
+                      className="px-8 py-4 text-sm font-bold uppercase tracking-wider text-white/60 border border-white/10 rounded-[var(--radius-sm)] hover:text-white hover:border-white/30 transition-all duration-300 cursor-pointer"
+                    >
+                      이전
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 gradient-warm text-white py-4 text-sm font-bold uppercase tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {step < last ? `다음 (${step + 2} / ${BRIEF_STEPS.length})` : "제출하기"}
+                    </span>
+                  </button>
+                </div>
+                {submitError && <p className="text-center text-xs text-[#FF4500]">{submitError}</p>}
+              </form>
+            )}
+          </div>
         </div>
       </section>
     </main>
