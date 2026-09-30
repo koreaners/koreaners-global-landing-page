@@ -135,12 +135,10 @@ export async function sendSlackBrandBrief(
     line("desired_schedule", "희망 일정"),
   ].filter((x): x is string => !!x);
 
-  const title = `📋 사전 인터뷰 도착 — ${String(answers.brand_name ?? "").slice(0, 100)}`;
+  const brand = String(answers.brand_name ?? "").slice(0, 100);
+  // 채널의 다른 알림(람다 slack_notifier.py)과 같은 형식: 색 막대 attachment 안에 mrkdwn 제목
   const blocks: Record<string, unknown>[] = [
-    {
-      type: "header",
-      text: { type: "plain_text", text: title, emoji: true },
-    },
+    { type: "section", text: { type: "mrkdwn", text: `📋 *사전 인터뷰 도착* — ${esc(brand)}` } },
     { type: "section", fields: summary.map((text) => ({ type: "mrkdwn", text })) },
     // section text 상한 3000자 — 항목당 1500자로 자르고 블록을 나눈다
     ...[line("products", "제품"), line("selling_points", "핵심 셀링포인트")]
@@ -166,8 +164,7 @@ export async function sendSlackBrandBrief(
       headers: { "Content-Type": "application/json; charset=utf-8", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         channel: process.env.SLACK_WEB_INBOX_CHANNEL_ID ?? "C0AHMSK2UA0",
-        text: title, // 알림 미리보기용
-        blocks,
+        attachments: [{ color: "#2196F3", fallback: `사전 인터뷰 도착 — ${brand}`, blocks }],
       }),
     });
     // chat.postMessage 는 실패해도 HTTP 200 — body 의 ok 로 판정
