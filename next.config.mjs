@@ -20,6 +20,12 @@ const nextConfig = {
       },
     ]
   },
+  // 체험단 계약서 정보 입력 폼(AWS Lambda contract-form)을 회사 도메인으로 프록시 (2026-10-07). 주소창은 koreaners.co 유지
+  async rewrites() {
+    return [
+      { source: '/f/:token', destination: 'https://ux452ppoypzrm7aggjp2x4lwu40jsluh.lambda-url.ap-northeast-2.on.aws/f/:token' },
+    ]
+  },
   // 메타데이터(탭 제목 등)를 스트리밍 대신 초기 HTML에 포함시켜 'browser tab' 현상 방지
   htmlLimitedBots: /.*/,
   // Turbopack 설정 (Next.js 16 - 루트 레벨에 위치)
