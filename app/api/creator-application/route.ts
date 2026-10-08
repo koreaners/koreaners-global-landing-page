@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
       locale,
       residence,
       visit_period,
-      follower_range,
       categories,
       utm_source,
       utm_campaign,
@@ -148,30 +147,9 @@ export async function POST(request: NextRequest) {
           : "exclusive";
     const safeLocale = locale === "ja" ? "ja" : "ko";
 
-    // tripbridge 전용 필드는 Notion 속성을 늘리지 않고 Message 한 줄로 접어 넣는다.
-    const tripbridgeLine =
-      safeTrackType === "tripbridge"
-        ? [
-            "[tripbridge]",
-            `residence=${trim(residence) || "-"}`,
-            `visit=${trim(visit_period) || "-"}`,
-            `followers=${trim(follower_range) || "-"}`,
-            `categories=${
-              (Array.isArray(categories) ? categories.map(trim).filter(Boolean) : [])
-                .join(",") || "-"
-            }`,
-            `utm=${trim(utm_source) || "-"}/${trim(utm_campaign) || "-"}/${trim(utm_content) || "-"}`,
-          ].join(" ")
-        : null;
-
-    const rawMessage = has(message)
+    const safeMessage = has(message)
       ? clamp(trim(message), MAX_LEN.message)
       : null;
-    const safeMessage =
-      clamp(
-        [tripbridgeLine, rawMessage].filter(Boolean).join("\n"),
-        MAX_LEN.message,
-      ) || null;
 
     const properties: Record<string, any> = {
       Name: { title: [{ text: { content: safeName } }] },
@@ -189,6 +167,20 @@ export async function POST(request: NextRequest) {
       properties["Message"] = {
         rich_text: [{ text: { content: safeMessage } }],
       };
+
+    // tripbridge 전용 필드는 칼럼별로. 값은 폼의 선택지 코드(japan, within_1m, gourmet …)만 받는다.
+    if (safeTrackType === "tripbridge") {
+      const code = (v: unknown) => (/^[a-z0-9_]{1,40}$/.test(trim(v)) ? trim(v) : "");
+      const cats = Array.isArray(categories) ? categories.map(code).filter(Boolean) : [];
+      const utm = [utm_source, utm_campaign, utm_content].map((v) => trim(v) || "-").join("/");
+      if (code(residence)) properties["Residence"] = { select: { name: code(residence) } };
+      if (code(visit_period))
+        properties["Visit Period"] = { select: { name: code(visit_period) } };
+      if (cats.length)
+        properties["Categories"] = { multi_select: cats.map((name) => ({ name })) };
+      if (utm !== "-/-/-")
+        properties["UTM"] = { rich_text: [{ text: { content: clamp(utm, MAX_LEN.url) } }] };
+    }
 
     const response = await notion.pages.create({
       parent: { database_id: process.env.NOTION_CREATOR_DB_ID.trim() },
