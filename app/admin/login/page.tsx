@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { getSession, signIn } from '@/lib/admin-auth'
+import { getSession, signIn, signOut } from '@/lib/admin-auth'
 import { useToast } from '@/hooks/use-toast'
 
 export default function AdminLoginPage() {
@@ -40,6 +40,12 @@ export default function AdminLoginPage() {
     // 이미 인증된 경우 대시보드로 리다이렉트
     async function checkAuth() {
       try {
+        // 권한 없는 계정으로 들어온 경우: 세션을 지우고 머문다 (리다이렉트 루프 방지)
+        if (new URLSearchParams(window.location.search).has('denied')) {
+          await signOut()
+          toast({ title: '접근 권한 없음', description: '어드민 권한이 있는 계정으로 로그인해 주세요.', variant: 'destructive' })
+          return
+        }
         const session = await getSession()
         if (session) {
           router.push('/admin')

@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, ExternalLink } from 'lucide-react'
+import { LogOut, ExternalLink, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
@@ -25,6 +25,10 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
             KOREANERS
           </Link>
           <div className="flex items-center gap-2">
+            <Link href="/admin/reports" className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-300">
+              <FileText className="h-3 w-3" />
+              <span className="hidden sm:inline">보고서</span>
+            </Link>
             <Link href="/" target="_blank" className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-neutral-500 transition-colors hover:text-neutral-300">
               <ExternalLink className="h-3 w-3" />
               <span className="hidden sm:inline">사이트</span>
