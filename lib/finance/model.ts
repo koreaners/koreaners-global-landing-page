@@ -18,6 +18,8 @@ export type Contract = {
   postText: string // 잔금 금액(글)
   preDate: string | null // 선금 입금일
   postDate: string | null // 잔금 입금일
+  preDue: string | null // 선금 정산일(입금 예정)
+  postDue: string | null // 잔금 정산일(입금 예정)
   contractDate: string | null
   startDate: string | null
   link: string | null
@@ -39,7 +41,8 @@ export type Payout = {
 
 export type Rates = { JPY: number; USD: number; CNY: number; at: string; source: string }
 
-export type Period = { year: number | null; month: number | null } // year null: 전체
+// year null: 전체. upto: 연간일 때 이 달까지만(올해와 견주는 전년 같은 기간)
+export type Period = { year: number | null; month: number | null; upto?: number | null }
 
 const DONE = '송금 완료'
 const IN_FLIGHT = ['송금 가능', '모인 접수', '원화 이체 대기']
@@ -73,9 +76,9 @@ export function parseAmount(text: string): number | null {
   return null
 }
 
-export type Recognition = { date: string | null; share: number; estimated: boolean }
+export type Recognition = { date: string | null; due: string | null; share: number; estimated: boolean }
 
-/** 공급가를 입금 회차로 나눔. 날짜가 null 인 몫은 아직 받지 않은 돈 */
+/** 공급가를 입금 회차로 나눔. 날짜가 null 인 몫은 아직 받지 않은 돈, due 는 그 회차의 입금 예정일 */
 export function recognitions(c: Contract): Recognition[] {
   if (c.method === '선금+잔금') {
     const pre = parseAmount(c.preText)
@@ -83,13 +86,12 @@ export function recognitions(c: Contract): Recognition[] {
     const known = pre != null && post != null && pre + post > 0
     const preShare = known ? pre / (pre + post) : 0.5
     return [
-      { date: c.preDate, share: preShare, estimated: !known },
-      { date: c.postDate, share: 1 - preShare, estimated: !known },
+      { date: c.preDate, due: c.preDue, share: preShare, estimated: !known },
+      { date: c.postDate, due: c.postDue, share: 1 - preShare, estimated: !known },
     ]
   }
-  if (c.method === '선금 100%') return [{ date: c.preDate ?? c.postDate, share: 1, estimated: false }]
-  if (c.method === '잔금 100%') return [{ date: c.postDate ?? c.preDate, share: 1, estimated: false }]
-  return [{ date: c.postDate ?? c.preDate, share: 1, estimated: false }]
+  if (c.method === '선금 100%') return [{ date: c.preDate ?? c.postDate, due: c.preDue ?? c.postDue, share: 1, estimated: false }]
+  return [{ date: c.postDate ?? c.preDate, due: c.postDue ?? c.preDue, share: 1, estimated: false }]
 }
 
 /** 계약 기준일: 계약일자, 없으면 시작일, 없으면 첫 입금일 */
@@ -102,8 +104,19 @@ export function inPeriod(date: string | null, p: Period): boolean {
   if (!date) return false
   const y = Number(date.slice(0, 4))
   const m = Number(date.slice(5, 7))
-  return y === p.year && (p.month == null || m === p.month)
+  return y === p.year && (p.month != null ? m === p.month : p.upto == null || m <= p.upto)
 }
+
+/** 견줄 기간: 월은 전월, 연간은 전년(올해면 같은 달까지), 전체는 없음 */
+export function priorPeriod(p: Period, today: string): Period | null {
+  if (p.year == null) return null
+  if (p.month != null) return p.month === 1 ? { year: p.year - 1, month: 12 } : { year: p.year, month: p.month - 1 }
+  const thisYear = Number(today.slice(0, 4))
+  return { year: p.year - 1, month: null, upto: p.year === thisYear ? Number(today.slice(5, 7)) : null }
+}
+
+export type Bucket = { label: string; count: number; krw: number; alert: boolean }
+export type OpenItem = { c: Contract; due: string | null; krw: number }
 
 export type ContractRow = {
   c: Contract
@@ -153,6 +166,27 @@ export type Model = {
   creators: CreatorRow[]
   owners: OwnerRow[]
   gaps: Gaps
+  receivables: { buckets: Bucket[]; open: OpenItem[] } // 받을 돈 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
+  payables: Bucket[] // 줄 돈 상태 묶음
+}
+
+const DAY = 86_400_000
+const daysFrom = (today: string, d: string) => Math.round((Date.parse(d) - Date.parse(today)) / DAY)
+
+/** 받을 돈 회차를 입금 예정일 기준 구간으로 */
+export function agingBuckets(open: OpenItem[], today: string): Bucket[] {
+  const defs: [string, (d: number | null) => boolean, boolean][] = [
+    ['60일 넘게 지남', (d) => d != null && d < -60, true],
+    ['31~60일 지남', (d) => d != null && d >= -60 && d < -30, true],
+    ['1~30일 지남', (d) => d != null && d >= -30 && d < 0, true],
+    ['30일 안에 예정', (d) => d != null && d >= 0 && d <= 30, false],
+    ['그 뒤 예정', (d) => d != null && d > 30, false],
+    ['예정일 없음', (d) => d == null, false],
+  ]
+  return defs.map(([label, hit, alert]) => {
+    const xs = open.filter((o) => hit(o.due ? daysFrom(today, o.due) : null))
+    return { label, alert, count: xs.length, krw: xs.reduce((a, o) => a + o.krw, 0) }
+  })
 }
 
 /** 지급 기준일: 송금일, 없으면 송금 요청일, 없으면 연결 계약 기준일 */
@@ -161,7 +195,7 @@ export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null
   return p.sentDate ?? p.reqDate ?? (c ? contractDay(c) : null)
 }
 
-export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period): Model {
+export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10)): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
   contracts = contracts.filter((c) => c.code)
@@ -180,6 +214,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   // 매출(입금 기준)과 받을 돈(현재 잔액)
   let revenue = 0
   let receivable = 0
+  const open: OpenItem[] = []
   const monthly = new Map<string, { revenue: number; settled: number }>()
   const bump = (date: string, key: 'revenue' | 'settled', v: number) => {
     const m = date.slice(0, 7)
@@ -191,8 +226,10 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const s = supplyKrw(c, r)
     if (s == null) continue
     for (const rec of recognitions(c)) {
-      if (!rec.date) receivable += s * rec.share
-      else {
+      if (!rec.date) {
+        receivable += s * rec.share
+        open.push({ c, due: rec.due, krw: s * rec.share })
+      } else {
         if (inPeriod(rec.date, period)) revenue += s * rec.share
         if (period.year == null || rec.date.startsWith(String(period.year))) bump(rec.date, 'revenue', s * rec.share)
       }
@@ -304,6 +341,21 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     noRate: payouts.filter((p) => payoutKrw(p, r) == null).length,
   }
 
+  open.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
+  const groups: [string, (s: string) => boolean, boolean][] = [
+    ['대기', (s) => s === '대기', false],
+    ['송금 진행 중', (s) => IN_FLIGHT.includes(s), false],
+    ['보류', (s) => s === '보류', true],
+    ['기타 상태', (s) => s !== '대기' && s !== '보류' && !IN_FLIGHT.includes(s), false],
+  ]
+  const pending = payouts.filter((p) => p.status !== DONE)
+  const payables = groups
+    .map(([label, hit, alert]) => {
+      const xs = pending.filter((p) => hit(p.status))
+      return { label, alert, count: xs.length, krw: xs.reduce((a, p) => a + krw(p), 0) }
+    })
+    .filter((b) => b.count > 0 || b.label !== '기타 상태')
+
   return {
     summary: { revenue, receivable, settled, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null },
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v })),
@@ -311,5 +363,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     creators: [...creators.values()].sort((a, b) => b.revenue - a.revenue || b.paid - a.paid),
     owners: [...owners.values()].sort((a, b) => b.supply - a.supply),
     gaps,
+    receivables: { buckets: agingBuckets(open, today), open },
+    payables,
   }
 }

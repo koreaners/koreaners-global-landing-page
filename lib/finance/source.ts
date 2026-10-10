@@ -70,6 +70,8 @@ export function toContract(page: Page): Contract {
     postText: str(page, '잔금 금액'),
     preDate: day(page, '선금 입금일'),
     postDate: day(page, '잔금 입금일'),
+    preDue: day(page, '선금 정산일'),
+    postDue: day(page, '잔금 정산일'),
     contractDate: day(page, '계약일자'),
     startDate: day(page, '시작일'),
     link: (val(page, '계약서 링크') as string | null) ?? null,

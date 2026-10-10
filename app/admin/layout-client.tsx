@@ -17,10 +17,11 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     router.push('/admin/login')
   }
 
+  const width = pathname.startsWith('/admin/finance') ? 'max-w-7xl' : 'max-w-5xl'
   return (
     <div className="min-h-screen bg-neutral-950">
       <header className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+        <div className={`mx-auto flex h-14 ${width} items-center justify-between px-4 sm:px-6`}>
           <Link href="/admin" className="text-sm font-semibold tracking-tight text-neutral-50">
             KOREANERS
           </Link>
@@ -44,7 +45,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <main className={`mx-auto ${width} px-4 py-8 sm:px-6`}>
         {children}
       </main>
     </div>
