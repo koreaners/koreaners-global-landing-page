@@ -14,6 +14,8 @@ export type Contract = {
   method: string | null // 정산 방식
   supplyKrw: number | null // 공급가(원)
   supplyJpy: number | null // 공급가(엔)
+  totalKrw?: number | null // 합계(원), 부가세 포함 실제 입금액
+  totalJpy?: number | null // 합계(엔)
   preText: string // 선금 금액(글)
   postText: string // 잔금 금액(글)
   preDate: string | null // 선금 입금일
@@ -195,7 +197,10 @@ export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null
   return p.sentDate ?? p.reqDate ?? (c ? contractDay(c) : null)
 }
 
-export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10)): Model {
+// cash: 매출은 입금된 달, 정산은 송금한 달. contract: 둘 다 계약 기준일의 달(공급가 전액, 그 계약에 연결된 지급 전체)
+export type Basis = 'cash' | 'contract'
+
+export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash'): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
   contracts = contracts.filter((c) => c.code)
@@ -211,12 +216,14 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     payByContract.set(p.contractId, list)
   }
 
-  // 매출(입금 기준)과 받을 돈(현재 잔액)
-  let revenue = 0
+  // 매출, 정산(기준에 따라 입금/송금된 달 또는 계약 기준일의 달)과 받을 돈, 줄 돈(현재 잔액)
+  const totals = { revenue: 0, settled: 0 }
   let receivable = 0
   const open: OpenItem[] = []
   const monthly = new Map<string, { revenue: number; settled: number }>()
-  const bump = (date: string, key: 'revenue' | 'settled', v: number) => {
+  const count = (date: string, key: 'revenue' | 'settled', v: number) => {
+    if (inPeriod(date, period)) totals[key] += v
+    if (period.year != null && !date.startsWith(String(period.year))) return
     const m = date.slice(0, 7)
     const row = monthly.get(m) ?? { revenue: 0, settled: 0 }
     row[key] += v
@@ -229,26 +236,28 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       if (!rec.date) {
         receivable += s * rec.share
         open.push({ c, due: rec.due, krw: s * rec.share })
-      } else {
-        if (inPeriod(rec.date, period)) revenue += s * rec.share
-        if (period.year == null || rec.date.startsWith(String(period.year))) bump(rec.date, 'revenue', s * rec.share)
-      }
+      } else if (basis === 'cash') count(rec.date, 'revenue', s * rec.share)
     }
+    const d = contractDay(c)
+    if (basis === 'contract' && d) count(d, 'revenue', s)
   }
 
-  // 정산(송금 기준)과 줄 돈(현재 잔액)
-  let settled = 0
   let payable = 0
   let held = 0
   for (const p of payouts) {
-    if (p.status === DONE) {
-      if (p.sentDate && inPeriod(p.sentDate, period)) settled += krw(p)
-      if (p.sentDate && (period.year == null || p.sentDate.startsWith(String(period.year)))) bump(p.sentDate, 'settled', krw(p))
-    } else {
+    if (p.status !== DONE) {
       payable += krw(p)
       if (p.status === '보류') held += krw(p)
     }
+    if (basis === 'cash') {
+      if (p.status === DONE && p.sentDate) count(p.sentDate, 'settled', krw(p))
+    } else {
+      const c = p.contractId ? byId.get(p.contractId) : undefined
+      const d = c && !c.isExpense ? contractDay(c) : null
+      if (d) count(d, 'settled', krw(p))
+    }
   }
+  const { revenue, settled } = totals
 
   // 안건별 마진: 계약 기준일이 기간 안인 수입 계약
   const rows: ContractRow[] = revenueContracts
@@ -366,4 +375,49 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     receivables: { buckets: agingBuckets(open, today), open },
     payables,
   }
+}
+
+const monthEnd = (d: string) => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10)
+
+/** 지급 예정일(설계 261002-설계-자금캘린더 1절). 정기 회차는 월말 1회 가정, 마감이 20일로 확인되면 「말일 이틀 전」을 「20일」로 */
+export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string): string | null {
+  if (p.status === DONE) return p.sentDate
+  if (p.status === '모인 접수' || p.status === '원화 이체 대기') return p.reqDate
+  if (p.status === '송금 가능') return monthEnd(today)
+  if (p.status !== '대기') return null // 보류
+  const c = p.contractId ? byId.get(p.contractId) : undefined
+  const due = c ? (recognitions(c).find((x) => !x.date)?.due ?? null) : null
+  if (!due) return null
+  const end = monthEnd(due)
+  return Date.parse(due) > Date.parse(end) - 2 * DAY ? monthEnd(new Date(Date.parse(end) + DAY).toISOString().slice(0, 10)) : end
+}
+
+export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'late'; date: string; krw: number; title: string; sub: string; contractId: string | null }
+
+/** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
+ * 들어옴은 실제 입금액(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음). 합계가 비면 공급가로 대신하고 표시
+ * ponytail: 나감은 지급액(원천징수 전). 실지급액(3.3% 공제 뒤)은 공제 유형을 읽을 때 바꿈 */
+export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates, ym: string, today: string): CalItem[] {
+  const signed = contracts.filter((c) => c.code)
+  const byId = new Map(signed.map((c) => [c.id, c]))
+  const out: CalItem[] = []
+  for (const c of signed) {
+    if (c.isExpense) continue
+    const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
+    const amt = total ?? supplyKrw(c, r)
+    if (amt == null) continue
+    for (const rec of recognitions(c)) {
+      const date = rec.date ?? rec.due
+      if (!date?.startsWith(ym)) continue
+      out.push({ kind: 'in', state: rec.date ? 'done' : date < today ? 'late' : 'due', date, krw: amt * rec.share, title: c.brand || c.corp || c.code, sub: total == null ? `${c.code}, 합계 없음(공급가)` : c.code, contractId: c.id })
+    }
+  }
+  for (const p of payouts) {
+    const date = payoutDue(p, byId, today)
+    if (!date?.startsWith(ym)) continue
+    const c = p.contractId ? byId.get(p.contractId) : undefined
+    // 모인 접수, 원화 이체 대기는 송금 요청일에 이미 나가는 중이라 지남으로 보지 않음
+    out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : date < today ? 'late' : 'due', date, krw: payoutKrw(p, r) ?? 0, title: p.name, sub: `${p.status}${c ? `, ${c.code}` : ''}`, contractId: c?.id ?? null })
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date) || b.krw - a.krw)
 }
