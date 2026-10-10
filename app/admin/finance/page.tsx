@@ -240,6 +240,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 }) {
   const cb = basis === 'contract'
   const s = model.summary
+  const sheetN = model.contracts.filter((x) => x.c.source === 'sheet').length // 지급 연결 전이라 마진에서 빠진 시트 계약
   const p = prior?.summary ?? null
   const byMonth = new Map(all.monthly.map((r) => [r.month, r]))
   const thisYear = Number(today.slice(0, 4))
@@ -316,7 +317,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
-        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}`} />
+        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
       </div>
@@ -436,7 +437,7 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
       {picked && (
         <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
           <p className="text-sm text-neutral-200">
-            {picked.c.code}, 공급가 {won(picked.supply)}, 변동비 {won(picked.cost)}, 마진 {won(picked.margin)} ({pct(picked.rate)})
+            {picked.c.code}, 공급가 {won(picked.supply)}, 변동비 {picked.c.source === 'sheet' ? '-' : won(picked.cost)}, 마진 {won(picked.margin)} ({pct(picked.rate)})
           </p>
           {picked.payouts.length ? <PayoutTable payouts={picked.payouts} rates={rates} /> : <p className="text-xs text-neutral-500">이 계약에 연결된 지급 행이 없습니다.</p>}
         </div>
@@ -458,8 +459,8 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
             <td className={td} title={won(x.supply)}>{x.supply == null ? '-' : won2(x.supply)}
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
-            <td className={td} title={won(x.cost)}>{won2(x.cost)}</td>
-            <td className={td} title={won(x.margin)}>
+            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : won2(x.cost)}</td>
+            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{pct(x.rate)}</span>
             </td>
