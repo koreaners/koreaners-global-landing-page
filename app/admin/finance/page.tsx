@@ -139,7 +139,7 @@ function Summary({ model }: { model: Model }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Card label="매출(입금 기준)" value={won(s.revenue)} note="공급가, 입금된 달" />
-        <Card label="받을 돈(현재)" value={won(s.receivable)} note="입금일 없는 몫" />
+        <Card label="받을 돈(현재)" value={won(s.receivable)} note={`입금일 미기재 ${model.gaps.noDeposit}건 포함, 기준 탭`} />
         <Card label="정산(송금 기준)" value={won(s.settled)} note="송금 완료, 송금한 달" />
         <Card label="줄 돈(현재)" value={won(s.payable)} note={`보류 ${won(s.held)} 포함`} />
         <Card label="마진(계약 단위)" value={won(s.margin)} note={`마진율 ${pct(s.marginRate)}`} />
@@ -264,7 +264,7 @@ function Creators({ model, rates, sel, q }: { model: Model; rates: Rates; sel?: 
         ))}
       </Table>
       <p className="text-xs text-neutral-500">
-        매출 몫은 계약 공급가를 그 계약의 실제 지급 비율로 나눈 값입니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다.
+        매출 몫은 계약 공급가를 그 계약의 실제 지급 비율로 나눈 값입니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 요약의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
       </p>
     </div>
   )
@@ -315,7 +315,7 @@ function Basis({ model, rates }: { model: Model; rates: Rates }) {
           <li>
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
           </li>
-          <li>Contract DB에 없는 계약(26년 Dashboard에만 있는 계약 128건, 세금계산서로만 확인한 매출 등, 261005 기준)은 나오지 않습니다. 크리에이터별 연간매출정산 HTML(261002)과 합계가 다른 주된 이유입니다.</li>
+          <li>Contract DB에 없는 계약은 나오지 않습니다.</li>
         </ul>
       </section>
       <section className="space-y-2">
