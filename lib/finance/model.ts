@@ -25,6 +25,8 @@ export type Contract = {
   contractDate: string | null
   startDate: string | null
   link: string | null
+  supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
+  source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(1회 소급 전 임시)
 }
 
 export type Payout = {
@@ -60,6 +62,7 @@ export function rateOf(c: Currency | null, r: Rates): number | null {
 export function supplyKrw(c: Contract, r: Rates): number | null {
   if (c.supplyKrw != null) return c.supplyKrw
   if (c.supplyJpy != null) return c.supplyJpy * r.JPY
+  if (c.supplyUsd != null) return c.supplyUsd * r.USD
   return null
 }
 

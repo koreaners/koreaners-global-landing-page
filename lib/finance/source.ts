@@ -1,6 +1,8 @@
 // 노션 Contract DB, 지급내역 DB 전체 조회와 정리. next 에 기대지 않아 점검 스크립트도 그대로 쓴다.
 import { Client } from '@notionhq/client'
+import { google } from 'googleapis'
 import type { Contract, Currency, Payout } from './model'
+import { sheetContracts } from './sheet'
 
 type Prop = { type: string; [k: string]: unknown }
 type Page = { id: string; properties: Record<string, Prop> }
@@ -98,7 +100,37 @@ export function toPayout(page: Page): Payout {
   }
 }
 
-export type FinanceData = { contracts: Contract[]; payouts: Payout[]; fetchedAt: string }
+export type FinanceData = {
+  contracts: Contract[]
+  payouts: Payout[]
+  fetchedAt: string
+  sheet: { tab: string; added: number; skippedDup: string[] } | null
+  sheetError: string | null
+}
+
+/** 운영 대시보드(MKT Ops Master)에서 숫자가 가장 큰 Dashboard 탭 전체 값 */
+async function readDashboard(env: Record<string, string | undefined>): Promise<{ tab: string; values: string[][] }> {
+  const id = env.GOOGLE_SHEETS_PROJECT_ID
+  const scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+  let auth
+  if (env.GOOGLE_SERVICE_ACCOUNT_JSON) auth = new google.auth.GoogleAuth({ credentials: JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON), scopes })
+  else if (env.GOOGLE_ACCESS_TOKEN) {
+    // 로컬 미리보기 전용: gcloud auth print-access-token 으로 받은 토큰
+    auth = new google.auth.OAuth2()
+    auth.setCredentials({ access_token: env.GOOGLE_ACCESS_TOKEN })
+  }
+  if (!id || !auth) throw new Error('환경변수 없음: GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_SHEETS_PROJECT_ID')
+  const sheets = google.sheets({ version: 'v4', auth })
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: id, fields: 'sheets.properties.title' })
+  const num = (t: string) => Number(t.match(/\d+/)?.[0] ?? -1)
+  const tab = (meta.data.sheets ?? [])
+    .map((x) => x.properties?.title ?? '')
+    .filter((t) => /dashboard/i.test(t))
+    .sort((a, b) => num(b) - num(a))[0]
+  if (!tab) throw new Error('Dashboard 탭 없음')
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `'${tab}'!A:AZ`, valueRenderOption: 'FORMATTED_VALUE' })
+  return { tab, values: (res.data.values ?? []) as string[][] }
+}
 
 export async function loadFinance(env: Record<string, string | undefined>): Promise<FinanceData> {
   const token = env.NOTION_FINANCE_TOKEN ?? env.NOTION_TOKEN
@@ -116,5 +148,17 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
       throw new Error(`지급내역 DB 조회 실패: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`)
     }),
   ])
-  return { contracts: c.map(toContract), payouts: p.map(toPayout), fetchedAt: new Date().toISOString() }
+  const contracts = c.map(toContract)
+  // Contract DB에 아직 없는 운영 대시보드 계약을 더함(1회 소급 전 임시). 시트를 못 읽어도 노션만으로 계속
+  let sheet: FinanceData['sheet'] = null
+  let sheetError: string | null = null
+  try {
+    const { tab, values } = await readDashboard(env)
+    const r = sheetContracts(values, contracts)
+    contracts.push(...r.contracts)
+    sheet = { tab, added: r.contracts.length, skippedDup: r.skippedDup }
+  } catch (e) {
+    sheetError = e instanceof Error ? e.message : String(e)
+  }
+  return { contracts, payouts: p.map(toPayout), fetchedAt: new Date().toISOString(), sheet, sheetError }
 }
