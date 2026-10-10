@@ -252,11 +252,12 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q }: {
     .filter((x) => x.status === '보류')
     .sort((a, b) => (payoutKrw(b, rates) ?? 0) - (payoutKrw(a, rates) ?? 0))
     .slice(0, 5)
-  const todo: [string, string, string][] = []
-  if (overdueN) todo.push([`입금 예정일이 지난 받을 돈 ${overdueN}건`, won2(overdueKrw), '#receivables'])
-  if (held?.count) todo.push([`보류 중인 지급 ${held.count}행`, won2(held.krw), '#payables'])
-  if (noDue.count) todo.push([`입금 예정일이 없는 받을 돈 ${noDue.count}건`, won2(noDue.krw), '#receivables'])
-  if (model.gaps.unlinked.count) todo.push([`수입 계약에 연결되지 않은 지급 ${model.gaps.unlinked.count}행`, won2(model.gaps.unlinked.krw), q({ tab: 'basis' })])
+  // [제목, 건수, 금액, 이동, 강조]
+  const todo: [string, string, number, string, boolean][] = []
+  if (overdueN) todo.push(['입금 예정일이 지난 받을 돈', `${overdueN}건`, overdueKrw, '#receivables', true])
+  if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
+  if (noDue.count) todo.push(['입금 예정일이 없는 받을 돈', `${noDue.count}건`, noDue.krw, '#receivables', false])
+  if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, q({ tab: 'basis' }), false])
 
   const bMax = Math.max(...buckets.map((b) => b.krw))
   const pMax = Math.max(1, ...model.payables.map((b) => b.krw))
@@ -269,27 +270,30 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q }: {
 
   return (
     <div className="space-y-6">
+      <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
+        <span className="font-medium text-neutral-200">노션 Contract DB에 등록된 계약만 집계합니다.</span> 모두싸인, 운영 대시보드에만 있는 지난 계약은 아직 옮기지 않아 매출, 받을 돈, 마진에 빠져 있습니다.
+      </p>
+
       {todo.length > 0 && (
-        <section className="rounded-xl border border-neutral-800 bg-neutral-900">
-          <h2 className="border-b border-neutral-800 px-5 py-3 text-sm font-semibold text-neutral-100">지금 볼 것</h2>
-          <ul className="divide-y divide-neutral-800">
-            {todo.map(([text, amount, href]) => (
-              <li key={text}>
-                <Link href={href} className="flex items-center justify-between gap-4 px-5 py-3 text-sm hover:bg-neutral-800/40">
-                  <span className="text-neutral-200">{text}</span>
-                  <span className="flex items-center gap-3 tabular-nums text-neutral-400">
-                    {amount}
-                    <span aria-hidden>→</span>
-                  </span>
-                </Link>
-              </li>
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-neutral-100">지금 볼 것</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {todo.map(([title, count, krw, href, alert]) => (
+              <Link key={title} href={href} className={`flex flex-col justify-between gap-3 rounded-xl border bg-neutral-900 p-4 hover:bg-neutral-800/60 ${alert ? 'border-[#e66767]/60' : 'border-neutral-800'}`}>
+                <p className={`text-xs ${alert ? 'text-[#e66767]' : 'text-neutral-400'}`}>{title}</p>
+                <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={won(krw)}>{won2(krw)}</p>
+                <p className="flex justify-between text-xs text-neutral-500">
+                  <span>{count}</span>
+                  <span aria-hidden>→</span>
+                </p>
+              </Link>
             ))}
-          </ul>
+          </div>
         </section>
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label="매출 (입금 기준)" value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
+        <Tile label="매출 (DB 등록분)" value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label="정산 (송금 기준)" value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(p?.settled, '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
