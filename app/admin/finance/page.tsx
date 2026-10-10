@@ -65,7 +65,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-neutral-50">대시보드</h1>
+          <h1 className="text-xl font-semibold text-neutral-50">{TABS.find(([k]) => k === tab)?.[1]}</h1>
           <p className="text-xs text-neutral-500">
             노션 Contract DB, 지급내역 DB 기준, 조회 {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (5분 캐시){tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
           </p>
@@ -87,18 +87,6 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           <button className="rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">보기</button>
         </form>
       </div>
-
-      <nav className="flex gap-1 border-b border-neutral-800">
-        {TABS.map(([k, label]) => (
-          <Link
-            key={k}
-            href={q({ tab: k, sel: undefined })}
-            className={`px-3 py-2 text-sm ${k === tab ? 'border-b-2 border-sky-400 text-neutral-50' : 'text-neutral-500 hover:text-neutral-300'}`}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} />}
@@ -157,8 +145,8 @@ function Delta({ cur, prev, good }: { cur: number; prev: number | null; good: bo
 }
 
 function Spark({ values, color }: { values: number[]; color: string }) {
-  const w = 104
-  const h = 32
+  const w = 72
+  const h = 24
   const max = Math.max(1, ...values)
   const pts = values.map((v, i) => [(i / Math.max(1, values.length - 1)) * (w - 6) + 3, h - 4 - (v / max) * (h - 8)])
   const last = pts[pts.length - 1]
@@ -173,11 +161,11 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 function Tile({ label, value, full, delta, note, spark }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode }) {
   return (
     <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-xs text-neutral-400">{label}</p>
-      <div className="flex items-end justify-between gap-2">
-        <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>{value}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs text-neutral-400">{label}</p>
         {spark}
       </div>
+      <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>{value}</p>
       <p className="text-xs text-neutral-500">
         {delta}
         {delta ? ' ' : ''}
