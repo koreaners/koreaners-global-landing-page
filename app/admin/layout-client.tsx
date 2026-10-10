@@ -3,12 +3,13 @@
 import { Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, ExternalLink, FileText, LayoutDashboard, Briefcase, Users, UserCog, ListChecks } from 'lucide-react'
+import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks } from 'lucide-react'
 import Link from 'next/link'
 
-// 재무 메뉴는 /admin/finance 의 tab 쿼리. 고른 연도(y), 월(m)은 메뉴를 옮겨도 유지
+// 재무 메뉴는 /admin/finance 의 tab 쿼리. 고른 연도(y), 월(m), 집계 기준(b)은 메뉴를 옮겨도 유지
 const FINANCE = [
   ['summary', '개요', LayoutDashboard],
+  ['calendar', '자금 캘린더', CalendarDays],
   ['contracts', '안건', Briefcase],
   ['creators', '크리에이터', Users],
   ['owners', '담당자', UserCog],
@@ -27,7 +28,7 @@ function Nav({ onSignOut }: { onSignOut: () => void }) {
   const tab = sp.get('tab') ?? 'summary'
   const href = (k: string) => {
     const s = new URLSearchParams({ tab: k })
-    for (const key of ['y', 'm']) {
+    for (const key of ['y', 'm', 'b']) {
       const v = inFinance ? sp.get(key) : null
       if (v) s.set(key, v)
     }
