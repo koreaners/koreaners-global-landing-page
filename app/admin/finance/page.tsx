@@ -294,6 +294,7 @@ function Owners({ model }: { model: Model }) {
 function Basis({ model, rates }: { model: Model; rates: Rates }) {
   const g = model.gaps
   const rows: [string, string][] = [
+    ['서명 전 계약(유니크코드 없음, 모든 집계에서 빠짐)', `${g.unsigned}건`],
     ['입금일이 하나도 없는 수입 계약', `${g.noDeposit}건`],
     ['공급가가 없는 수입 계약(합계에서 빠짐)', `${g.noSupply}건`],
     ['날짜(계약일자, 시작일, 입금일)가 없는 수입 계약', `${g.noDay}건`],

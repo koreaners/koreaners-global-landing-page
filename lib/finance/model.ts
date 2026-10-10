@@ -135,6 +135,7 @@ export type CreatorRow = {
 export type OwnerRow = { owner: string; count: number; supply: number; received: number; cost: number; margin: number; rate: number | null }
 
 export type Gaps = {
+  unsigned: number // 유니크코드가 없는 서명 전 계약(집계에서 뺌)
   noDeposit: number // 입금일이 하나도 없는 수입 계약
   noSupply: number
   noDay: number
@@ -161,6 +162,9 @@ export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null
 }
 
 export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period): Model {
+  // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
+  const unsigned = contracts.filter((c) => !c.code).length
+  contracts = contracts.filter((c) => c.code)
   const revenueContracts = contracts.filter((c) => !c.isExpense)
   const byId = new Map(contracts.map((c) => [c.id, c]))
   const krw = (p: Payout) => payoutKrw(p, r) ?? 0
@@ -289,6 +293,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const unlinked = payouts.filter((p) => !p.contractId)
   const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate)
   const gaps: Gaps = {
+    unsigned,
     noDeposit: revenueContracts.filter((c) => !c.preDate && !c.postDate).length,
     noSupply: revenueContracts.filter((c) => supplyKrw(c, r) == null).length,
     noDay: revenueContracts.filter((c) => !contractDay(c)).length,
