@@ -558,10 +558,10 @@ function Basis({ model, rates, basis }: { model: Model; rates: Rates; basis: Bas
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
           </li>
           <li>
-            개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 Contract DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠집니다.
+            개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 Contract DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠지고, 공급가가 없는 계약의 지급은 정산에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 조금 다릅니다.
           </li>
           <li>
-            자금 캘린더: 들어옴은 수입 계약 회차별 공급가로, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 나감은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일, 보류는 빠짐)입니다. 금액은 이 화면 단위(공급가 부가세 제외, 지급액 원천징수 전, 원화 환산)이고 입금 약속일 칸은 아직 없습니다.
+            자금 캘린더: 들어옴은 실제 입금 예상액(합계 칸, 부가세 포함)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 나감은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일, 보류는 빠짐)입니다. 나감 금액은 지급액(원천징수 전, 원화 환산)이고 입금 약속일 칸은 아직 없습니다.
           </li>
           <li>Contract DB에 없는 계약은 나오지 않습니다.</li>
         </ul>
@@ -582,8 +582,8 @@ function Basis({ model, rates, basis }: { model: Model; rates: Rates; basis: Bas
 }
 
 const CAL_STATE: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
-  in: { done: '입금됨', due: '입금 예정', late: '예정일 지남' },
-  out: { done: '송금 완료', due: '지급 예정', late: '예정일 지남' },
+  in: { done: '입금됨', flight: '-', due: '입금 예정', late: '예정일 지남' },
+  out: { done: '송금 완료', flight: '송금 진행 중', due: '지급 예정', late: '예정일 지남' },
 }
 
 /** 자금 캘린더: 날짜별 들어오고 나가는 돈, 날짜를 누르면 안건별 입출금 */
@@ -598,7 +598,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
   const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1]
   const [ny, nm] = m === 12 ? [y + 1, 1] : [y, m + 1]
   const picked = sel?.startsWith(cur) ? (byDay.get(sel) ?? []) : null
-  const ALL: CalItem['state'][] = ['done', 'due', 'late']
+  const ALL: CalItem['state'][] = ['done', 'flight', 'due', 'late']
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -610,10 +610,10 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
         <Legend items={[['+ 들어옴', REV], ['− 나감', SET], ['예정일 지남', ALERT]]} />
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card label="들어온 돈" value={won2(sum(items, 'in', ['done']))} note="Contract DB 입금일 기준(은행 대조 전)" />
-        <Card label="들어올 돈 (예정)" value={won2(sum(items, 'in', ['due', 'late']))} note={`그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}`} />
+        <Card label="들어온 돈" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, Contract DB 입금일(은행 대조 전)" />
+        <Card label="들어올 돈 (예정)" value={won2(sum(items, 'in', ['due', 'late']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}`} />
         <Card label="나간 돈" value={won2(sum(items, 'out', ['done']))} note="송금 완료, 송금일" />
-        <Card label="나갈 돈 (예정)" value={won2(sum(items, 'out', ['due', 'late']))} note="지급 예정일 규칙, 보류 제외" />
+        <Card label="나갈 돈 (예정)" value={won2(sum(items, 'out', ['flight', 'due', 'late']))} note={`그중 송금 진행 중 ${won2(sum(items, 'out', ['flight']))}, 보류 제외`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-neutral-800">
         <div className="grid grid-cols-7 bg-neutral-900 text-center text-xs text-neutral-500">
@@ -667,7 +667,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
         <p className="text-sm text-neutral-500">날짜를 누르면 그날의 안건별 입출금이 아래에 나옵니다.</p>
       )}
       <p className="text-xs text-neutral-500">
-        들어옴은 수입 계약 회차별 공급가(부가세 제외)로, 입금된 회차는 입금일, 아직이면 정산일에 둡니다. 나감은 지급액(원천징수 전, 원화 환산)을 지급 예정일에 둡니다: 송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일(말일 이틀 전보다 늦으면 다음 달 말일). 보류와 예정일을 정할 수 없는 행은 빠집니다.
+        들어옴은 실제 들어올 금액입니다. 수입 계약 「합계」(공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산)를 선금, 잔금 회차로 나눠 입금된 회차는 입금일, 아직이면 정산일에 둡니다. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」이라고 적습니다. 나감은 지급액(원천징수 전, 원화 환산)을 지급 예정일에 둡니다: 송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일(말일 이틀 전보다 늦으면 다음 달 말일). 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다.
       </p>
     </div>
   )

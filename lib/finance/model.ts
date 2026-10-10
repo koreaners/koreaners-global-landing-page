@@ -14,6 +14,8 @@ export type Contract = {
   method: string | null // 정산 방식
   supplyKrw: number | null // 공급가(원)
   supplyJpy: number | null // 공급가(엔)
+  totalKrw?: number | null // 합계(원), 부가세 포함 실제 입금액
+  totalJpy?: number | null // 합계(엔)
   preText: string // 선금 금액(글)
   postText: string // 잔금 금액(글)
   preDate: string | null // 선금 입금일
@@ -390,28 +392,32 @@ export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string)
   return Date.parse(due) > Date.parse(end) - 2 * DAY ? monthEnd(new Date(Date.parse(end) + DAY).toISOString().slice(0, 10)) : end
 }
 
-export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'due' | 'late'; date: string; krw: number; title: string; sub: string; contractId: string | null }
+export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'late'; date: string; krw: number; title: string; sub: string; contractId: string | null }
 
-/** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름
- * ponytail: 금액은 대시보드 단위(공급가, 지급액 원천징수 전, 원화 환산). 설계의 입금 예정액(부가세 포함), 실지급액(3.3% 공제 뒤)은 공제 유형을 읽을 때 바꿈(캐시 키 v3) */
+/** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
+ * 들어옴은 실제 입금액(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음). 합계가 비면 공급가로 대신하고 표시
+ * ponytail: 나감은 지급액(원천징수 전). 실지급액(3.3% 공제 뒤)은 공제 유형을 읽을 때 바꿈 */
 export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates, ym: string, today: string): CalItem[] {
   const signed = contracts.filter((c) => c.code)
   const byId = new Map(signed.map((c) => [c.id, c]))
   const out: CalItem[] = []
   for (const c of signed) {
-    const s = c.isExpense ? null : supplyKrw(c, r)
-    if (s == null) continue
+    if (c.isExpense) continue
+    const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
+    const amt = total ?? supplyKrw(c, r)
+    if (amt == null) continue
     for (const rec of recognitions(c)) {
       const date = rec.date ?? rec.due
       if (!date?.startsWith(ym)) continue
-      out.push({ kind: 'in', state: rec.date ? 'done' : date < today ? 'late' : 'due', date, krw: s * rec.share, title: c.brand || c.corp || c.code, sub: c.code, contractId: c.id })
+      out.push({ kind: 'in', state: rec.date ? 'done' : date < today ? 'late' : 'due', date, krw: amt * rec.share, title: c.brand || c.corp || c.code, sub: total == null ? `${c.code}, 합계 없음(공급가)` : c.code, contractId: c.id })
     }
   }
   for (const p of payouts) {
     const date = payoutDue(p, byId, today)
     if (!date?.startsWith(ym)) continue
     const c = p.contractId ? byId.get(p.contractId) : undefined
-    out.push({ kind: 'out', state: p.status === DONE ? 'done' : date < today ? 'late' : 'due', date, krw: payoutKrw(p, r) ?? 0, title: p.name, sub: `${p.status}${c ? `, ${c.code}` : ''}`, contractId: c?.id ?? null })
+    // 모인 접수, 원화 이체 대기는 송금 요청일에 이미 나가는 중이라 지남으로 보지 않음
+    out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : date < today ? 'late' : 'due', date, krw: payoutKrw(p, r) ?? 0, title: p.name, sub: `${p.status}${c ? `, ${c.code}` : ''}`, contractId: c?.id ?? null })
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || b.krw - a.krw)
 }

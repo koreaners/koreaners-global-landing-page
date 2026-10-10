@@ -66,6 +66,8 @@ export function toContract(page: Page): Contract {
     method: (val(page, '정산 방식') as string | null) ?? null,
     supplyKrw: num(page, '공급가(원)'),
     supplyJpy: num(page, '공급가(엔)'),
+    totalKrw: num(page, '합계(원)'),
+    totalJpy: num(page, '합계(엔)'),
     preText: str(page, '선금 금액'),
     postText: str(page, '잔금 금액'),
     preDate: day(page, '선금 입금일'),
