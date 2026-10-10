@@ -1,14 +1,15 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { buildModel, payoutKrw, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, payoutKrw, priorPeriod, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { MonthlyChart, PREV_COLOR } from './charts'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 const TABS = [
-  ['summary', '요약'],
+  ['summary', '개요'],
   ['contracts', '안건'],
   ['creators', '크리에이터'],
   ['owners', '담당자'],
@@ -43,7 +44,15 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     )
   }
 
-  const model = buildModel(data.contracts, data.payouts, rates, { year, month })
+  const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
+  const period = { year, month }
+  const model = buildModel(data.contracts, data.payouts, rates, period, today)
+  const pp = priorPeriod(period, today)
+  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today) : null
+  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today) : null
+  const span = (p: { year: number | null; month: number | null; upto?: number | null }) =>
+    p.year == null ? '전체 기간' : p.month ? `${p.year}년 ${p.month}월` : p.upto ? `${p.year}년 1~${p.upto}월` : `${p.year}년`
+  const labels = { cur: span(period), prev: pp ? span(pp) : null }
   const years = [...new Set(data.contracts.map((c) => c.contractDate?.slice(0, 4)).filter(Boolean) as string[])].sort().reverse()
   const q = (over: Partial<Search>) => {
     const s = new URLSearchParams()
@@ -58,7 +67,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-neutral-50">대시보드</h1>
           <p className="text-xs text-neutral-500">
-            노션 Contract DB, 지급내역 DB 기준, 조회 {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (5분 캐시)
+            노션 Contract DB, 지급내역 DB 기준, 조회 {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (5분 캐시){tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
           </p>
         </div>
         <form className="flex items-center gap-2 text-sm" action="/admin/finance">
@@ -91,7 +100,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         ))}
       </nav>
 
-      {tab === 'summary' && <Summary model={model} />}
+      {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} />}
       {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} />}
       {tab === 'owners' && <Owners model={model} />}
@@ -130,40 +139,261 @@ function Table({ head, children }: { head: string[]; children: React.ReactNode }
 const td = 'whitespace-nowrap px-3 py-2 text-right tabular-nums'
 const tdl = 'px-3 py-2 text-left'
 
-function Summary({ model }: { model: Model }) {
+const REV = '#3987e5' // 매출 쪽 계열(받을 돈 포함)
+const SET = '#d95926' // 정산 쪽 계열(줄 돈 포함)
+const ALERT = '#e66767'
+const won2 = (n: number) => (Math.abs(n) >= 1e8 ? `${(n / 1e8).toFixed(2)}억원` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).toLocaleString('ko-KR')}만원` : won(n))
+const ym = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`
+
+export type Labels = { cur: string; prev: string | null }
+
+/** 직전 기간 대비 증감. good: 오르면 좋은 지표인지(정산은 색 없이 부호만) */
+function Delta({ cur, prev, good }: { cur: number; prev: number | null; good: boolean | null }) {
+  if (!prev) return null // 비교 기간 기록이 없으면 증감을 쓰지 않음
+  const r = (cur - prev) / Math.abs(prev)
+  const up = r >= 0
+  const color = good == null ? 'text-neutral-300' : up === good ? 'text-[#0ca30c]' : 'text-[#e66767]'
+  return <span className={`font-medium ${color}`}>{up ? '▲' : '▼'} {Math.abs(r * 100).toFixed(1)}%</span>
+}
+
+function Spark({ values, color }: { values: number[]; color: string }) {
+  const w = 104
+  const h = 32
+  const max = Math.max(1, ...values)
+  const pts = values.map((v, i) => [(i / Math.max(1, values.length - 1)) * (w - 6) + 3, h - 4 - (v / max) * (h - 8)])
+  const last = pts[pts.length - 1]
+  return (
+    <svg width={w} height={h} aria-hidden className="shrink-0">
+      <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#525252" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      {last && <circle cx={last[0]} cy={last[1]} r={4} fill={color} stroke="#171717" strokeWidth={2} />}
+    </svg>
+  )
+}
+
+function Tile({ label, value, full, delta, note, spark }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+      <p className="text-xs text-neutral-400">{label}</p>
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>{value}</p>
+        {spark}
+      </div>
+      <p className="text-xs text-neutral-500">
+        {delta}
+        {delta ? ' ' : ''}
+        {note}
+      </p>
+    </div>
+  )
+}
+
+function Panel({ id, title, sub, action, children }: { id?: string; title: string; sub: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section id={id} className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-100">{title}</h2>
+          <p className="mt-0.5 text-xs text-neutral-500">{sub}</p>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** 가로 막대 한 줄: 이름, 막대, 금액, 보조 글 */
+function BarRow({ label, value, max, color, aside, href }: { label: string; value: number; max: number; color: string; aside?: string; href?: string }) {
+  const name = href ? <Link href={href} className="hover:text-neutral-50 hover:underline">{label}</Link> : label
+  return (
+    <div className="grid grid-cols-[9rem_1fr_6.5rem] items-center gap-3 text-sm">
+      <span className="truncate text-neutral-300" title={label}>{name}</span>
+      <span className="h-2.5 rounded-r bg-neutral-800/60">
+        <span className="block h-2.5 rounded-r" style={{ width: `${max ? Math.max(1, (value / max) * 100) : 0}%`, background: color }} />
+      </span>
+      <span className="text-right tabular-nums text-neutral-200">
+        {won2(value)}
+        {aside && <span className="block text-xs text-neutral-500">{aside}</span>}
+      </span>
+    </div>
+  )
+}
+
+function Legend({ items }: { items: [string, string][] }) {
+  return (
+    <div className="flex gap-4 text-xs text-neutral-400">
+      {items.map(([label, color]) => (
+        <span key={label} className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
+          {label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function Overview({ model, prior, all, labels, year, month, today, rates, q }: {
+  model: Model; prior: Model | null; all: Model; labels: Labels; year: number | null; month: number | null; today: string; rates: Rates; q: (o: Partial<Search>) => string
+}) {
   const s = model.summary
-  const max = Math.max(1, ...model.monthly.map((r) => Math.max(r.revenue, r.settled)))
+  const p = prior?.summary ?? null
+  const byMonth = new Map(all.monthly.map((r) => [r.month, r]))
+  const thisYear = Number(today.slice(0, 4))
+  const thisMonth = Number(today.slice(5, 7))
+  // 차트는 고른 해의 1~12월(전체면 올해), 스파크라인은 기간 끝 달까지 12개월
+  const cy = year ?? thisYear
+  const endY = cy
+  const endM = month ?? (cy === thisYear ? thisMonth : 12)
+  const last12 = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(endY, endM - 12 + i, 1)
+    return byMonth.get(ym(d.getFullYear(), d.getMonth() + 1))
+  })
+  const series = (key: 'revenue' | 'settled') =>
+    Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}월`, cur: byMonth.get(ym(cy, i + 1))?.[key] ?? 0, prev: byMonth.get(ym(cy - 1, i + 1))?.[key] ?? 0 }))
+  const vs = (v: number | undefined, fallback: string) => (p == null ? fallback : v ? `${labels.prev} 대비, 당시 ${won2(v)}` : `${labels.prev} 기록 없음`)
+
+  const buckets = model.receivables.buckets
+  const overdue = buckets.filter((b) => b.alert)
+  const overdueN = overdue.reduce((a, b) => a + b.count, 0)
+  const overdueKrw = overdue.reduce((a, b) => a + b.krw, 0)
+  const noDue = buckets[buckets.length - 1]
+  const held = model.payables.find((b) => b.label === '보류')
+  const late = model.receivables.open.filter((o) => o.due && o.due < today).slice(0, 6)
+  const heldRows = all.creators
+    .flatMap((c) => c.payouts)
+    .filter((x) => x.status === '보류')
+    .sort((a, b) => (payoutKrw(b, rates) ?? 0) - (payoutKrw(a, rates) ?? 0))
+    .slice(0, 5)
+  const todo: [string, string, string][] = []
+  if (overdueN) todo.push([`입금 예정일이 지난 받을 돈 ${overdueN}건`, won2(overdueKrw), '#receivables'])
+  if (held?.count) todo.push([`보류 중인 지급 ${held.count}행`, won2(held.krw), '#payables'])
+  if (noDue.count) todo.push([`입금 예정일이 없는 받을 돈 ${noDue.count}건`, won2(noDue.krw), '#receivables'])
+  if (model.gaps.unlinked.count) todo.push([`수입 계약에 연결되지 않은 지급 ${model.gaps.unlinked.count}행`, won2(model.gaps.unlinked.krw), q({ tab: 'basis' })])
+
+  const bMax = Math.max(...buckets.map((b) => b.krw))
+  const pMax = Math.max(1, ...model.payables.map((b) => b.krw))
+  const topCreators = model.creators.filter((c) => c.revenue > 0).slice(0, 8)
+  const cMax = Math.max(1, ...topCreators.map((c) => c.revenue))
+  const topOwners = model.owners.slice(0, 8)
+  const oMax = Math.max(1, ...topOwners.map((o) => o.supply))
   let accRev = 0
   let accSet = 0
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Card label="매출(입금 기준)" value={won(s.revenue)} note="공급가, 입금된 달" />
-        <Card label="받을 돈(현재)" value={won(s.receivable)} note={`입금일 미기재 ${model.gaps.noDeposit}건 포함, 기준 탭`} />
-        <Card label="정산(송금 기준)" value={won(s.settled)} note="송금 완료, 송금한 달" />
-        <Card label="줄 돈(현재)" value={won(s.payable)} note={`보류 ${won(s.held)} 포함`} />
-        <Card label="마진(계약 단위)" value={won(s.margin)} note={`마진율 ${pct(s.marginRate)}`} />
+      {todo.length > 0 && (
+        <section className="rounded-xl border border-neutral-800 bg-neutral-900">
+          <h2 className="border-b border-neutral-800 px-5 py-3 text-sm font-semibold text-neutral-100">지금 볼 것</h2>
+          <ul className="divide-y divide-neutral-800">
+            {todo.map(([text, amount, href]) => (
+              <li key={text}>
+                <Link href={href} className="flex items-center justify-between gap-4 px-5 py-3 text-sm hover:bg-neutral-800/40">
+                  <span className="text-neutral-200">{text}</span>
+                  <span className="flex items-center gap-3 tabular-nums text-neutral-400">
+                    {amount}
+                    <span aria-hidden>→</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <Tile label="매출 (입금 기준)" value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
+        <Tile label="정산 (송금 기준)" value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(p?.settled, '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
+        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}`} />
+        <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
+        <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
       </div>
-      <Table head={['월', '매출(입금)', '정산(송금)', '매출 누적', '정산 누적', '']}>
-        {model.monthly.map((r) => {
-          accRev += r.revenue
-          accSet += r.settled
-          return (
-            <tr key={r.month}>
-              <td className={tdl}>{r.month}</td>
-              <td className={td}>{won(r.revenue)}</td>
-              <td className={td}>{won(r.settled)}</td>
-              <td className={td}>{won(accRev)}</td>
-              <td className={td}>{won(accSet)}</td>
-              <td className="w-48 px-3 py-2">
-                <div className="h-1.5 rounded bg-sky-500" style={{ width: `${(r.revenue / max) * 100}%` }} />
-                <div className="mt-1 h-1.5 rounded bg-amber-500" style={{ width: `${(r.settled / max) * 100}%` }} />
-              </td>
-            </tr>
-          )
-        })}
-      </Table>
-      <p className="text-xs text-neutral-500">막대: 파랑 매출, 주황 정산. 받을 돈과 줄 돈은 기간과 관계없는 현재 잔액입니다.</p>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel title="월별 매출" sub={`${cy}년, 입금된 달 기준 공급가`} action={<Legend items={[[`${cy}년`, REV], [`${cy - 1}년`, PREV_COLOR]]} />}>
+          <MonthlyChart data={series('revenue')} color={REV} curLabel={`${cy}년`} prevLabel={`${cy - 1}년`} />
+        </Panel>
+        <Panel title="월별 정산" sub={`${cy}년, 송금 완료한 달 기준 지급액`} action={<Legend items={[[`${cy}년`, SET], [`${cy - 1}년`, PREV_COLOR]]} />}>
+          <MonthlyChart data={series('settled')} color={SET} curLabel={`${cy}년`} prevLabel={`${cy - 1}년`} />
+        </Panel>
+
+        <Panel id="receivables" title="받을 돈 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
+          <div className="space-y-2.5">
+            {buckets.map((b) => (
+              <BarRow key={b.label} label={b.label} value={b.krw} max={bMax} color={b.alert ? ALERT : REV} aside={`${b.count}건`} />
+            ))}
+          </div>
+          {late.length > 0 && (
+            <div className="space-y-1 border-t border-neutral-800 pt-3">
+              <p className="text-xs text-neutral-500">예정일이 가장 오래 지난 회차</p>
+              {late.map((o, i) => (
+                <Link key={`${o.c.id}-${i}`} href={q({ tab: 'contracts', sel: o.c.id })} className="grid grid-cols-[1fr_auto_6.5rem] gap-3 rounded px-1 py-1 text-sm hover:bg-neutral-800/40">
+                  <span className="truncate text-neutral-300" title={o.c.code}>{o.c.brand || o.c.code}</span>
+                  <span className="text-xs tabular-nums text-neutral-500">{o.due}, {Math.round((Date.parse(today) - Date.parse(o.due!)) / 86_400_000)}일 지남</span>
+                  <span className="text-right tabular-nums text-neutral-200">{won2(o.krw)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel id="payables" title="줄 돈 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link>}>
+          <div className="space-y-2.5">
+            {model.payables.map((b) => (
+              <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
+            ))}
+          </div>
+          {heldRows.length > 0 && (
+            <div className="space-y-1 border-t border-neutral-800 pt-3">
+              <p className="text-xs text-neutral-500">금액이 큰 보류 지급</p>
+              {heldRows.map((x) => (
+                <div key={x.id} className="grid grid-cols-[1fr_auto_6.5rem] gap-3 px-1 py-1 text-sm">
+                  <span className="truncate text-neutral-300">{x.name}</span>
+                  <span className="max-w-56 truncate text-xs text-neutral-500" title={x.blocked.join(', ')}>{x.blocked.join(', ') || '사유 미기재'}</span>
+                  <span className="text-right tabular-nums text-neutral-200">{won2(payoutKrw(x, rates) ?? 0)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="크리에이터 매출 몫 상위" sub={`${labels.cur}, 계약 공급가를 지급액 비율로 나눈 몫`} action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
+          <div className="space-y-2.5">
+            {topCreators.map((c) => (
+              <BarRow key={c.name} label={c.name} value={c.revenue} max={cMax} color={REV} aside={`정산 ${won2(c.paid)}`} href={q({ tab: 'creators', sel: c.name })} />
+            ))}
+            {!topCreators.length && <p className="text-sm text-neutral-500">이 기간에 매출 몫이 있는 크리에이터가 없습니다.</p>}
+          </div>
+        </Panel>
+
+        <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율`} action={<Link href={q({ tab: 'owners' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
+          <div className="space-y-2.5">
+            {topOwners.map((o) => (
+              <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${o.count}건, 마진율 ${pct(o.rate)}`} />
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <details className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+        <summary className="cursor-pointer text-sm text-neutral-300">월별 표로 보기 ({labels.cur})</summary>
+        <div className="mt-4">
+          <Table head={['월', '매출(입금)', '정산(송금)', '매출 누적', '정산 누적']}>
+            {model.monthly.map((r) => {
+              accRev += r.revenue
+              accSet += r.settled
+              return (
+                <tr key={r.month}>
+                  <td className={tdl}>{r.month}</td>
+                  <td className={td}>{won(r.revenue)}</td>
+                  <td className={td}>{won(r.settled)}</td>
+                  <td className={td}>{won(accRev)}</td>
+                  <td className={td}>{won(accSet)}</td>
+                </tr>
+              )
+            })}
+          </Table>
+        </div>
+      </details>
     </div>
   )
 }
