@@ -46,7 +46,7 @@ export async function proxy(request: NextRequest) {
 
   // 역할 판정: 서버 전용 app_metadata.role 만 신뢰 (user_metadata 는 사용자가 직접 수정
   // 가능 → 스푸핑 위험).
-  // 화이트리스트: 'admin' 은 전체, 'exec' 는 세일즈와 보고서만. 그 외(미설정 포함)는 접근 불가.
+  // 화이트리스트: 'admin' 은 전체, 'exec' 는 보고서만. 그 외(미설정 포함)는 접근 불가.
   // 같은 Supabase 인증을 스타라이트 계정도 쓰므로 미설정 계정을 통과시키면 안 된다.
   const role = (user?.app_metadata as Record<string, unknown> | undefined)?.role as string | undefined
   const isFullAdmin = role === 'admin'
@@ -55,9 +55,9 @@ export async function proxy(request: NextRequest) {
   // 로그인 페이지 접근 시
   if (pathname === '/admin/login') {
     // 권한 있는 계정이 이미 로그인되어 있으면 대시보드로 리다이렉트
-    // (전체 어드민 → /admin, exec → 세일즈 보드)
+    // (전체 어드민 → /admin, exec → 보고서)
     if (user && (isFullAdmin || isExec)) {
-      return NextResponse.redirect(new URL(isFullAdmin ? '/admin' : '/admin/sales', request.url))
+      return NextResponse.redirect(new URL(isFullAdmin ? '/admin' : '/admin/reports', request.url))
     }
     // 세션이 없으면 로그인 페이지 접근 허용
     return response
@@ -74,9 +74,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/login?denied=1', request.url))
   }
 
-  // 역할 게이트: exec 는 /admin/sales, /admin/reports 만 접근 (마진·AR 등 /admin/projects 차단)
-  if (isExec && !pathname.startsWith('/admin/sales') && !pathname.startsWith('/admin/reports')) {
-    return NextResponse.redirect(new URL('/admin/sales', request.url))
+  // 역할 게이트: exec 는 /admin/reports 만 접근
+  if (isExec && !pathname.startsWith('/admin/reports')) {
+    return NextResponse.redirect(new URL('/admin/reports', request.url))
   }
 
   // 세션이 있으면 접근 허용
