@@ -576,7 +576,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
           </li>
           <li>
             {src.sheet
-              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(1회 소급 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 입금일을 시트에서 채운 계약 ${src.sheet.paidFrom.length}건.`
+              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(1회 소급 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 입금일을 시트에서 채운 계약 ${src.sheet.paidFrom.length}건. 공급가를 시트에서 채운 계약 ${src.sheet.supplyFrom.length}건.`
               : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
           </li>
         </ul>
