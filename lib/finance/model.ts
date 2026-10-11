@@ -25,6 +25,8 @@ export type Contract = {
   contractDate: string | null
   startDate: string | null
   link: string | null
+  supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
+  source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(1회 소급 전 임시)
 }
 
 export type Payout = {
@@ -60,6 +62,7 @@ export function rateOf(c: Currency | null, r: Rates): number | null {
 export function supplyKrw(c: Contract, r: Rates): number | null {
   if (c.supplyKrw != null) return c.supplyKrw
   if (c.supplyJpy != null) return c.supplyJpy * r.JPY
+  if (c.supplyUsd != null) return c.supplyUsd * r.USD
   return null
 }
 
@@ -274,7 +277,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const ps = payByContract.get(c.id) ?? []
       const cost = ps.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supply * x.share, 0)
-      const margin = supply == null ? null : supply - cost
+      // 시트 계약(source sheet)은 지급 연결 전이라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐)
+      const margin = supply == null || c.source === 'sheet' ? null : supply - cost
       return {
         c,
         day: contractDay(c),
@@ -291,8 +295,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     .sort((a, b) => (b.day ?? '').localeCompare(a.day ?? ''))
 
   const priced = rows.filter((x) => x.supply != null)
-  const sumSupply = priced.reduce((a, x) => a + (x.supply ?? 0), 0)
-  const sumMargin = priced.reduce((a, x) => a + (x.margin ?? 0), 0)
+  const margined = priced.filter((x) => x.margin != null)
+  const sumSupply = margined.reduce((a, x) => a + (x.supply ?? 0), 0)
+  const sumMargin = margined.reduce((a, x) => a + (x.margin ?? 0), 0)
 
   // 크리에이터: 지급 기준일이 기간 안인 지급. 매출 몫은 계약 공급가 × (이 지급 / 그 계약 지급 합)
   const creators = new Map<string, CreatorRow>()
@@ -331,6 +336,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 
   // 담당자별
   const owners = new Map<string, OwnerRow>()
+  const marginSupply = new Map<string, number>() // 마진율 분모: 마진을 셈한 계약 공급가만
   for (const x of priced) {
     const key = x.c.owner || '미지정'
     const o = owners.get(key) ?? { owner: key, count: 0, supply: 0, received: 0, cost: 0, margin: 0, rate: null }
@@ -339,7 +345,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     o.received += x.received
     o.cost += x.cost
     o.margin += x.margin ?? 0
-    o.rate = o.supply ? o.margin / o.supply : null
+    const ms = (marginSupply.get(key) ?? 0) + (x.margin != null ? (x.supply ?? 0) : 0)
+    marginSupply.set(key, ms)
+    o.rate = ms ? o.margin / ms : null
     owners.set(key, o)
   }
 

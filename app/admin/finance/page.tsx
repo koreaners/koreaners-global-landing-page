@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
+import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type CalItem, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { MonthlyChart, PREV_COLOR } from './charts'
 
@@ -99,12 +100,12 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </form>
       </div>
 
-      {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} />}
+      {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} />}
       {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} />}
       {tab === 'owners' && <Owners model={model} />}
-      {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} />}
+      {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
     </div>
   )
 }
@@ -232,11 +233,14 @@ function Legend({ items }: { items: [string, string][] }) {
   )
 }
 
-function Overview({ model, prior, all, labels, year, month, today, rates, q, basis }: {
-  model: Model; prior: Model | null; all: Model; labels: Labels; year: number | null; month: number | null; today: string; rates: Rates; q: (o: Partial<Search>) => string; basis: Basis
+type Src = Pick<FinanceData, 'sheet' | 'sheetError'>
+
+function Overview({ model, prior, all, labels, year, month, today, rates, q, basis, src }: {
+  model: Model; prior: Model | null; all: Model; labels: Labels; year: number | null; month: number | null; today: string; rates: Rates; q: (o: Partial<Search>) => string; basis: Basis; src: Src
 }) {
   const cb = basis === 'contract'
   const s = model.summary
+  const sheetN = model.contracts.filter((x) => x.c.source === 'sheet').length // 지급 연결 전이라 마진에서 빠진 시트 계약
   const p = prior?.summary ?? null
   const byMonth = new Map(all.monthly.map((r) => [r.month, r]))
   const thisYear = Number(today.slice(0, 4))
@@ -284,7 +288,11 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   return (
     <div className="space-y-6">
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
-        <span className="font-medium text-neutral-200">노션 Contract DB에 등록된 계약만 집계합니다.</span> 모두싸인, 운영 대시보드에만 있는 지난 계약은 아직 옮기지 않아 매출, 받을 돈, 마진에 빠져 있습니다.
+        <span className="font-medium text-neutral-200">
+          {src.sheet
+            ? `노션 Contract DB 계약에 더해, Contract DB에 아직 없는 운영 대시보드(${src.sheet.tab}) 계약 ${src.sheet.added}건을 시트에서 읽어 함께 집계합니다(1회 소급 전 임시). 코드만 다른 중복 후보 ${src.sheet.skippedDup.length}건은 뺐습니다.`
+            : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
+        </span>
         {cb ? ' 지금은 발생 기준(계약): 매출은 계약일의 달에 공급가 전액, 정산은 그 계약에 연결된 지급 전체(상태 무관)입니다.' : ' 지금은 현금 기준(입금): Contract DB 선금, 잔금 입금일(은행 대조 전)과 지급 송금일로 셉니다.'}
       </p>
 
@@ -307,9 +315,9 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label="매출 (DB 등록분)" value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
+        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
-        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}`} />
+        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
       </div>
@@ -429,7 +437,7 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
       {picked && (
         <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
           <p className="text-sm text-neutral-200">
-            {picked.c.code}, 공급가 {won(picked.supply)}, 변동비 {won(picked.cost)}, 마진 {won(picked.margin)} ({pct(picked.rate)})
+            {picked.c.code}, 공급가 {won(picked.supply)}, 변동비 {picked.c.source === 'sheet' ? '-' : won(picked.cost)}, 마진 {won(picked.margin)} ({pct(picked.rate)})
           </p>
           {picked.payouts.length ? <PayoutTable payouts={picked.payouts} rates={rates} /> : <p className="text-xs text-neutral-500">이 계약에 연결된 지급 행이 없습니다.</p>}
         </div>
@@ -438,7 +446,10 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
         {model.contracts.map((x) => (
           <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
-              <Link href={q({ sel: x.c.id })} className="block max-w-[11rem] truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
+              <span className="flex max-w-[13rem] items-center gap-1">
+                <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
+                {x.c.source === 'sheet' && <span className="shrink-0 rounded bg-neutral-800 px-1 text-[10px] text-neutral-400" title="Contract DB에 없어 운영 대시보드 시트에서 읽은 계약">시트</span>}
+              </span>
             </td>
             <td className={`${td} text-left`}>
               <span className="block max-w-[8rem] truncate" title={x.c.brand || x.c.corp}>{x.c.brand || x.c.corp}</span>
@@ -448,8 +459,8 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
             <td className={td} title={won(x.supply)}>{x.supply == null ? '-' : won2(x.supply)}
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
-            <td className={td} title={won(x.cost)}>{won2(x.cost)}</td>
-            <td className={td} title={won(x.margin)}>
+            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : won2(x.cost)}</td>
+            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{pct(x.rate)}</span>
             </td>
@@ -532,7 +543,7 @@ function Owners({ model }: { model: Model }) {
   )
 }
 
-function Basis({ model, rates, basis }: { model: Model; rates: Rates; basis: Basis }) {
+function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis: Basis; src: Src }) {
   const g = model.gaps
   const rows: [string, string][] = [
     ['서명 전 계약(유니크코드 없음, 모든 집계에서 빠짐)', `${g.unsigned}건`],
@@ -563,7 +574,11 @@ function Basis({ model, rates, basis }: { model: Model; rates: Rates; basis: Bas
           <li>
             자금 캘린더: 들어옴은 실제 입금 예상액(합계 칸, 부가세 포함)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 나감은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일, 보류는 빠짐)입니다. 나감 금액은 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 세금계산서 행은 부가세 포함 여부 미확인이라 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다. 입금 약속일 칸은 아직 없습니다.
           </li>
-          <li>Contract DB에 없는 계약은 나오지 않습니다.</li>
+          <li>
+            {src.sheet
+              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건을 더했습니다(1회 소급 전 임시). 코드만 다른 중복 후보로 뺀 코드: ${src.sheet.skippedDup.join(', ') || '없음'}.`
+              : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
+          </li>
         </ul>
       </section>
       <section className="space-y-2">
