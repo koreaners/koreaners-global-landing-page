@@ -368,7 +368,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
-        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
+        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : `송금 완료, 송금한 달${s.settledEst ? `(그중 ${won2(s.settledEst)}는 송금일이 없어 신청월 어림)` : ''}`)} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
@@ -630,7 +630,8 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
     ['날짜(계약일자, 시작일, 입금일)가 없는 수입 계약', `${g.noDay}건`],
     ['선금, 잔금 금액을 읽지 못해 반반으로 나눈 계약', `${g.estimatedSplit}건`],
     ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', `${g.unlinked.count}행, ${won(g.unlinked.krw)}`],
-    ['송금일 없는 송금 완료(월별 정산에서 빠짐)', `${g.doneNoDate.count}행, ${won(g.doneNoDate.krw)}`],
+    ['송금일 없이 신청일로 센 송금 완료(정산 어림)', `${g.doneByReq.count}행, ${won(g.doneByReq.krw)}`],
+    ['송금일, 신청일 모두 없는 송금 완료(정산에서 빠짐)', `${g.doneNoDate.count}행, ${won(g.doneNoDate.krw)}`],
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],
     ['통화나 지급액이 없어 환산하지 못한 지급', `${g.noRate}행`],
   ]
@@ -640,7 +641,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
         <h2 className="font-semibold text-neutral-100">집계 기준</h2>
         <ul className="list-disc space-y-1 pl-5 text-neutral-400">
           <li>매출: 수입 계약 공급가(부가세 제외)를 입금된 달에 셉니다. 선금+잔금 계약은 금액 비율로 나눕니다. P- 지출 계약은 빠집니다.</li>
-          <li>정산: 지급내역 「송금 완료」 행의 지급액(원천징수 전)을 송금일의 달에 셉니다.</li>
+          <li>정산: 지급내역 「송금 완료」 행의 지급액(원천징수 전)을 송금일의 달에 셉니다. 송금일이 없는 행(모인을 거치지 않는 원화 송금)은 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림합니다.</li>
           <li>받을 돈, 줄 돈: 기간과 관계없는 현재 잔액입니다. 줄 돈은 송금 완료가 아닌 모든 지급(보류 포함)입니다.</li>
           <li>마진: 계약 단위로 짝짓습니다. 공급가에서 그 계약에 연결된 지급 합계를 뺍니다. 기간은 계약일자(없으면 시작일, 첫 입금일)로 고릅니다.</li>
           <li>
