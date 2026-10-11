@@ -120,14 +120,14 @@ function Card({ label, value, note }: { label: string; value: string; note?: str
   )
 }
 
-function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
+function Table({ head, left = 1, children }: { head: string[]; left?: number; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-neutral-800">
       <table className="w-full text-sm">
         <thead className="bg-neutral-900 text-xs text-neutral-500">
           <tr>
             {head.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap px-3 py-2 font-medium ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+              <th key={h} className={`whitespace-nowrap px-3 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -149,8 +149,10 @@ const ym = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`
 export type Labels = { cur: string; prev: string | null }
 
 /** 직전 기간 대비 증감. good: 오르면 좋은 지표인지(정산은 색 없이 부호만) */
+const thin = (cur: number, prev: number | null) => !prev || Math.abs(prev) * 10 < Math.abs(cur)
+
 function Delta({ cur, prev, good }: { cur: number; prev: number | null; good: boolean | null }) {
-  if (!prev) return null // 비교 기간 기록이 없으면 증감을 쓰지 않음
+  if (prev == null || thin(cur, prev)) return null // 비교 기간 기록이 없거나 너무 적으면 증감을 쓰지 않음
   const r = (cur - prev) / Math.abs(prev)
   const up = r >= 0
   const color = good == null ? 'text-neutral-300' : up === good ? 'text-[#0ca30c]' : 'text-[#e66767]'
@@ -173,13 +175,13 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 
 function Tile({ label, value, full, delta, note, spark }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode }) {
   return (
-    <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <div className="flex items-start justify-between gap-2">
+    <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+      <div className="flex h-6 items-start justify-between gap-2">
         <p className="whitespace-nowrap text-xs text-neutral-400">{label}</p>
         {spark}
       </div>
       <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>{value}</p>
-      <p className="text-xs text-neutral-500">
+      <p className="mt-auto text-xs text-neutral-500">
         {delta}
         {delta ? ' ' : ''}
         {note}
@@ -207,14 +209,14 @@ function Panel({ id, title, sub, action, children }: { id?: string; title: strin
 function BarRow({ label, value, max, color, aside, href }: { label: string; value: number; max: number; color: string; aside?: string; href?: string }) {
   const name = href ? <Link href={href} className="hover:text-neutral-50 hover:underline">{label}</Link> : label
   return (
-    <div className="grid grid-cols-[9rem_1fr_6.5rem] items-center gap-3 text-sm">
+    <div className="grid grid-cols-[9rem_1fr_7.5rem] items-center gap-3 text-sm">
       <span className="truncate text-neutral-300" title={label}>{name}</span>
       <span className="h-2.5 rounded-r bg-neutral-800/60">
         <span className="block h-2.5 rounded-r" style={{ width: `${max ? Math.max(1, (value / max) * 100) : 0}%`, background: color }} />
       </span>
       <span className="text-right tabular-nums text-neutral-200">
         {won2(value)}
-        {aside && <span className="block text-xs text-neutral-500">{aside}</span>}
+        {aside && <span className="block whitespace-nowrap text-xs text-neutral-500">{aside}</span>}
       </span>
     </div>
   )
@@ -255,7 +257,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   })
   const series = (key: 'revenue' | 'settled') =>
     Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}월`, cur: byMonth.get(ym(cy, i + 1))?.[key] ?? 0, prev: byMonth.get(ym(cy - 1, i + 1))?.[key] ?? 0 }))
-  const vs = (v: number | undefined, fallback: string) => (p == null ? fallback : v ? `${labels.prev} 대비, 당시 ${won2(v)}` : `${labels.prev} 기록 없음`)
+  const vs = (cur: number, v: number | undefined, fallback: string) =>
+    p == null ? fallback : !v ? `${labels.prev} 기록 없음` : thin(cur, v) ? `${labels.prev} 기록 적음, 당시 ${won2(v)}` : `${labels.prev} 대비, 당시 ${won2(v)}`
 
   const buckets = model.receivables.buckets
   const overdue = buckets.filter((b) => b.alert)
@@ -299,7 +302,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       {todo.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-neutral-100">지금 볼 것</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${['', 'xl:grid-cols-1', 'xl:grid-cols-2', 'xl:grid-cols-3', 'xl:grid-cols-4'][todo.length]}`}>
             {todo.map(([title, count, krw, href, alert]) => (
               <Link key={title} href={href} className={`flex flex-col justify-between gap-3 rounded-xl border bg-neutral-900 p-4 hover:bg-neutral-800/60 ${alert ? 'border-[#e66767]/60' : 'border-neutral-800'}`}>
                 <p className={`text-xs ${alert ? 'text-[#e66767]' : 'text-neutral-400'}`}>{title}</p>
@@ -315,8 +318,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
-        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
+        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
+        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} note={`마진율 ${pct(s.marginRate)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
@@ -382,7 +385,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율`} action={<Link href={q({ tab: 'owners' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
           <div className="space-y-2.5">
             {topOwners.map((o) => (
-              <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${o.count}건, 마진율 ${pct(o.rate)}`} />
+              <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${o.count}건, ${ownerRate(o, model)}`} />
             ))}
           </div>
         </Panel>
@@ -414,11 +417,11 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 
 function PayoutTable({ payouts, rates }: { payouts: Payout[]; rates: Rates }) {
   return (
-    <Table head={['지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']}>
+    <Table head={['지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']} left={2}>
       {payouts.map((p) => (
         <tr key={p.id}>
           <td className={tdl}>{p.pid ?? '-'}</td>
-          <td className={`${td} text-left`}>{p.name}</td>
+          <td className={tdl}>{p.name}</td>
           <td className={td}>{p.status}</td>
           <td className={td}>{orig(p)}</td>
           <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
@@ -442,7 +445,7 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
           {picked.payouts.length ? <PayoutTable payouts={picked.payouts} rates={rates} /> : <p className="text-xs text-neutral-500">이 계약에 연결된 지급 행이 없습니다.</p>}
         </div>
       )}
-      <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '변동비', '마진', '계약서']}>
+      <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '변동비', '마진', '계약서']} left={2}>
         {model.contracts.map((x) => (
           <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
@@ -451,7 +454,7 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
                 {x.c.source === 'sheet' && <span className="shrink-0 rounded bg-neutral-800 px-1 text-[10px] text-neutral-400" title="Contract DB에 없어 운영 대시보드 시트에서 읽은 계약">시트</span>}
               </span>
             </td>
-            <td className={`${td} text-left`}>
+            <td className={tdl}>
               <span className="block max-w-[8rem] truncate" title={x.c.brand || x.c.corp}>{x.c.brand || x.c.corp}</span>
             </td>
             <td className={td}>{x.c.owner || '미지정'}</td>
@@ -462,7 +465,7 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
             <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : won2(x.cost)}</td>
             <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
-              <span className="block text-xs text-neutral-500">{pct(x.rate)}</span>
+              <span className="block text-xs text-neutral-500">{x.margin != null && !x.payouts.length ? '지급 연결 없음' : pct(x.rate)}</span>
             </td>
             <td className={td}>{x.c.link ? <a href={x.c.link} target="_blank" className="text-sky-300 hover:underline">열기</a> : '-'}</td>
           </tr>
@@ -522,6 +525,13 @@ function Creators({ model, rates, sel, q }: { model: Model; rates: Rates; sel?: 
   )
 }
 
+/** 담당자 마진율. 계약 어디에도 지급이 연결되지 않았으면 100%가 아니라 「지급 연결 없음」 */
+function ownerRate(o: Model['owners'][number], model: Model) {
+  if (o.rate == null) return '마진율 -'
+  const linked = model.contracts.some((x) => (x.c.owner || '미지정') === o.owner && x.payouts.length)
+  return linked ? `마진율 ${pct(o.rate)}` : '지급 연결 없음'
+}
+
 function Owners({ model }: { model: Model }) {
   return (
     <div className="space-y-2">
@@ -533,8 +543,8 @@ function Owners({ model }: { model: Model }) {
             <td className={td}>{won(o.supply)}</td>
             <td className={td}>{won(o.received)}</td>
             <td className={td}>{won(o.cost)}</td>
-            <td className={td}>{won(o.margin)}</td>
-            <td className={td}>{pct(o.rate)}</td>
+            <td className={td}>{o.rate == null ? '-' : won(o.margin)}</td>
+            <td className={td}>{ownerRate(o, model).replace('마진율 ', '')}</td>
           </tr>
         ))}
       </Table>
