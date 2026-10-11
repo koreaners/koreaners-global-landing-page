@@ -290,7 +290,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
         <span className="font-medium text-neutral-200">
           {src.sheet
-            ? `노션 Contract DB 계약에 더해, Contract DB에 아직 없는 운영 대시보드(${src.sheet.tab}) 계약 ${src.sheet.added}건을 시트에서 읽어 함께 집계합니다(1회 소급 전 임시). 코드만 다른 중복 후보 ${src.sheet.skippedDup.length}건은 뺐습니다.`
+            ? `노션 Contract DB 계약에 더해, Contract DB에 아직 없는 운영 대시보드(${src.sheet.tab}) 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 시트에서 읽어 함께 집계합니다(1회 소급 전 임시).`
             : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
         </span>
         {cb ? ' 지금은 발생 기준(계약): 매출은 계약일의 달에 공급가 전액, 정산은 그 계약에 연결된 지급 전체(상태 무관)입니다.' : ' 지금은 현금 기준(입금): Contract DB 선금, 잔금 입금일(은행 대조 전)과 지급 송금일로 셉니다.'}
@@ -576,7 +576,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
           </li>
           <li>
             {src.sheet
-              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건을 더했습니다(1회 소급 전 임시). 코드만 다른 중복 후보로 뺀 코드: ${src.sheet.skippedDup.join(', ') || '없음'}.`
+              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(1회 소급 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 입금일을 시트에서 채운 계약 ${src.sheet.paidFrom.length}건.`
               : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
           </li>
         </ul>

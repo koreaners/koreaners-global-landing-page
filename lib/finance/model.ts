@@ -27,6 +27,7 @@ export type Contract = {
   link: string | null
   supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
   source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(1회 소급 전 임시)
+  paidFrom?: 'sheet' // Contract DB 입금일이 둘 다 비어 같은 코드 시트 행의 선금, 잔금 정산일로 채운 계약
 }
 
 export type Payout = {
