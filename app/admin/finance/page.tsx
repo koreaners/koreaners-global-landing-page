@@ -543,7 +543,7 @@ function Owners({ model }: { model: Model }) {
             <td className={td}>{won(o.supply)}</td>
             <td className={td}>{won(o.received)}</td>
             <td className={td}>{won(o.cost)}</td>
-            <td className={td}>{o.rate == null ? '-' : won(o.margin)}</td>
+            <td className={td}>{o.rate == null && !o.margin ? '-' : won(o.margin)}</td>
             <td className={td}>{ownerRate(o, model).replace('마진율 ', '')}</td>
           </tr>
         ))}
@@ -635,7 +635,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
         <Legend items={[['+ 들어옴', REV], ['− 나감', SET], ['예정일 지남', ALERT]]} />
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card label="들어온 돈" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, Contract DB 입금일(은행 대조 전)" />
+        <Card label="들어온 돈" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(Contract DB 먼저, 없으면 시트, 은행 대조 전)" />
         <Card label="들어올 돈 (예정)" value={won2(sum(items, 'in', ['due', 'late']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}`} />
         <Card label="나간 돈" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
         <Card label="나갈 돈 (예정)" value={won2(sum(items, 'out', ['flight', 'due', 'late']))} note={`실지급액, 그중 송금 진행 중 ${won2(sum(items, 'out', ['flight']))}, 보류 제외`} />
