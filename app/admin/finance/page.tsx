@@ -23,7 +23,7 @@ const won = (n: number | null | undefined) => (n == null ? '-' : `${Math.round(n
 const pct = (r: number | null | undefined) => (r == null ? '-' : `${(r * 100).toFixed(1)}%`)
 const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '통화 미상'}`)
 
-type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string }
+type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string }
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams
@@ -60,7 +60,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const years = [...new Set(data.contracts.map((c) => c.contractDate?.slice(0, 4)).filter(Boolean) as string[])].sort().reverse()
   const q = (over: Partial<Search>) => {
     const s = new URLSearchParams()
-    const merged = { tab, y: year == null ? 'all' : String(year), m: month ? String(month) : undefined, b: basis === 'contract' ? basis : undefined, ...over }
+    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s } // 탭을 옮기면 검색어, 정렬은 버림
+    const merged = { tab, y: year == null ? 'all' : String(year), m: month ? String(month) : undefined, b: basis === 'contract' ? basis : undefined, ...keep, ...over }
     for (const [k, v] of Object.entries(merged)) if (v) s.set(k, v)
     return `/admin/finance?${s}`
   }
@@ -102,8 +103,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} />}
-      {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} />}
-      {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} />}
+      {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
+      {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
       {tab === 'owners' && <Owners model={model} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
     </div>
@@ -120,15 +121,29 @@ function Card({ label, value, note }: { label: string; value: string; note?: str
   )
 }
 
-function Table({ head, left = 1, children }: { head: string[]; left?: number; children: React.ReactNode }) {
+type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
+
+/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정 */
+function Table({ head, left = 1, sort, tall, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-neutral-800">
+    <div className={`overflow-auto rounded-xl border border-neutral-800 ${tall ? 'max-h-[75vh]' : ''}`}>
       <table className="w-full text-sm">
-        <thead className="bg-neutral-900 text-xs text-neutral-500">
+        <thead className="sticky top-0 z-10 bg-neutral-900 text-xs text-neutral-500">
           <tr>
-            {head.map((h, i) => (
-              <th key={h} className={`whitespace-nowrap px-3 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>{h}</th>
-            ))}
+            {head.map((h, i) => {
+              const k = sort?.keys[i]
+              const on = k != null && sort!.cur.replace('-', '') === k
+              const desc = on && sort!.cur.startsWith('-')
+              return (
+                <th key={h} className={`whitespace-nowrap px-3 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
+                  {k == null ? h : (
+                    <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
+                      {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
+                    </Link>
+                  )}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody className="divide-y divide-neutral-800 text-neutral-200">{children}</tbody>
@@ -138,6 +153,41 @@ function Table({ head, left = 1, children }: { head: string[]; left?: number; ch
 }
 
 const td = 'whitespace-nowrap px-3 py-2 text-right tabular-nums'
+
+/** 정렬 키(앞에 -면 내림차순)로 행 정렬. 빈 값은 항상 끝 */
+function sortRows<T>(rows: T[], s: string, get: Record<string, (x: T) => string | number | null | undefined>) {
+  const f = get[s.replace('-', '')]
+  if (!f) return rows
+  const dir = s.startsWith('-') ? -1 : 1
+  return [...rows].sort((a, b) => {
+    const x = f(a)
+    const y = f(b)
+    if (x == null || x === '') return y == null || y === '' ? 0 : 1
+    if (y == null || y === '') return -1
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko')) * dir
+  })
+}
+
+/** 표 위 검색창: 같은 주소 쿼리를 유지한 채 f만 바꿈 */
+function SearchBox({ q, f, n, total, placeholder }: { q: (o: Partial<Search>) => string; f?: string; n: number; total: number; placeholder: string }) {
+  const base = new URLSearchParams(q({ f: undefined, sel: undefined }).split('?')[1])
+  return (
+    <form action="/admin/finance" className="flex items-center gap-2 text-sm">
+      {[...base.entries()].filter(([k]) => k !== 'f').map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+      <input name="f" defaultValue={f} placeholder={placeholder} className="w-64 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600" />
+      <button className="rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">찾기</button>
+      {f && <Link href={q({ f: undefined, sel: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">지우기</Link>}
+      <span className="text-xs text-neutral-500">{f ? `${n}건 / 전체 ${total}건` : `${total}건`}</span>
+    </form>
+  )
+}
+
+const hit = (f: string | undefined, ...xs: (string | null | undefined)[]) => !f || xs.some((x) => x?.toLowerCase().includes(f.trim().toLowerCase()))
+
+/** 표 금액 칸: 만원, 억원으로 줄이고 원 단위는 마우스를 올리면 */
+function Money({ n }: { n: number | null | undefined }) {
+  return <td className={td} title={won(n)}>{n == null ? '-' : won2(n)}</td>
+}
 const tdl = 'px-3 py-2 text-left'
 
 const REV = '#3987e5' // 매출 쪽 계열(받을 돈 포함)
@@ -291,12 +341,11 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   return (
     <div className="space-y-6">
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
-        <span className="font-medium text-neutral-200">
-          {src.sheet
-            ? `노션 Contract DB 계약에 더해, Contract DB에 아직 없는 운영 대시보드(${src.sheet.tab}) 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 시트에서 읽어 함께 집계합니다(1회 소급 전 임시).`
-            : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
-        </span>
-        {cb ? ' 지금은 발생 기준(계약): 매출은 계약일의 달에 공급가 전액, 정산은 그 계약에 연결된 지급 전체(상태 무관)입니다.' : ' 지금은 현금 기준(입금): Contract DB 선금, 잔금 입금일(은행 대조 전)과 지급 송금일로 셉니다.'}
+        {src.sheet
+          ? <>Contract DB에 아직 없는 운영 대시보드 계약 <span className="text-neutral-200">{src.sheet.added}건</span>을 시트에서 더해 집계합니다(1회 소급 전 임시).</>
+          : <span className="text-[#e66767]">운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: {src.sheetError ?? '원인 미상'}</span>}
+        {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
+        <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
       </p>
 
       {todo.length > 0 && (
@@ -401,10 +450,10 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
               return (
                 <tr key={r.month}>
                   <td className={tdl}>{r.month}</td>
-                  <td className={td}>{won(r.revenue)}</td>
-                  <td className={td}>{won(r.settled)}</td>
-                  <td className={td}>{won(accRev)}</td>
-                  <td className={td}>{won(accSet)}</td>
+                  <Money n={r.revenue} />
+                  <Money n={r.settled} />
+                  <Money n={accRev} />
+                  <Money n={accSet} />
                 </tr>
               )
             })}
@@ -433,8 +482,12 @@ function PayoutTable({ payouts, rates }: { payouts: Payout[]; rates: Rates }) {
   )
 }
 
-function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string }) {
+function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string }) {
   const picked = model.contracts.find((x) => x.c.id === sel)
+  const rows = sortRows(model.contracts.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
+    code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
+    supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
+  })
   return (
     <div className="space-y-4">
       {picked && (
@@ -445,8 +498,10 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
           {picked.payouts.length ? <PayoutTable payouts={picked.payouts} rates={rates} /> : <p className="text-xs text-neutral-500">이 계약에 연결된 지급 행이 없습니다.</p>}
         </div>
       )}
-      <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '변동비', '마진', '계약서']} left={2}>
-        {model.contracts.map((x) => (
+      <SearchBox q={q} f={f} n={rows.length} total={model.contracts.length} placeholder="코드, 브랜드, 법인, 담당자" />
+      <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '변동비', '마진', '계약서']} left={2} tall
+        sort={{ keys: ['code', 'brand', 'owner', 'day', 'supply', 'received', 'cost', 'margin', null], cur: s, href: (k) => q({ s: k }) }}>
+        {rows.map((x) => (
           <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
               <span className="flex max-w-[13rem] items-center gap-1">
@@ -471,13 +526,18 @@ function Contracts({ model, rates, sel, q }: { model: Model; rates: Rates; sel?:
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">변동비는 이 계약에 연결된 지급 합계(상태 무관)이고, 마진 아래 숫자는 마진율입니다. 코드를 누르면 지급 행이 위에 열립니다. 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <p className="text-xs text-neutral-500">변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 코드를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
     </div>
   )
 }
 
-function Creators({ model, rates, sel, q }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string }) {
+function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string }) {
   const picked = model.creators.find((x) => x.name === sel)
+  const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
+  const rows = sortRows(model.creators.filter((x) => hit(f, x.name)), s, {
+    name: (x) => x.name, revenue: (x) => x.revenue, revenueCount: (x) => x.revenueCount, paid: (x) => x.paid, paidCount: (x) => x.paidCount,
+    rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held,
+  })
   return (
     <div className="space-y-4">
       {picked && (
@@ -491,8 +551,8 @@ function Creators({ model, rates, sel, q }: { model: Model; rates: Rates; sel?: 
                 <tr key={s.c.id}>
                   <td className={tdl}>{s.c.code}</td>
                   <td className={td}>{s.c.brand || s.c.corp}</td>
-                  <td className={td}>{won(s.paid)}</td>
-                  <td className={td}>{won(s.share)}</td>
+                  <Money n={s.paid} />
+                  <Money n={s.share} />
                 </tr>
               ))}
             </Table>
@@ -500,26 +560,28 @@ function Creators({ model, rates, sel, q }: { model: Model; rates: Rates; sel?: 
           <PayoutTable payouts={picked.payouts} rates={rates} />
         </div>
       )}
-      <Table head={['이름', '통화', '매출 몫', '매출 건수', '정산 합계', '정산 건수', '마진율', '송금 완료', '진행 중', '미지급, 보류']}>
-        {model.creators.map((x) => (
+      <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
+      <Table head={['이름', '통화', '매출 몫', '매출 건수', '정산 합계', '정산 건수', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
+        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'paid', 'paidCount', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
+        {rows.map((x) => (
           <tr key={x.name} className={x.name === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
               <Link href={q({ sel: x.name })} className="text-sky-300 hover:underline">{x.name}</Link>
             </td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
-            <td className={td}>{won(x.revenue)}</td>
+            <Money n={x.revenue} />
             <td className={td}>{x.revenueCount}</td>
-            <td className={td}>{won(x.paid)}</td>
+            <Money n={x.paid} />
             <td className={td}>{x.paidCount}</td>
-            <td className={td}>{x.revenue ? pct((x.revenue - x.linkedPaid) / x.revenue) : '-'}</td>
-            <td className={td}>{won(x.done)}</td>
-            <td className={td}>{won(x.inFlight)}</td>
-            <td className={td}>{won(x.held)}</td>
+            <td className={td}>{pct(rate(x))}</td>
+            <Money n={x.done} />
+            <Money n={x.inFlight} />
+            <Money n={x.held} />
           </tr>
         ))}
       </Table>
       <p className="text-xs text-neutral-500">
-        매출 몫은 계약 공급가를 그 계약의 실제 지급 비율로 나눈 값입니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 요약의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
+        매출 몫은 계약 공급가를 지급액 비율로 나눈 값이고, 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
       </p>
     </div>
   )
@@ -540,10 +602,10 @@ function Owners({ model }: { model: Model }) {
           <tr key={o.owner}>
             <td className={tdl}>{o.owner}</td>
             <td className={td}>{o.count}</td>
-            <td className={td}>{won(o.supply)}</td>
-            <td className={td}>{won(o.received)}</td>
-            <td className={td}>{won(o.cost)}</td>
-            <td className={td}>{o.rate == null && !o.margin ? '-' : won(o.margin)}</td>
+            <Money n={o.supply} />
+            <Money n={o.received} />
+            <Money n={o.cost} />
+            <Money n={o.rate == null && !o.margin ? null : o.margin} />
             <td className={td}>{ownerRate(o, model).replace('마진율 ', '')}</td>
           </tr>
         ))}
@@ -582,7 +644,10 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
             개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 Contract DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠지고, 공급가가 없는 계약의 지급은 정산에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 조금 다릅니다.
           </li>
           <li>
-            자금 캘린더: 들어옴은 실제 입금 예상액(합계 칸, 부가세 포함)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 나감은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일, 보류는 빠짐)입니다. 나감 금액은 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 세금계산서 행은 부가세 포함 여부 미확인이라 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다. 입금 약속일 칸은 아직 없습니다.
+            자금 캘린더: 들어옴은 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 나감은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 나감 금액은 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 외화는 모인 원화 청구액이나 환율 환산, 세금계산서 행은 부가세 포함 여부 미확인이라 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다. 입금 약속일 칸은 아직 없습니다.
+          </li>
+          <li>
+            크리에이터 탭: 매출 몫은 계약 공급가를 그 계약의 실제 지급 비율로 나눈 값입니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 개요의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
           </li>
           <li>
             {src.sheet
@@ -692,7 +757,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
         <p className="text-sm text-neutral-500">날짜를 누르면 그날의 안건별 입출금이 아래에 나옵니다.</p>
       )}
       <p className="text-xs text-neutral-500">
-        들어옴은 실제 들어올 금액입니다. 수입 계약 「합계」(공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산)를 선금, 잔금 회차로 나눠 입금된 회차는 입금일, 아직이면 정산일에 둡니다. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」이라고 적습니다. 나감은 실제로 나가는 실지급액입니다. 원화 사업소득 3.3% 행은 공제액을 뺀 금액, 외화는 모인 원화 청구액(없으면 환율 환산), 세금계산서 행은 지급액 그대로(부가세 포함 여부 미확인, 행에 표시)를 지급 예정일에 둡니다: 송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일(말일 이틀 전보다 늦으면 다음 달 말일). 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다.
+        들어옴은 부가세 포함 입금 예상액, 나감은 실지급액입니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
       </p>
     </div>
   )
