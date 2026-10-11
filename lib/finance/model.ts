@@ -168,13 +168,14 @@ export type Gaps = {
   noDay: number
   estimatedSplit: number
   unlinked: { count: number; krw: number } // 수입 계약이 없는 지급
-  doneNoDate: { count: number; krw: number } // 송금일 없는 송금 완료
+  doneByReq: { count: number; krw: number } // 송금일 없이 송금 요청일(신청일)로 센 송금 완료(어림)
+  doneNoDate: { count: number; krw: number } // 송금일, 송금 요청일이 모두 없는 송금 완료(정산에서 빠짐)
   fxNoBilled: number // 원화 청구액 없는 외화 송금 완료
   noRate: number // 통화나 금액이 없어 환산 못 한 지급
 }
 
 export type Model = {
-  summary: { revenue: number; receivable: number; settled: number; payable: number; held: number; margin: number; marginRate: number | null }
+  summary: { revenue: number; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null }
   monthly: { month: string; revenue: number; settled: number }[]
   contracts: ContractRow[]
   creators: CreatorRow[]
@@ -256,13 +257,19 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 
   let payable = 0
   let held = 0
+  let settledEst = 0 // 현금 기준 정산 중 송금일이 없어 신청월로 센 몫
   for (const p of payouts) {
     if (p.status !== DONE) {
       payable += krw(p)
       if (p.status === '보류') held += krw(p)
     }
     if (basis === 'cash') {
-      if (p.status === DONE && p.sentDate) count(p.sentDate, 'settled', krw(p))
+      // 원화 송금은 모인 기록이 없어 송금일이 빈 행이 있음: 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림(Leo 261011 A안)
+      const d = p.status === DONE ? (p.sentDate ?? p.reqDate) : null
+      if (d) {
+        count(d, 'settled', krw(p))
+        if (!p.sentDate && inPeriod(d, period)) settledEst += krw(p)
+      }
     } else {
       const c = p.contractId ? byId.get(p.contractId) : undefined
       const d = c && !c.isExpense ? contractDay(c) : null
@@ -354,7 +361,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
 
   const unlinked = payouts.filter((p) => !p.contractId)
-  const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate)
+  const doneByReq = payouts.filter((p) => p.status === DONE && !p.sentDate && p.reqDate)
+  const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate && !p.reqDate)
   const gaps: Gaps = {
     unsigned,
     noDeposit: revenueContracts.filter((c) => !c.preDate && !c.postDate).length,
@@ -362,6 +370,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     noDay: revenueContracts.filter((c) => !contractDay(c)).length,
     estimatedSplit: revenueContracts.filter((c) => recognitions(c).some((x) => x.estimated)).length,
     unlinked: { count: unlinked.length, krw: unlinked.reduce((a, p) => a + krw(p), 0) },
+    doneByReq: { count: doneByReq.length, krw: doneByReq.reduce((a, p) => a + krw(p), 0) },
     doneNoDate: { count: doneNoDate.length, krw: doneNoDate.reduce((a, p) => a + krw(p), 0) },
     fxNoBilled: payouts.filter((p) => p.status === DONE && p.currency && p.currency !== 'KRW' && p.krwBilled == null).length,
     noRate: payouts.filter((p) => payoutKrw(p, r) == null).length,
@@ -383,7 +392,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     .filter((b) => b.count > 0 || b.label !== '기타 상태')
 
   return {
-    summary: { revenue, receivable, settled, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null },
+    summary: { revenue, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null },
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v })),
     contracts: rows,
     creators: [...creators.values()].sort((a, b) => b.revenue - a.revenue || b.paid - a.paid),
