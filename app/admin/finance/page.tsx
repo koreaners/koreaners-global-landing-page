@@ -164,7 +164,7 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   const pts = values.map((v, i) => [(i / Math.max(1, values.length - 1)) * (w - 6) + 3, h - 4 - (v / max) * (h - 8)])
   const last = pts[pts.length - 1]
   return (
-    <svg width={w} height={h} aria-hidden className="shrink-0">
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden className="min-w-0 shrink">
       <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#525252" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
       {last && <circle cx={last[0]} cy={last[1]} r={4} fill={color} stroke="#171717" strokeWidth={2} />}
     </svg>
@@ -175,7 +175,7 @@ function Tile({ label, value, full, delta, note, spark }: { label: string; value
   return (
     <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs text-neutral-400">{label}</p>
+        <p className="whitespace-nowrap text-xs text-neutral-400">{label}</p>
         {spark}
       </div>
       <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>{value}</p>
