@@ -105,7 +105,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
       {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
-      {tab === 'owners' && <Owners model={model} />}
+      {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
     </div>
   )
@@ -594,11 +594,17 @@ function ownerRate(o: Model['owners'][number], model: Model) {
   return linked ? `마진율 ${pct(o.rate)}` : '지급 연결 없음'
 }
 
-function Owners({ model }: { model: Model }) {
+function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Search>) => string; s?: string }) {
+  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => (x.c.owner || '미지정') === o.owner && x.payouts.length)
+  const rows = sortRows(model.owners, s, {
+    owner: (o) => o.owner, count: (o) => o.count, supply: (o) => o.supply, received: (o) => o.received, cost: (o) => o.cost,
+    margin: (o) => (o.rate == null && !o.margin ? null : o.margin), rate: (o) => (o.rate != null && linked(o) ? o.rate : null), // 지급 연결 없음은 100%로 치지 않고 끝으로
+  })
   return (
     <div className="space-y-2">
-      <Table head={['담당자', '계약 수', '공급가', '입금액', '변동비', '마진', '마진율']}>
-        {model.owners.map((o) => (
+      <Table head={['담당자', '계약 수', '공급가', '입금액', '변동비', '마진', '마진율']}
+        sort={{ keys: ['owner', 'count', 'supply', 'received', 'cost', 'margin', 'rate'], cur: s, href: (k) => q({ s: k }) }}>
+        {rows.map((o) => (
           <tr key={o.owner}>
             <td className={tdl}>{o.owner}</td>
             <td className={td}>{o.count}</td>
