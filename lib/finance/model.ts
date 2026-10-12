@@ -286,8 +286,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const ps = payByContract.get(c.id) ?? []
       const cost = ps.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supply * x.share, 0)
-      // 시트 계약(source sheet)은 지급 연결 전이라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐)
-      const margin = supply == null || c.source === 'sheet' ? null : supply - cost
+      // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
+      const margin = supply == null || c.source === 'sheet' || !ps.length ? null : supply - cost
       return {
         c,
         day: contractDay(c),
