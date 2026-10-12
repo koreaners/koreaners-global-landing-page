@@ -342,7 +342,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     <div className="space-y-6">
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
         {src.sheet
-          ? <>Contract DB에 아직 없는 운영 대시보드 계약 <span className="text-neutral-200">{src.sheet.added}건</span>을 시트에서 더해 집계합니다(1회 소급 전 임시).</>
+          ? <>Contract DB에 아직 없는 운영 대시보드 계약 <span className="text-neutral-200">{src.sheet.added}건</span>(코드 대조 중 {src.sheet.dups.length}건, 코드 없는 행 {src.sheet.codeless}건)을 시트에서 더해 집계합니다.</>
           : <span className="text-[#e66767]">운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: {src.sheetError ?? '원인 미상'}</span>}
         {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
         <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
@@ -658,7 +658,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
           </li>
           <li>
             {src.sheet
-              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(1회 소급 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 입금일을 시트에서 채운 계약 ${src.sheet.paidFrom.length}건. 공급가를 시트에서 채운 계약 ${src.sheet.supplyFrom.length}건.`
+              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(코드 받기와 코드 대조 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 입금일을 시트에서 채운 계약 ${src.sheet.paidFrom.length}건. 공급가를 시트에서 채운 계약 ${src.sheet.supplyFrom.length}건.`
               : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
           </li>
         </ul>

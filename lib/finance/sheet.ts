@@ -1,4 +1,4 @@
-// 운영 대시보드(MKT Ops Master) 시트 행 중 Contract DB에 아직 없는 계약을 Contract 로 (1회 소급 전 임시).
+// 운영 대시보드(MKT Ops Master) 시트 행 중 Contract DB에 아직 없는 계약을 Contract 로 (코드 받기와 코드 대조 전 임시).
 // model.ts 와 같은 규칙: 순수 함수만, 런타임 import 없음(model.check.mjs 가 타입만 지워 읽음).
 import type { Contract } from './model'
 
