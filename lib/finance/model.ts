@@ -43,6 +43,7 @@ export type Payout = {
   reqDate: string | null
   contractId: string | null // 수입 계약
   blocked: string[] // 막힌 사유
+  notContract?: boolean // 계약 아님(캠페인 계약에 붙지 않는 지급, 용역비 등): 계약 연결 없는 지급에서만 뺌
   deduction?: string | null // 공제 유형: 사업소득 3.3%, 세금계산서, 해외 송금
 }
 
@@ -360,7 +361,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     owners.set(key, o)
   }
 
-  const unlinked = payouts.filter((p) => !p.contractId)
+  const unlinked = payouts.filter((p) => !p.contractId && !p.notContract)
   const doneByReq = payouts.filter((p) => p.status === DONE && !p.sentDate && p.reqDate)
   const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate && !p.reqDate)
   const gaps: Gaps = {
