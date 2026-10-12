@@ -4,6 +4,8 @@ import type { Contract } from './model'
 
 const DROP = ['보류', '검토 중', '리스트업', '섭외 중', '진행 전', '드랍', '취소']
 const CODE = /^\d{4}-[A-Z]+-/
+// 코드만 다른 같은 계약(261012 서명본, 세금계산서, 지급 수취인으로 대조). Contract DB 쪽 행 비고에 대시보드 코드를 적어 둠
+export const SAME = new Set(['2604-S-주식회사 디에이머스-001', '2607-S-엘케이 글로벌', '2605-S-주식회사 비바웨이브-001', '2604-V-와이톤-001'])
 
 const money = (s: string | undefined): number | null => {
   const n = parseFloat((s ?? '').replace(/[₩¥$,\s﻿]/g, ''))
@@ -112,7 +114,7 @@ export function sheetContracts(values: string[][], db: Contract[]): SheetResult 
     return c
   }
   for (const [code, row] of byCode) {
-    if (!CODE.test(code) || dbCodes.has(code)) continue
+    if (!CODE.test(code) || dbCodes.has(code) || SAME.has(code)) continue
     const c = add(`sheet:${code}`, code, row)
     const n = c && normCorp(c.corp)
     if (c && orphans.some((o) => normCorp(o.corp) === n && ((c.supplyKrw != null && o.supplyKrw === c.supplyKrw) || (c.supplyJpy != null && o.supplyJpy === c.supplyJpy)))) dups.push(code)
