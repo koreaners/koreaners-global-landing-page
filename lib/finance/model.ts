@@ -93,8 +93,14 @@ export function parseAmount(text: string): number | null {
 
 export type Recognition = { date: string | null; due: string | null; share: number; estimated: boolean }
 
-/** 공급가를 입금 회차로 나눔. 날짜가 null 인 몫은 아직 받지 않은 돈, due 는 그 회차의 입금 예정일 */
-export function recognitions(c: Contract): Recognition[] {
+/** 공급가를 입금 회차로 나눔. 날짜가 null 인 몫은 아직 받지 않은 돈, due 는 그 회차의 입금 예정일.
+ * today 를 주면 오늘 뒤의 입금일은 아직 받지 않은 돈으로 보고 그 날을 예정일로 씀(입금일 칸에 예정일을 적는 경우, Leo 261012) */
+export function recognitions(c: Contract, today?: string): Recognition[] {
+  const rs = split(c)
+  return today ? rs.map((x) => (x.date && x.date > today ? { ...x, date: null, due: x.date } : x)) : rs
+}
+
+function split(c: Contract): Recognition[] {
   if (c.method === '선금+잔금') {
     const pre = parseAmount(c.preText)
     const post = parseAmount(c.postText)
@@ -246,7 +252,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   for (const c of revenueContracts) {
     const s = supplyKrw(c, r)
     if (s == null) continue
-    for (const rec of recognitions(c)) {
+    for (const rec of recognitions(c, today)) {
       if (!rec.date) {
         receivable += s * rec.share
         open.push({ c, due: rec.due, krw: s * rec.share })
@@ -283,7 +289,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const rows: ContractRow[] = revenueContracts
     .map((c) => {
       const supply = supplyKrw(c, r)
-      const recs = recognitions(c)
+      const recs = recognitions(c, today)
       const ps = payByContract.get(c.id) ?? []
       const cost = ps.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supply * x.share, 0)
@@ -413,7 +419,7 @@ export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string)
   if (p.status === '송금 가능') return monthEnd(today)
   if (p.status !== '대기') return null // 보류
   const c = p.contractId ? byId.get(p.contractId) : undefined
-  const due = c ? (recognitions(c).find((x) => !x.date)?.due ?? null) : null
+  const due = c ? (recognitions(c, today).find((x) => !x.date)?.due ?? null) : null
   if (!due) return null
   const end = monthEnd(due)
   return Date.parse(due) > Date.parse(end) - 2 * DAY ? monthEnd(new Date(Date.parse(end) + DAY).toISOString().slice(0, 10)) : end
@@ -433,7 +439,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
     const amt = total ?? supplyKrw(c, r)
     if (amt == null) continue
-    for (const rec of recognitions(c)) {
+    for (const rec of recognitions(c, today)) {
       const date = rec.date ?? rec.due
       if (!date?.startsWith(ym)) continue
       out.push({ kind: 'in', state: rec.date ? 'done' : date < today ? 'late' : 'due', date, krw: amt * rec.share, title: c.brand || c.corp || c.code, sub: total == null ? `${c.code}, 합계 없음(공급가)` : c.code, contractId: c.id })
