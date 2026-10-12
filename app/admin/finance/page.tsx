@@ -74,10 +74,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-neutral-50">{TABS.find(([k]) => k === tab)?.[1]}</h1>
           <div className="text-xs text-neutral-500">
-            노션 Contract DB, 지급내역 DB 기준, 조회 {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (5분 캐시){tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
+            노션 Contract DB, 지급내역 DB 기준{tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
           </div>
         </div>
         <div className="flex items-center gap-2">
+        <span className="text-xs text-neutral-500" title="5분마다 자동으로도 다시 읽습니다">
+          {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신
+        </span>
         <form action={refreshFinance}>
           <RefreshButton />
         </form>
