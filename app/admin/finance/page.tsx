@@ -75,11 +75,12 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           <h1 className="text-xl font-semibold text-neutral-50">{TABS.find(([k]) => k === tab)?.[1]}</h1>
           <div className="text-xs text-neutral-500">
             노션 Contract DB, 지급내역 DB 기준, 조회 {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (5분 캐시){tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
-            <form action={refreshFinance} className="ml-2 inline">
-              <RefreshButton />
-            </form>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+        <form action={refreshFinance}>
+          <RefreshButton />
+        </form>
         <form className="flex items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
           <select name="y" defaultValue={year == null ? 'all' : String(year)} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
@@ -104,6 +105,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           )}
           <button className="rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">보기</button>
         </form>
+        </div>
       </div>
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
