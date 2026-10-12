@@ -149,7 +149,7 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
     }),
   ])
   const contracts = c.map(toContract)
-  // Contract DB에 아직 없는 운영 대시보드 계약을 더함(1회 소급 전 임시). 시트를 못 읽어도 노션만으로 계속
+  // Contract DB에 아직 없는 운영 대시보드 계약을 더함(코드 받기와 코드 대조 전 임시). 시트를 못 읽어도 노션만으로 계속
   let sheet: FinanceData['sheet'] = null
   let sheetError: string | null = null
   try {
