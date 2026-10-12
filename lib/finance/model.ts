@@ -11,6 +11,7 @@ export type Contract = {
   corp: string
   owner: string
   isExpense: boolean
+  excluded?: boolean // Contract DB 「매출 제외」: 코리너스 매출이 아닌 계약(에츠코 직접 계약, 중복 코드). 매출, 받을 돈에서 뺌
   method: string | null // 정산 방식
   supplyKrw: number | null // 공급가(원)
   supplyJpy: number | null // 공급가(엔)
@@ -224,7 +225,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
   contracts = contracts.filter((c) => c.code)
-  const revenueContracts = contracts.filter((c) => !c.isExpense)
+  const revenueContracts = contracts.filter((c) => !c.isExpense && !c.excluded)
   const byId = new Map(contracts.map((c) => [c.id, c]))
   const krw = (p: Payout) => payoutKrw(p, r) ?? 0
 
@@ -435,7 +436,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
   const byId = new Map(signed.map((c) => [c.id, c]))
   const out: CalItem[] = []
   for (const c of signed) {
-    if (c.isExpense) continue
+    if (c.isExpense || c.excluded) continue
     const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
     const amt = total ?? supplyKrw(c, r)
     if (amt == null) continue

@@ -65,6 +65,7 @@ export function toContract(page: Page): Contract {
     owner: str(page, '담당자(정)'),
     // 구분 수식(제목이 P- 로 시작하면 지출)이 비어 오면 코드로 판정
     isExpense: typeof kind === 'string' && kind ? kind.includes('지출') : code.startsWith('P-'),
+    excluded: val(page, '매출 제외') === true,
     method: (val(page, '정산 방식') as string | null) ?? null,
     supplyKrw: num(page, '공급가(원)'),
     supplyJpy: num(page, '공급가(엔)'),
