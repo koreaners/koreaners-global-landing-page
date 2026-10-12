@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
+import { refreshFinance } from './actions'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type CalItem, type Model, type Payout, type Rates } from '@/lib/finance/model'
@@ -71,9 +72,12 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-neutral-50">{TABS.find(([k]) => k === tab)?.[1]}</h1>
-          <p className="text-xs text-neutral-500">
+          <div className="text-xs text-neutral-500">
             노션 Contract DB, 지급내역 DB 기준, 조회 {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (5분 캐시){tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
-          </p>
+            <form action={refreshFinance} className="ml-2 inline">
+              <button className="text-neutral-300 underline hover:text-neutral-100">새로고침</button>
+            </form>
+          </div>
         </div>
         <form className="flex items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
