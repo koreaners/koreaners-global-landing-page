@@ -522,7 +522,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
       <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '변동비', '마진', '계약서']} left={2} tall
         sort={{ keys: ['code', 'brand', 'owner', 'day', 'supply', 'received', 'cost', 'margin', null], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
-          <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : ''}>
+          <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : (x.margin ?? 0) < 0 ? 'bg-red-950/50' : ''}>
             <td className={tdl}>
               <span className="flex max-w-[13rem] items-center gap-1">
                 <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
@@ -538,7 +538,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
             <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : won2(x.cost)}</td>
-            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
+            <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{x.c.source !== 'sheet' && x.supply != null && !x.payouts.length ? '지급 연결 없음' : pct(x.rate)}</span>
             </td>
@@ -546,7 +546,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 코드를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <p className="text-xs text-neutral-500">변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
     </div>
   )
 }
