@@ -183,7 +183,7 @@ export type Gaps = {
 }
 
 export type Model = {
-  summary: { revenue: number; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null }
+  summary: { revenue: number; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null; marginSupply: number; marginN: number }
   monthly: { month: string; revenue: number; settled: number }[]
   contracts: ContractRow[]
   creators: CreatorRow[]
@@ -400,7 +400,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     .filter((b) => b.count > 0 || b.label !== '기타 상태')
 
   return {
-    summary: { revenue, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null },
+    summary: { revenue, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null, marginSupply: sumSupply, marginN: margined.length },
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v })),
     contracts: rows,
     creators: [...creators.values()].sort((a, b) => b.revenue - a.revenue || b.paid - a.paid),

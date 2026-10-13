@@ -233,11 +233,16 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   )
 }
 
-function Tile({ label, value, full, delta, note, spark, side }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode; side?: string }) {
+const MARGIN_HINT = '크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(상태 무관)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). 기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'
+
+function Tile({ label, value, full, delta, note, spark, side, hint }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode; side?: string; hint?: string }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
       <div className="flex h-6 items-start justify-between gap-2">
-        <p className="whitespace-nowrap text-xs text-neutral-400">{label}</p>
+        <p className="whitespace-nowrap text-xs text-neutral-400">
+          {label}
+          {hint && <span className="ml-1 cursor-help" title={hint} aria-label={hint}>ⓘ</span>}
+        </p>
         {spark}
       </div>
       <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>
@@ -383,7 +388,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={`${vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
-        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} note={`마진 합 ÷ 공급가 합${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
+        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={MARGIN_HINT} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
       </div>
