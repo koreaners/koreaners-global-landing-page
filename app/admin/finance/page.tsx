@@ -702,6 +702,17 @@ const CAL_STATE: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
   in: { done: '입금됨', flight: '-', due: '입금 예정', late: '예정일 지남' },
   out: { done: '송금 완료', flight: '송금 진행 중', due: '지급 예정', late: '예정일 지남' },
 }
+// 들어옴: 들어온 돈 초록, 예정 회색, 예정일 지났는데 안 들어온 돈 빨강 / 나감: 정산해서 나간 돈 파랑, 나갈 돈 주황, 예정일 지남 빨강
+const GOOD = '#3fae6a'
+const DUE = '#a3a3a3'
+const CAL_COLOR: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
+  in: { done: GOOD, flight: DUE, due: DUE, late: ALERT },
+  out: { done: REV, flight: SET, due: SET, late: ALERT },
+}
+const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
+  ['in', ['done'], '들어옴'], ['in', ['due'], '들어올 예정'], ['in', ['late'], '예정일 지났는데 안 들어옴'],
+  ['out', ['done'], '나감'], ['out', ['flight', 'due'], '나갈 예정'], ['out', ['late'], '예정일 지났는데 안 나감'],
+]
 
 /** 자금 캘린더: 날짜별 들어오고 나가는 돈, 날짜를 누르면 안건별 입출금 */
 function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: string; today: string; sel?: string; q: (o: Partial<Search>) => string }) {
@@ -715,7 +726,6 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
   const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1]
   const [ny, nm] = m === 12 ? [y + 1, 1] : [y, m + 1]
   const picked = sel?.startsWith(cur) ? (byDay.get(sel) ?? []) : null
-  const ALL: CalItem['state'][] = ['done', 'flight', 'due', 'late']
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -724,7 +734,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
           <h2 className="text-base font-semibold text-neutral-100">{y}년 {m}월</h2>
           <Link href={go(ny, nm)} aria-label="다음 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">›</Link>
         </div>
-        <Legend items={[['+ 들어옴', REV], ['− 나감', SET], ['예정일 지남', ALERT]]} />
+        <Legend items={[['+ 들어옴', GOOD], ['+ 들어올 예정', DUE], ['− 나감', REV], ['− 나갈 예정', SET], ['예정일 지남', ALERT]]} />
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Card label="들어온 돈" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(Contract DB 먼저, 없으면 시트, 은행 대조 전)" />
@@ -745,15 +755,13 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
           {Array.from({ length: days }, (_, i) => {
             const date = `${cur}-${String(i + 1).padStart(2, '0')}`
             const xs = byDay.get(date) ?? []
-            const inK = sum(xs, 'in', ALL)
-            const outK = sum(xs, 'out', ALL)
-            const lateIn = xs.some((x) => x.kind === 'in' && x.state === 'late')
-            const lateOut = xs.some((x) => x.kind === 'out' && x.state === 'late')
             return (
               <Link key={date} href={go(y, m, date)} className={`min-h-24 space-y-1 bg-neutral-900 p-2 text-xs hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
-                {inK > 0 && <span className="block truncate tabular-nums" style={{ color: lateIn ? ALERT : REV }} title={`들어옴 ${won(inK)}${lateIn ? ', 예정일 지남 포함' : ''}`}>+ {won2(inK)}</span>}
-                {outK > 0 && <span className="block truncate tabular-nums" style={{ color: lateOut ? ALERT : SET }} title={`나감 ${won(outK)}${lateOut ? ', 예정일 지남 포함' : ''}`}>− {won2(outK)}</span>}
+                {CAL_LINES.map(([kind, states, label]) => {
+                  const k = sum(xs, kind, states)
+                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'} {won2(k)}</span>
+                })}
               </Link>
             )
           })}
@@ -771,7 +779,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
                     <span className="block text-xs text-neutral-500">{x.sub}</span>
                   </td>
                   <td className={td}>{x.kind === 'in' ? '들어옴' : '나감'}</td>
-                  <td className={td} style={x.state === 'late' ? { color: ALERT } : undefined}>{CAL_STATE[x.kind][x.state]}</td>
+                  <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}</td>
                   <td className={td}>{won(x.krw)}</td>
                 </tr>
               ))}
