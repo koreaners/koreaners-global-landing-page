@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type CalItem, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { MonthlyChart, PREV_COLOR } from './charts'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
@@ -200,6 +200,14 @@ function Money({ n }: { n: number | null | undefined }) {
 }
 const tdl = 'px-3 py-2 text-left'
 
+const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }
+const CURS = Object.keys(CUR_NAME) as Currency[]
+/** 매출 통화별 나눔 글(원화 환산). 통화가 하나뿐이면 빈 글 */
+const curSplit = (o: ByCur) => {
+  const xs = CURS.filter((k) => o[k])
+  return xs.length > 1 ? xs.map((k) => `${CUR_NAME[k]} ${won2(o[k] ?? 0)}`).join(', ') : ''
+}
+
 const REV = '#3987e5' // 매출 쪽 계열(받을 돈 포함)
 const SET = '#d95926' // 정산 쪽 계열(줄 돈 포함)
 const ALERT = '#e66767'
@@ -357,6 +365,9 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   const oMax = Math.max(1, ...topOwners.map((o) => o.supply))
   let accRev = 0
   let accSet = 0
+  // 월별 표 통화 칸: 고른 기간에 매출이 있는 통화가 둘 이상일 때만
+  const monthCurs = CURS.filter((k) => model.monthly.some((r) => r.revenueByCur[k]))
+  if (monthCurs.length < 2) monthCurs.length = 0
 
   return (
     <div className="space-y-6">
@@ -387,7 +398,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
+        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={`${vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={marginHint(cb)} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
@@ -463,7 +474,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <details className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
         <summary className="cursor-pointer text-sm text-neutral-300">월별 표로 보기 ({labels.cur})</summary>
         <div className="mt-4">
-          <Table head={['월', cb ? '매출(계약)' : '매출(입금)', cb ? '정산(계약)' : '정산(송금)', '매출 누적', '정산 누적']}>
+          <Table head={['월', cb ? '매출(계약)' : '매출(입금)', ...monthCurs.map((k) => `${CUR_NAME[k]} 매출`), cb ? '정산(계약)' : '정산(송금)', '매출 누적', '정산 누적']}>
             {model.monthly.map((r) => {
               accRev += r.revenue
               accSet += r.settled
@@ -471,6 +482,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
                 <tr key={r.month}>
                   <td className={tdl}>{r.month}</td>
                   <Money n={r.revenue} />
+                  {monthCurs.map((k) => <Money key={k} n={r.revenueByCur[k] ?? 0} />)}
                   <Money n={r.settled} />
                   <Money n={accRev} />
                   <Money n={accSet} />

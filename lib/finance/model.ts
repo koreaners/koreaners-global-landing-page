@@ -27,6 +27,7 @@ export type Contract = {
   startDate: string | null
   link: string | null
   supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
+  currency?: Currency | null // Contract DB 통화 칸(매출 통화별 나눔용, 금액은 공급가(원) 그대로)
   source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(코드 받기와 코드 대조 전 임시)
   supplyFrom?: 'sheet' // Contract DB 공급가(원, 엔)가 둘 다 비어 같은 코드 시트 행의 계약 금액으로 채운 계약
   paidFrom?: 'sheet' // Contract DB 입금일이 둘 다 비어 같은 코드 시트 행의 선금, 잔금 정산일로 채운 계약
@@ -70,6 +71,13 @@ export function supplyKrw(c: Contract, r: Rates): number | null {
   if (c.supplyUsd != null) return c.supplyUsd * r.USD
   return null
 }
+
+/** 계약 통화: Contract DB 통화 칸, 없으면 채워진 공급가 칸(원 → KRW, 엔 → JPY, 달러 → USD) */
+export function contractCurrency(c: Contract): Currency {
+  return c.currency ?? (c.supplyKrw != null ? 'KRW' : c.supplyJpy != null ? 'JPY' : c.supplyUsd != null ? 'USD' : 'KRW')
+}
+
+export type ByCur = Partial<Record<Currency, number>>
 
 /** 지급 원화 환산. 모인 원화 청구액이 있으면 그 값, 없으면 지급액 × 환율 */
 export function payoutKrw(p: Payout, r: Rates): number | null {
@@ -187,8 +195,8 @@ export type Gaps = {
 }
 
 export type Model = {
-  summary: { revenue: number; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null; marginSupply: number; marginN: number }
-  monthly: { month: string; revenue: number; settled: number }[]
+  summary: { revenue: number; revenueByCur: ByCur; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null; marginSupply: number; marginN: number }
+  monthly: { month: string; revenue: number; settled: number; revenueByCur: ByCur }[] // revenueByCur: 매출을 계약 통화별로(원화 환산)
   contracts: ContractRow[]
   creators: CreatorRow[]
   owners: OwnerRow[]
@@ -243,28 +251,37 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 
   // 매출, 정산(기준에 따라 입금/송금된 달 또는 계약 기준일의 달)과 받을 돈, 줄 돈(현재 잔액)
   const totals = { revenue: 0, settled: 0 }
+  const revenueByCur: ByCur = {}
   let receivable = 0
   const open: OpenItem[] = []
-  const monthly = new Map<string, { revenue: number; settled: number }>()
-  const count = (date: string, key: 'revenue' | 'settled', v: number) => {
-    if (inPeriod(date, period)) totals[key] += v
+  const monthly = new Map<string, { revenue: number; settled: number; revenueByCur: ByCur }>()
+  const addCur = (o: ByCur, cur: Currency | undefined, v: number) => {
+    if (cur) o[cur] = (o[cur] ?? 0) + v
+  }
+  const count = (date: string, key: 'revenue' | 'settled', v: number, cur?: Currency) => {
+    if (inPeriod(date, period)) {
+      totals[key] += v
+      addCur(revenueByCur, cur, v)
+    }
     if (period.year != null && !date.startsWith(String(period.year))) return
     const m = date.slice(0, 7)
-    const row = monthly.get(m) ?? { revenue: 0, settled: 0 }
+    const row = monthly.get(m) ?? { revenue: 0, settled: 0, revenueByCur: {} }
     row[key] += v
+    addCur(row.revenueByCur, cur, v)
     monthly.set(m, row)
   }
   for (const c of revenueContracts) {
     const s = supplyKrw(c, r)
     if (s == null) continue
+    const cur = contractCurrency(c)
     for (const rec of recognitions(c, today)) {
       if (!rec.date) {
         receivable += s * rec.share
         open.push({ c, due: rec.due, krw: s * rec.share })
-      } else if (basis === 'cash') count(rec.date, 'revenue', s * rec.share)
+      } else if (basis === 'cash') count(rec.date, 'revenue', s * rec.share, cur)
     }
     const d = contractDay(c)
-    if (basis === 'contract' && d) count(d, 'revenue', s)
+    if (basis === 'contract' && d) count(d, 'revenue', s, cur)
   }
 
   let payable = 0
@@ -404,7 +421,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     .filter((b) => b.count > 0 || b.label !== '기타 상태')
 
   return {
-    summary: { revenue, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null, marginSupply: sumSupply, marginN: margined.length },
+    summary: { revenue, revenueByCur, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null, marginSupply: sumSupply, marginN: margined.length },
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v })),
     contracts: rows,
     creators: [...creators.values()].sort((a, b) => b.revenue - a.revenue || b.paid - a.paid),
