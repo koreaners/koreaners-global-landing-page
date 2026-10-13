@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { refreshFinance } from './actions'
 import { RefreshButton } from './refresh-button'
+import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type CalItem, type Model, type Payout, type Rates } from '@/lib/finance/model'
@@ -84,7 +85,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <form action={refreshFinance}>
           <RefreshButton />
         </form>
-        <form className="flex items-center gap-2 text-sm" action="/admin/finance">
+        <AutoForm className="flex items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
           <select name="y" defaultValue={year == null ? 'all' : String(year)} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
             <option value="all">전체 기간</option>
@@ -106,8 +107,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           ) : (
             basis === 'contract' && <input type="hidden" name="b" value={basis} />
           )}
-          <button className="rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">보기</button>
-        </form>
+        </AutoForm>
         </div>
       </div>
 
