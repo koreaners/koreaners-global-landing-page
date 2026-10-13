@@ -98,6 +98,7 @@ export function toPayout(page: Page): Payout {
     contractId: first(page, '수입 계약'),
     blocked: (val(page, '막힌 사유') as string[] | null) ?? [],
     notContract: val(page, '계약 아님') === true,
+    vat: (val(page, 'VAT') as string | null) ?? null,
     deduction: (val(page, '공제 유형') as string | null) ?? null,
   }
 }

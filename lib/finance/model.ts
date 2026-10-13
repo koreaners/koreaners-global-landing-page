@@ -46,6 +46,7 @@ export type Payout = {
   blocked: string[] // 막힌 사유
   notContract?: boolean // 계약 아님(캠페인 계약에 붙지 않는 지급, 용역비 등): 계약 연결 없는 지급에서만 뺌
   deduction?: string | null // 공제 유형: 사업소득 3.3%, 세금계산서, 해외 송금
+  vat?: string | null // VAT: 포함, 별도(세금계산서 행. 별도면 지급액이 공급가라 부가세를 더해 보냄)
 }
 
 export type Rates = { JPY: number; USD: number; CNY: number; at: string; source: string }
@@ -77,9 +78,12 @@ export function payoutKrw(p: Payout, r: Rates): number | null {
   return p.amount != null && rate != null ? p.amount * rate : null
 }
 
-/** 실제로 통장에서 나가는 금액(정산 설계 4절 실지급액): 원화 사업소득 3.3% 행은 공제액(지급액 × 0.033, 원 단위 반올림)을 뺌, 나머지는 원화 환산 그대로 */
+/** 실제로 통장에서 나가는 금액(정산 설계 4절 실지급액): 원화 사업소득 3.3% 행은 공제액(지급액 × 0.033, 원 단위 반올림)을 뺌,
+ * 원화 세금계산서 VAT 별도 행은 부가세(10%, 원 단위 반올림)를 더함(정산 람다 rules.net_pay와 같음), 나머지는 원화 환산 그대로.
+ * 정산과 마진은 지급액(공급가)으로 셈: 부가세는 매입세액 공제로 돌려받아 비용이 아님 */
 export function netPayoutKrw(p: Payout, r: Rates): number | null {
   if (p.deduction === '사업소득 3.3%' && p.currency === 'KRW' && p.amount != null) return p.amount - Math.round(p.amount * 0.033)
+  if (p.deduction === '세금계산서' && p.vat === '별도' && p.currency === 'KRW' && p.amount != null) return p.amount + Math.round(p.amount * 0.1)
   return payoutKrw(p, r)
 }
 
@@ -430,7 +434,7 @@ export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | '
 
 /** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
  * 들어옴은 실제 입금액(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음). 합계가 비면 공급가로 대신하고 표시
- * 나감은 실지급액(3.3% 공제 뒤). 세금계산서 행은 지급액이 부가세 포함인지 미확인이라 그대로 두고 표시(건우님 확인 요청 12, 13번) */
+ * 나감은 실지급액(3.3% 공제 뒤, 세금계산서 VAT 별도는 부가세 더함). VAT 칸이 빈 세금계산서 행은 그대로 두고 표시 */
 export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates, ym: string, today: string): CalItem[] {
   const signed = contracts.filter((c) => c.code)
   const byId = new Map(signed.map((c) => [c.id, c]))
@@ -451,7 +455,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     if (!date?.startsWith(ym)) continue
     const c = p.contractId ? byId.get(p.contractId) : undefined
     // 모인 접수, 원화 이체 대기는 송금 요청일에 이미 나가는 중이라 지남으로 보지 않음
-    const note = p.deduction === '세금계산서' ? ', 세금계산서(부가세 포함 여부 미확인)' : p.currency === 'KRW' && !p.deduction ? ', 공제 유형 빈칸' : ''
+    const note = p.deduction === '세금계산서' && !p.vat ? ', 세금계산서(VAT 포함, 별도 미정)' : p.currency === 'KRW' && !p.deduction ? ', 공제 유형 빈칸' : ''
     out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : date < today ? 'late' : 'due', date, krw: netPayoutKrw(p, r) ?? 0, title: p.name, sub: `${p.status}${c ? `, ${c.code}` : ''}${note}`, contractId: c?.id ?? null })
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || b.krw - a.krw)
