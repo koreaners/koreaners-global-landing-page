@@ -55,7 +55,9 @@ async function queryAll(notion: Client, dataSourceId: string): Promise<Page[]> {
 }
 
 export function toContract(page: Page): Contract {
-  const code = str(page, '유니크코드')
+  // 봇 광고주 계약은 서명 전 제목이 「(서명 전) 법인명」이고 서명완료 때 코드가 들어온다(정산 람다 refresh.UNSIGNED)
+  const title = str(page, '유니크코드')
+  const code = title.startsWith('(서명 전) ') ? '' : title
   const kind = val(page, '구분')
   return {
     id: page.id,
