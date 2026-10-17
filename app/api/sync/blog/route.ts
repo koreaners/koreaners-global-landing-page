@@ -12,6 +12,7 @@ export const maxDuration = 60;
 
 interface SyncResult {
   synced: number;
+  unpublished?: number;
   errors: string[];
 }
 
@@ -49,23 +50,6 @@ async function authenticate(
     return true;
   }
 
-  // 3. Allow same-origin requests (admin page calls from browser)
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  const host = request.headers.get("host");
-  if (host) {
-    const allowedOrigin = `https://${host}`;
-    if (origin === allowedOrigin || referer?.startsWith(allowedOrigin)) {
-      return true;
-    }
-    // Also allow localhost for development
-    if (
-      origin?.startsWith("http://localhost") ||
-      referer?.startsWith("http://localhost")
-    ) {
-      return true;
-    }
-  }
 
   if (!secret) {
     console.error("[sync/blog] SYNC_SECRET environment variable is not set");
@@ -310,6 +294,7 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // 4. Process each page
+    const syncedSlugs: string[] = [];
     for (const page of pages) {
       const pageTitle = getTitle(page.properties, "이름") || page.id;
 
@@ -350,6 +335,7 @@ export async function POST(request: NextRequest) {
         }
 
         result.synced++;
+        syncedSlugs.push(postData.slug);
         console.log(
           `[sync/blog] Synced: "${pageTitle}" (slug: ${postData.slug})`,
         );
@@ -360,8 +346,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5. Unpublish posts no longer 발행/리뷰 in Notion (비공개·삭제).
+    //    Skip on any error or empty result so a partial run never hides live posts.
+    if (result.errors.length === 0 && syncedSlugs.length > 0) {
+      const { data: hidden, error: hideError } = await supabase
+        .from("blog_posts")
+        .update({ published: false, updated_at: new Date().toISOString() })
+        .eq("published", true)
+        .not("slug", "in", `(${syncedSlugs.map((s) => `"${s}"`).join(",")})`)
+        .select("slug");
+      if (hideError) {
+        result.errors.push(`unpublish: ${hideError.message}`);
+      } else {
+        result.unpublished = hidden?.length ?? 0;
+      }
+    }
+
     console.log(
-      `[sync/blog] Sync complete. Synced: ${result.synced}, Errors: ${result.errors.length}`,
+      `[sync/blog] Sync complete. Synced: ${result.synced}, Unpublished: ${result.unpublished ?? 0}, Errors: ${result.errors.length}`,
     );
 
     return NextResponse.json(result, { status: 200 });

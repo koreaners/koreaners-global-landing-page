@@ -47,21 +47,6 @@ async function authenticate(
     return true;
   }
 
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  const host = request.headers.get("host");
-  if (host) {
-    const allowedOrigin = `https://${host}`;
-    if (origin === allowedOrigin || referer?.startsWith(allowedOrigin)) {
-      return true;
-    }
-    if (
-      origin?.startsWith("http://localhost") ||
-      referer?.startsWith("http://localhost")
-    ) {
-      return true;
-    }
-  }
 
   if (!secret) {
     console.error("[sync/portfolio] SYNC_SECRET environment variable is not set");
