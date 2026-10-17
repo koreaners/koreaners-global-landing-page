@@ -48,23 +48,6 @@ async function authenticate(
     return true;
   }
 
-  // 3. Allow same-origin requests (admin page calls from browser)
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  const host = request.headers.get("host");
-  if (host) {
-    const allowedOrigin = `https://${host}`;
-    if (origin === allowedOrigin || referer?.startsWith(allowedOrigin)) {
-      return true;
-    }
-    // Also allow localhost for development
-    if (
-      origin?.startsWith("http://localhost") ||
-      referer?.startsWith("http://localhost")
-    ) {
-      return true;
-    }
-  }
 
   if (!secret) {
     console.error(
