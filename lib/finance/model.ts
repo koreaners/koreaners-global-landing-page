@@ -162,6 +162,9 @@ export type ContractRow = {
   rate: number | null
   payouts: Payout[]
   estimated: boolean
+  open: boolean // 아직 받지 않은 회차가 있음
+  due: string | null // 받지 않은 회차 가운데 가장 이른 입금 예정일(정산일)
+  overdue: number | null // 그 예정일이 오늘보다 앞이면 지난 날수
 }
 
 export type CreatorRow = {
@@ -317,6 +320,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supply * x.share, 0)
       // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
       const margin = supply == null || c.source === 'sheet' || !ps.length ? null : supply - cost
+      const unpaid = recs.filter((x) => !x.date)
+      const due = unpaid.map((x) => x.due).filter((d): d is string => !!d).sort()[0] ?? null
+      const late = due ? -daysFrom(today, due) : 0
       return {
         c,
         day: contractDay(c),
@@ -327,6 +333,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
         rate: margin != null && supply ? margin / supply : null,
         payouts: ps,
         estimated: recs.some((x) => x.estimated),
+        open: unpaid.length > 0,
+        due,
+        overdue: late > 0 ? late : null,
       }
     })
     .filter((x) => inPeriod(x.day, period))

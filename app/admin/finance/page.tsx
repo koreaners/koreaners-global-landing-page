@@ -518,7 +518,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
   const picked = model.contracts.find((x) => x.c.id === sel)
   const rows = sortRows(model.contracts.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
-    supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
+    supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => x.overdue, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
   })
   return (
     <div className="space-y-4">
@@ -531,8 +531,8 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
         </div>
       )}
       <SearchBox q={q} f={f} n={rows.length} total={model.contracts.length} placeholder="코드, 브랜드, 법인, 담당자" />
-      <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '변동비', '마진', '계약서']} left={2} tall
-        sort={{ keys: ['code', 'brand', 'owner', 'day', 'supply', 'received', 'cost', 'margin', null], cur: s, href: (k) => q({ s: k }) }}>
+      <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '입금 예정일', '초과 기간', '변동비', '마진', '계약서']} left={2} tall
+        sort={{ keys: ['code', 'brand', 'owner', 'day', 'supply', 'received', 'due', 'overdue', 'cost', 'margin', null], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : (x.margin ?? 0) < 0 ? 'bg-red-950/50' : ''}>
             <td className={tdl}>
@@ -549,6 +549,8 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
             <td className={td} title={won(x.supply)}>{x.supply == null ? '-' : won2(x.supply)}
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
+            <td className={td}>{x.open ? (x.due ?? <span className="text-neutral-500">예정일 없음</span>) : '-'}</td>
+            <td className={`${td}${x.overdue ? ' font-semibold text-red-400' : ''}`}>{x.overdue ? `${x.overdue}일` : '-'}</td>
             <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : won2(x.cost)}</td>
             <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
@@ -558,7 +560,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다. 변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
     </div>
   )
 }
