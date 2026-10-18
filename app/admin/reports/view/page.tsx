@@ -20,10 +20,11 @@ export default async function ReportViewPage({ searchParams }: { searchParams: P
         <p className="text-sm text-red-400">보고서를 열 수 없습니다.</p>
       ) : (
         // allow-same-origin 을 주지 않는다: 올린 HTML 이 어드민 세션 쿠키나 부모 창에 접근하지 못하게
+        // 보고서 카드를 누르면 같은 탭에서 어드민 화면으로 넘어가도록, 사용자가 누를 때만 상위 창 이동 허용(올리기는 admin 만)
         <iframe
           title={name}
           srcDoc={html}
-          sandbox="allow-scripts allow-popups"
+          sandbox="allow-scripts allow-popups allow-top-navigation-by-user-activation"
           className="h-[85vh] w-full rounded-xl border border-neutral-800 bg-white"
         />
       )}

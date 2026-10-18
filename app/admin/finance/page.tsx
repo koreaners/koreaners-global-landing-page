@@ -352,9 +352,9 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     .slice(0, 5)
   // [제목, 건수, 금액, 이동, 강조]
   const todo: [string, string, number, string, boolean][] = []
-  if (overdueN) todo.push(['입금 예정일이 지난 받을 돈', `${overdueN}건`, overdueKrw, '#receivables', true])
+  if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, '#receivables', true])
   if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
-  if (noDue.count) todo.push(['입금 예정일이 없는 받을 돈', `${noDue.count}건`, noDue.krw, '#receivables', false])
+  if (noDue.count) todo.push(['입금 예정일이 없는 매출채권', `${noDue.count}건`, noDue.krw, '#receivables', false])
   if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, q({ tab: 'basis' }), false])
 
   const bMax = Math.max(...buckets.map((b) => b.krw))
@@ -401,8 +401,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={`${vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={marginHint(cb)} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
-        <Tile label="받을 돈 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
-        <Tile label="줄 돈 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
+        <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
+        <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 포함, 기간과 무관`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -413,7 +413,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           <MonthlyChart data={series('settled')} color={SET} curLabel={`${cy}년`} prevLabel={`${cy - 1}년`} />
         </Panel>
 
-        <Panel id="receivables" title="받을 돈 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
+        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
           <div className="space-y-2.5">
             {buckets.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={bMax} color={b.alert ? ALERT : REV} aside={`${b.count}건`} />
@@ -433,7 +433,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel id="payables" title="줄 돈 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link>}>
+        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link>}>
           <div className="space-y-2.5">
             {model.payables.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
@@ -676,7 +676,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
         <ul className="list-disc space-y-1 pl-5 text-neutral-400">
           <li>매출: 수입 계약 공급가(부가세 제외)를 입금된 달에 셉니다. 선금+잔금 계약은 금액 비율로 나눕니다. P- 지출 계약은 빠집니다.</li>
           <li>정산: 지급내역 「송금 완료」 행의 지급액(원천징수 전)을 송금일의 달에 셉니다. 송금일이 없는 행(모인을 거치지 않는 원화 송금)은 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림합니다.</li>
-          <li>받을 돈, 줄 돈: 기간과 관계없는 현재 잔액입니다. 줄 돈은 송금 완료가 아닌 모든 지급(보류 포함)입니다.</li>
+          <li>매출채권, 미지급금: 기간과 관계없는 현재 잔액입니다. 미지급금은 송금 완료가 아닌 모든 지급(보류 포함)입니다.</li>
           <li>마진: {marginHint(basis === 'contract')} 계약일자가 없으면 시작일, 첫 입금일로 기간을 고릅니다.</li>
           <li>
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
@@ -685,7 +685,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
             개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 Contract DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠지고, 공급가가 없는 계약의 지급은 정산에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 조금 다릅니다.
           </li>
           <li>
-            자금 캘린더: 들어옴은 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 나감은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 나감 금액은 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 외화는 모인 원화 청구액이나 환율 환산, 세금계산서 행은 VAT 별도면 부가세를 더하고, VAT 칸이 비면 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다. 입금 약속일 칸은 아직 없습니다.
+            자금 캘린더: 입금은 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다. 출금은 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일, 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 출금 금액은 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 외화는 모인 원화 청구액이나 환율 환산, 세금계산서 행은 VAT 별도면 부가세를 더하고, VAT 칸이 비면 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다. 입금 약속일 칸은 아직 없습니다.
           </li>
           <li>
             크리에이터 탭: 매출 몫은 계약 공급가를 그 계약의 실제 지급 비율로 나눈 값입니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 개요의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
@@ -724,8 +724,8 @@ const CAL_COLOR: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
   out: { done: REV, flight: SET, due: SET, late: ALERT },
 }
 const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
-  ['in', ['done'], '들어옴'], ['in', ['due'], '들어올 예정'], ['in', ['late'], '예정일 지났는데 안 들어옴'],
-  ['out', ['done'], '나감'], ['out', ['flight', 'due'], '나갈 예정'], ['out', ['late'], '예정일 지났는데 안 나감'],
+  ['in', ['done'], '입금'], ['in', ['due'], '입금 예정'], ['in', ['late'], '입금 예정일 지남'],
+  ['out', ['done'], '출금'], ['out', ['flight', 'due'], '출금 예정'], ['out', ['late'], '출금 예정일 지남'],
 ]
 
 /** 자금 캘린더: 날짜별 들어오고 나가는 돈, 날짜를 누르면 안건별 입출금 */
@@ -748,13 +748,13 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
           <h2 className="text-base font-semibold text-neutral-100">{y}년 {m}월</h2>
           <Link href={go(ny, nm)} aria-label="다음 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">›</Link>
         </div>
-        <Legend items={[['+ 들어옴', GOOD], ['+ 들어올 예정', DUE], ['− 나감', REV], ['− 나갈 예정', SET], ['예정일 지남', ALERT]]} />
+        <Legend items={[['+ 입금', GOOD], ['+ 입금 예정', DUE], ['− 출금', REV], ['− 출금 예정', SET], ['예정일 지남', ALERT]]} />
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card label="들어온 돈" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(Contract DB 먼저, 없으면 시트, 은행 대조 전)" />
-        <Card label="들어올 돈 (예정)" value={won2(sum(items, 'in', ['due', 'late']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}`} />
-        <Card label="나간 돈" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
-        <Card label="나갈 돈 (예정)" value={won2(sum(items, 'out', ['flight', 'due', 'late']))} note={`실지급액, 그중 송금 진행 중 ${won2(sum(items, 'out', ['flight']))}, 보류 제외`} />
+        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(Contract DB 먼저, 없으면 시트, 은행 대조 전)" />
+        <Card label="입금 예정" value={won2(sum(items, 'in', ['due', 'late']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}`} />
+        <Card label="출금" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
+        <Card label="출금 예정" value={won2(sum(items, 'out', ['flight', 'due', 'late']))} note={`실지급액, 그중 송금 진행 중 ${won2(sum(items, 'out', ['flight']))}, 보류 제외`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-neutral-800">
         <div className="grid grid-cols-7 bg-neutral-900 text-center text-xs text-neutral-500">
@@ -792,7 +792,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
                     {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300 hover:underline">{x.title}</Link> : x.title}
                     <span className="block text-xs text-neutral-500">{x.sub}</span>
                   </td>
-                  <td className={td}>{x.kind === 'in' ? '들어옴' : '나감'}</td>
+                  <td className={td}>{x.kind === 'in' ? '입금' : '출금'}</td>
                   <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}</td>
                   <td className={td}>{won(x.krw)}</td>
                 </tr>
@@ -806,7 +806,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
         <p className="text-sm text-neutral-500">날짜를 누르면 그날의 안건별 입출금이 아래에 나옵니다.</p>
       )}
       <p className="text-xs text-neutral-500">
-        들어옴은 부가세 포함 입금 예상액, 나감은 실지급액입니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
+        입금은 부가세 포함 입금 예상액, 출금은 실지급액입니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
       </p>
     </div>
   )
