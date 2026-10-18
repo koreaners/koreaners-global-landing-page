@@ -113,7 +113,11 @@ export function recognitions(c: Contract, today?: string): Recognition[] {
   return today ? rs.map((x) => (x.date && x.date > today ? { ...x, date: null, due: x.date } : x)) : rs
 }
 
+/** 공급가 0원 계약(무상 진행 등): 받을 돈이 없어 수금 완료로 봄 */
+const isFree = (c: Contract) => (c.supplyKrw ?? c.supplyJpy ?? c.supplyUsd) === 0
+
 function split(c: Contract): Recognition[] {
+  if (isFree(c)) return []
   if (c.method === '선금+잔금') {
     const pre = parseAmount(c.preText)
     const post = parseAmount(c.postText)
@@ -403,7 +407,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate && !p.reqDate)
   const gaps: Gaps = {
     unsigned,
-    noDeposit: revenueContracts.filter((c) => !c.preDate && !c.postDate).length,
+    noDeposit: revenueContracts.filter((c) => !c.preDate && !c.postDate && !isFree(c)).length,
     noSupply: revenueContracts.filter((c) => supplyKrw(c, r) == null).length,
     noDay: revenueContracts.filter((c) => !contractDay(c)).length,
     estimatedSplit: revenueContracts.filter((c) => recognitions(c).some((x) => x.estimated)).length,
