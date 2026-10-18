@@ -46,7 +46,7 @@ export async function proxy(request: NextRequest) {
 
   // 역할 판정: 서버 전용 app_metadata.role 만 신뢰 (user_metadata 는 사용자가 직접 수정
   // 가능 → 스푸핑 위험).
-  // 화이트리스트: 'admin' 은 전체, 'exec' 는 보고서만. 그 외(미설정 포함)는 접근 불가.
+  // 화이트리스트: 'admin' 은 전체, 'exec' 는 보고서와 재무 조회만. 그 외(미설정 포함)는 접근 불가.
   // 같은 Supabase 인증을 스타라이트 계정도 쓰므로 미설정 계정을 통과시키면 안 된다.
   const role = (user?.app_metadata as Record<string, unknown> | undefined)?.role as string | undefined
   const isFullAdmin = role === 'admin'
@@ -74,8 +74,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/login?denied=1', request.url))
   }
 
-  // 역할 게이트: exec 는 /admin/reports 만 접근
-  if (isExec && !pathname.startsWith('/admin/reports')) {
+  // 역할 게이트: exec 는 /admin/reports, /admin/finance 만 접근
+  if (isExec && !pathname.startsWith('/admin/reports') && !pathname.startsWith('/admin/finance')) {
     return NextResponse.redirect(new URL('/admin/reports', request.url))
   }
 
