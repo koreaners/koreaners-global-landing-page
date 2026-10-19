@@ -86,7 +86,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
         </Suspense>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8">
-        <div className={`mx-auto ${pathname.startsWith('/admin/finance') ? 'max-w-7xl' : 'max-w-5xl'}`}>{children}</div>
+        <div className={`mx-auto ${pathname.startsWith('/admin/finance') || pathname.startsWith('/admin/reports/view') ? 'max-w-7xl' : 'max-w-5xl'}`}>{children}</div>
       </main>
     </div>
   )
