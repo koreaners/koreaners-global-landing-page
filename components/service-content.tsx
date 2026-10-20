@@ -398,7 +398,7 @@ export default function ServiceContent() {
                   <div className="text-xs text-[#A8A29E] mb-2">{t('serviceEstimatedRemarketing')}</div>
                   <div className="flex items-end gap-2">
                     <div className="font-display font-bold text-3xl gradient-warm-text">¥8.2M</div>
-                    <div className="text-sm text-[#A8A29E] mb-1">(약 ₩72M)</div>
+                    <div className="text-sm text-[#A8A29E] mb-1">{locale === 'ja' ? '(約 ₩72M)' : '(약 ₩72M)'}</div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-white/10">
                     <div className="flex items-center gap-2 text-xs text-[#FF4500]/70">
