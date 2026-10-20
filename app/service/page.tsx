@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   title: '서비스 소개 | 일본 인플루언서 마케팅 & 시딩 대행',
   description:
     '일본 인플루언서 마케팅, 대량 시딩, 콘텐츠 제작, 데이터 리포팅까지. 220+ 주요 크리에이터 네트워크. 코리너스의 크로스보더 마케팅 서비스를 확인하세요.',
-  alternates: { canonical: `${siteUrl}/service` },
+  alternates: {
+    canonical: `${siteUrl}/service`,
+    languages: { ko: '/service', ja: '/ja/service', 'x-default': '/service' },
+  },
   openGraph: {
     title: '코리너스 서비스 | 일본 인플루언서 마케팅 대행사',
     description: '일본 인플루언서 캠페인, 대량 시딩, 콘텐츠 제작, 데이터 리포팅. 220+ 주요 크리에이터 네트워크.',

@@ -28,7 +28,7 @@ function getScrollbarWidth(): number {
 }
 
 export default function Navigation() {
-  const { locale, setLocale } = useLocale()
+  const { locale, setLocale, forced } = useLocale()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -90,7 +90,7 @@ export default function Navigation() {
     { href: '/tripbridge', titleKey: 'navSvcTripbridge', descKey: 'navSvcTripbridgeDesc' },
   ]
 
-  const effectiveLocale = mounted ? locale : 'ko'
+  const effectiveLocale = mounted || forced ? locale : 'ko'
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(effectiveLocale, key)
 
   return (

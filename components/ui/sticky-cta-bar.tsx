@@ -7,7 +7,7 @@ import { InquirySheet } from '@/components/ui/inquiry-sheet';
 
 /** 모바일 전용: 히어로를 벗어나면 하단 고정 문의 바 (가이드 §1-3) */
 export function StickyCtaBar() {
-  const { locale } = useLocale();
+  const { locale, forced } = useLocale();
   const [mounted, setMounted] = useState(false);
   const [show, setShow] = useState(false);
   const [formInView, setFormInView] = useState(false);
@@ -33,7 +33,7 @@ export function StickyCtaBar() {
   }, []);
 
   // Hydration mismatch 방지 (navigation.tsx 의 effectiveLocale 패턴과 동일)
-  const effectiveLocale = mounted ? locale : 'ko';
+  const effectiveLocale = mounted || forced ? locale : 'ko';
 
   return (
     <>
