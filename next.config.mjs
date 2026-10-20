@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ponytail: 루트 <html lang> 은 정적 "ko" 고정. /ja 는 hreflang + Content-Language 로만 일본어를 알린다. lang 까지 바꾸려면 루트 레이아웃 분리 필요
+  async headers() {
+    return [{ source: '/ja/:path*', headers: [{ key: 'Content-Language', value: 'ja' }] }]
+  },
   async redirects() {
     return [
       {

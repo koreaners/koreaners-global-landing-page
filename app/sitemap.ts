@@ -94,6 +94,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: maxAll,
       changeFrequency: 'weekly',
       priority: 1.0,
+      alternates: { languages: { ko: baseUrl, ja: `${baseUrl}/ja` } },
+    },
+    {
+      url: `${baseUrl}/ja`,
+      lastModified: maxAll,
+      changeFrequency: 'weekly',
+      priority: 0.9,
+      alternates: { languages: { ko: baseUrl, ja: `${baseUrl}/ja` } },
     },
     {
       url: `${baseUrl}/portfolio`,
@@ -124,6 +132,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: STATIC_CONTENT_DATES['/service'],
       changeFrequency: 'monthly',
       priority: 0.9,
+      alternates: { languages: { ko: `${baseUrl}/service`, ja: `${baseUrl}/ja/service` } },
+    },
+    {
+      url: `${baseUrl}/ja/service`,
+      lastModified: STATIC_CONTENT_DATES['/service'],
+      changeFrequency: 'monthly',
+      priority: 0.8,
+      alternates: { languages: { ko: `${baseUrl}/service`, ja: `${baseUrl}/ja/service` } },
     },
     {
       url: `${baseUrl}/japan-influencer-marketing`,

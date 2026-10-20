@@ -5,7 +5,7 @@ import { MainContent } from '@/components/main-content'
 export const metadata: Metadata = {
   title: '코리너스 | 크로스보더 인플루언서 마케팅 전문 대행사',
   description: '크로스보더 인플루언서 마케팅 전문 대행사 코리너스. 185+ 브랜드, 220+ 주요 크리에이터. 인플루언서 캠페인, 대량 시딩, 콘텐츠 제작, 데이터 리포팅까지 크로스보더 마케팅 전 과정을 운영합니다.',
-  alternates: { canonical: '/' },
+  alternates: { canonical: '/', languages: { ko: '/', ja: '/ja', 'x-default': '/' } },
 }
 
 export default function Page() {
