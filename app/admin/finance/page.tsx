@@ -638,7 +638,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
         {rows.map((x) => (
           <tr key={x.name} className={x.name === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
-              <Link href={q({ sel: x.name })} className="text-sky-300 hover:underline">{x.name}</Link>
+              <Link href={q({ sel: x.name })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
             </td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
             <Money n={x.revenue} />
