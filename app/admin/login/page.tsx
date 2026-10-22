@@ -6,35 +6,26 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { getSession, signIn, signInWithGoogle, signOut } from '@/lib/admin-auth'
+import { getSession, signInWithGoogle, signOut } from '@/lib/admin-auth'
 import { useToast } from '@/hooks/use-toast'
 
+// 로그인은 회사 구글 계정(koreaners.com)만. 들어온 뒤 역할 판정은 proxy(admin 전체, exec 보고서와 재무)
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  )
+}
+
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-
-  // 환경 변수 체크
-  useEffect(() => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Admin] Supabase 환경 변수 누락')
-      }
-      toast({
-        title: '환경 변수 오류',
-        description: 'Supabase 연결 설정이 올바르지 않습니다. .env.local 파일을 확인해주세요.',
-        variant: 'destructive',
-      })
-    }
-  }, [toast])
 
   useEffect(() => {
     // 이미 인증된 경우 대시보드로 리다이렉트
@@ -43,7 +34,7 @@ export default function AdminLoginPage() {
         // 권한 없는 계정으로 들어온 경우: 세션을 지우고 머문다 (리다이렉트 루프 방지)
         if (new URLSearchParams(window.location.search).has('denied')) {
           await signOut()
-          toast({ title: '접근 권한 없음', description: '어드민 권한이 있는 계정으로 로그인해 주세요.', variant: 'destructive' })
+          toast({ title: '접근 권한 없음', description: '관리자 권한이 있는 회사 계정으로 로그인해 주세요.', variant: 'destructive' })
           return
         }
         const session = await getSession()
@@ -57,206 +48,29 @@ export default function AdminLoginPage() {
       }
     }
     checkAuth()
-  }, [router])
+  }, [router, toast])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleGoogle() {
     setLoading(true)
-
-    // 환경 변수 재확인
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      const errorMsg = 'Supabase 연결 설정이 올바르지 않습니다. .env.local 파일에 NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY를 설정해주세요.'
-      
-      alert('환경 변수 오류\n\n' + errorMsg)
-      toast({
-        title: '환경 변수 오류',
-        description: errorMsg,
-        variant: 'destructive',
-      })
+    const { error } = await signInWithGoogle()
+    if (error) {
+      toast({ title: '구글 로그인 실패', description: error.message, variant: 'destructive' })
       setLoading(false)
-      return
-    }
-
-    try {
-      const { data, error } = await signIn(email, password)
-
-      if (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[Admin] 로그인 실패:', error.message ?? '')
-        }
-        const errorMsg = error.message || '이메일 또는 비밀번호가 올바르지 않습니다.'
-        
-        // alert로 즉시 알림
-        alert('로그인 실패\n\n' + errorMsg)
-        
-        toast({
-          title: '로그인 실패',
-          description: errorMsg,
-          variant: 'destructive',
-        })
-        setPassword('')
-        return
-      }
-
-      // 에러가 없고 세션이 있는 경우: 로그인 성공 처리 및 페이지 이동
-      if (data?.session) {
-        console.log('✅ 로그인 성공:', {
-          user: data.user?.email,
-          session: !!data.session,
-          fullData: data,
-        })
-        
-        // 세션이 브라우저에 확실히 안착했는지 확인
-        try {
-          const verifiedSession = await getSession()
-          
-          if (!verifiedSession) {
-            console.warn('⚠️ 세션이 브라우저에 저장되지 않음, 잠시 대기 후 재시도')
-            // 잠시 대기 후 재확인
-            await new Promise(resolve => setTimeout(resolve, 500))
-            const retrySession = await getSession()
-            
-            if (!retrySession) {
-              console.error('❌ 세션 저장 실패, 강제 새로고침으로 이동')
-              window.location.href = '/admin'
-              return
-            }
-            console.log('✅ 재시도 후 세션 확인됨')
-          } else {
-            console.log('✅ 세션 확인됨:', { userId: verifiedSession.user.id })
-          }
-        } catch (sessionError) {
-          console.error('❌ 세션 확인 중 예외:', sessionError)
-          // 세션 확인 실패해도 이동 시도
-        }
-        
-        // 성공 토스트 표시
-        toast({
-          title: '로그인 성공',
-          description: '관리자 패널로 이동합니다.',
-        })
-
-        // 세션 정보 새로고침: Middleware가 로그인 사실을 즉시 인지하도록 (먼저 실행)
-        // await를 사용하여 refresh가 완료된 후 이동
-        try {
-          await router.refresh()
-          console.log('✅ router.refresh() 완료')
-        } catch (refreshError) {
-          console.error('⚠️ router.refresh() 오류:', refreshError)
-        }
-
-        // 페이지 이동: 관리자 메인 페이지로 이동
-        // Next.js router.push가 실패할 경우를 대비해 window.location.href로 강제 이동
-        try {
-          router.push('/admin')
-          console.log('✅ router.push(/admin) 실행됨')
-          
-          // router.push가 실패할 경우를 대비한 fallback (2초 후 강제 이동)
-          setTimeout(() => {
-            if (window.location.pathname === '/admin/login') {
-              console.warn('⚠️ router.push 실패 감지, window.location.href로 강제 이동')
-              window.location.href = '/admin'
-            }
-          }, 2000)
-        } catch (pushError) {
-          console.error('❌ router.push 실패, window.location.href로 강제 이동:', pushError)
-          window.location.href = '/admin'
-        }
-        
-        return
-      }
-
-      // 세션이 없는 경우: 예상치 못한 상황
-      console.warn('⚠️ 로그인 응답에 세션이 없습니다:', data)
-      const errorMsg = '세션을 생성할 수 없습니다. 다시 시도해주세요.'
-      
-      alert('로그인 실패\n\n' + errorMsg)
-      toast({
-        title: '로그인 실패',
-        description: errorMsg,
-        variant: 'destructive',
-      })
-    } catch (error) {
-      // 예외 발생 시: 에러 처리
-      console.error('❌ 로그인 중 예외 발생:', error)
-      const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
-      
-      alert('오류 발생\n\n' + errorMsg)
-      toast({
-        title: '오류 발생',
-        description: errorMsg,
-        variant: 'destructive',
-      })
-    } finally {
-      // 반드시 실행: 로딩 상태 강제 종료 (무한 로딩 방지)
-      setLoading(false)
-      console.log('🔄 로딩 상태 해제됨')
     }
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-6 sm:py-8">
-      <Card className="w-full max-w-md p-4 sm:p-6 md:p-8 bg-card border-border">
+      <Card className="w-full max-w-md p-6 sm:p-8 bg-card border-border">
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold">관리자 로그인</h1>
-            <p className="text-muted-foreground mt-2">
-              이메일과 비밀번호를 입력하세요
-            </p>
+            <p className="text-muted-foreground mt-2">회사 구글 계정(koreaners.com)으로 로그인하세요</p>
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            disabled={loading}
-            onClick={async () => {
-              const { error } = await signInWithGoogle()
-              if (error) toast({ title: '구글 로그인 실패', description: error.message, variant: 'destructive' })
-            }}
-          >
-            Google 계정(koreaners.com)으로 로그인
+          <Button type="button" variant="outline" size="lg" className="w-full gap-3" disabled={loading} onClick={handleGoogle}>
+            <GoogleLogo />
+            {loading ? '구글로 이동 중...' : 'Google 계정으로 로그인'}
           </Button>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />또는 이메일<span className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                required
-                disabled={loading}
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">비밀번호</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="비밀번호 입력"
-                required
-                disabled={loading}
-                autoComplete="current-password"
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? '로그인 중...' : '로그인'}
-            </Button>
-          </form>
         </div>
       </Card>
     </div>
