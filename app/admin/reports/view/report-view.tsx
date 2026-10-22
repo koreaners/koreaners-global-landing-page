@@ -199,6 +199,58 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
         </section>
       </div>
 
+      {r.voucher && (
+        <section className={`${card} space-y-4`}>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <H2>수출바우처: 협약과 정산</H2>
+            <span className="text-lg font-semibold tabular-nums text-neutral-50">{r.voucher.value}</span>
+            <span className="text-xs text-neutral-500">{r.voucher.sub}</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <p className="text-xs text-neutral-400">진행 단계(계약 수)</p>
+                <Bar segs={r.voucher.steps.bar} />
+                <Legends items={r.voucher.steps.legend} />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs text-neutral-400">진행 중 매출의 정부 입금</p>
+                <Bar segs={r.voucher.money.bar} />
+                <Legends items={r.voucher.money.legend} />
+              </div>
+              <Lines items={[...r.voucher.lines, r.voucher.done]} />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[40rem] text-left text-xs">
+                <thead className="text-neutral-500">
+                  <tr className="border-b border-neutral-800">
+                    {['수혜기업', '매출', '선금', '잔금', '단계', '종료'].map((h) => <th key={h} className="py-1.5 pr-3 font-medium">{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="tabular-nums text-neutral-300">
+                  {r.voucher.rows.map((x) => (
+                    <tr key={x.name + x.amount} className="border-b border-neutral-800/60 align-top">
+                      <td className="py-1.5 pr-3">
+                        <span className="text-neutral-100">{x.name}</span>
+                        <span className="block text-[11px] text-neutral-500">{x.tag}</span>
+                      </td>
+                      <td className="py-1.5 pr-3">{x.amount}</td>
+                      <td className={`py-1.5 pr-3 ${x.pre.includes('미입금') ? 'text-amber-400' : ''}`}>{x.pre}</td>
+                      <td className={`py-1.5 pr-3 ${x.post.includes('미입금') ? 'text-amber-400' : ''}`}>{x.post}</td>
+                      <td className="py-1.5 pr-3">{x.step}</td>
+                      <td className={`py-1.5 pr-3 ${x.alert ? 'text-red-400' : ''}`}>
+                        {x.end}
+                        {x.note && <span className="block text-[11px]">{x.note}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+
       <details className={`${card} text-xs text-neutral-400`}>
         <summary className="cursor-pointer text-sm font-semibold text-neutral-200">근거 보기</summary>
         <ul className="mt-3 list-disc space-y-1 pl-4">

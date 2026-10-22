@@ -19,6 +19,16 @@ export type WeeklyReport = {
   funds: { bars: { label: string; count: number; v: number; text: string; late: boolean }[]; lines: string[] }
   people: { caption: string; legend: Legend[]; bars: { label: string; text: string; v: number; parts: Seg[] }[]; lines: string[] }
   evidence: { text: string; refs?: Ref[] }[]
+  // 10/26 회차부터. 그 전 보고서에는 없다
+  voucher?: {
+    value: string
+    sub: string
+    steps: { bar: Seg[]; legend: Legend[] }
+    money: { bar: Seg[]; legend: Legend[] }
+    rows: { name: string; tag: string; amount: string; pre: string; post: string; step: string; end: string; note: string; alert: boolean }[]
+    lines: string[]
+    done: string
+  }
 }
 
 // 키 weekly-report-YYMMDD-YYMMDD.json 에서 기간을 읽는다. 모양이 다른 키는 목록에 안 띄우고 열지도 않는다
