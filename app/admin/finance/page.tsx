@@ -6,7 +6,7 @@ import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
-import { MonthlyChart, PREV_COLOR } from './charts'
+import { CashflowChart, NET_COLOR } from './charts'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -333,8 +333,13 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     const d = new Date(endY, endM - 12 + i, 1)
     return byMonth.get(ym(d.getFullYear(), d.getMonth() + 1))
   })
-  const series = (key: 'revenue' | 'settled') =>
-    Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}월`, cur: byMonth.get(ym(cy, i + 1))?.[key] ?? 0, prev: byMonth.get(ym(cy - 1, i + 1))?.[key] ?? 0 }))
+  const flow = Array.from({ length: 12 }, (_, i) => {
+    const r = byMonth.get(ym(cy, i + 1))
+    const v = { in: r?.revenue ?? 0, out: r?.settled ?? 0 }
+    return { label: `${i + 1}월`, ...v, net: v.in - v.out }
+  })
+  const flowSum = flow.reduce((a, x) => ({ in: a.in + x.in, out: a.out + x.out, net: a.net + x.net }), { in: 0, out: 0, net: 0 })
+  const flowNames = cb ? { in: '매출(발생)', out: '정산(발생)', net: '차이' } : { in: '입금', out: '출금', net: '순증감' }
   const vs = (cur: number, v: number | undefined, fallback: string) =>
     p == null ? fallback : !v ? `${labels.prev} 기록 없음` : thin(cur, v) ? `${labels.prev} 기록 적음, 당시 ${won2(v)}` : `${labels.prev} 대비, 당시 ${won2(v)}`
 
@@ -406,12 +411,24 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="월별 매출" sub={`${cy}년, ${cb ? '계약일의 달 기준 공급가 전액' : '입금된 달 기준 공급가'}`} action={<Legend items={[[`${cy}년`, REV], [`${cy - 1}년`, PREV_COLOR]]} />}>
-          <MonthlyChart data={series('revenue')} color={REV} curLabel={`${cy}년`} prevLabel={`${cy - 1}년`} />
-        </Panel>
-        <Panel title="월별 정산" sub={`${cy}년, ${cb ? '계약일의 달 기준 연결 지급액(상태 무관)' : '송금 완료한 달 기준 지급액'}`} action={<Legend items={[[`${cy}년`, SET], [`${cy - 1}년`, PREV_COLOR]]} />}>
-          <MonthlyChart data={series('settled')} color={SET} curLabel={`${cy}년`} prevLabel={`${cy - 1}년`} />
-        </Panel>
+        <div className="lg:col-span-2">
+          <Panel
+            title={cb ? '월별 매출과 정산 (발생 기준)' : '월별 현금 유출입'}
+            sub={cb
+              ? `${cy}년, 계약일의 달 기준 공급가 전액과 연결 지급액(상태 무관)`
+              : `${cy}년, 입금은 입금된 달의 공급가(부가세 제외), 출금은 송금 완료한 달의 크리에이터 지급액(원천징수 전). 인건비, 운영비는 없음. 통장 금액(부가세 포함, 실지급액)은 자금 캘린더`}
+            action={<Legend items={[[flowNames.in, REV], [flowNames.out, SET], [flowNames.net, NET_COLOR]]} />}>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              {([['in', REV], ['out', SET], ['net', NET_COLOR]] as const).map(([k, color]) => (
+                <p key={k} className="space-y-0.5">
+                  <span className="block text-xs text-neutral-500">{cy}년 {flowNames[k]} 합계</span>
+                  <span className="text-lg font-semibold tabular-nums" style={{ color: k === 'net' && flowSum.net < 0 ? ALERT : color }} title={won(flowSum[k])}>{won2(flowSum[k])}</span>
+                </p>
+              ))}
+            </div>
+            <CashflowChart data={flow} inColor={REV} outColor={SET} names={flowNames} />
+          </Panel>
+        </div>
 
         <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
           <div className="space-y-2.5">
@@ -474,7 +491,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <details className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
         <summary className="cursor-pointer text-sm text-neutral-300">월별 표로 보기 ({labels.cur})</summary>
         <div className="mt-4">
-          <Table head={['월', cb ? '매출(계약)' : '매출(입금)', ...monthCurs.map((k) => `${CUR_NAME[k]} 매출`), cb ? '정산(계약)' : '정산(송금)', '매출 누적', '정산 누적']}>
+          <Table head={['월', cb ? '매출(계약)' : '매출(입금)', ...monthCurs.map((k) => `${CUR_NAME[k]} 매출`), cb ? '정산(계약)' : '정산(송금)', flowNames.net, '매출 누적', '정산 누적', `${flowNames.net} 누적`]}>
             {model.monthly.map((r) => {
               accRev += r.revenue
               accSet += r.settled
@@ -484,8 +501,10 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
                   <Money n={r.revenue} />
                   {monthCurs.map((k) => <Money key={k} n={r.revenueByCur[k] ?? 0} />)}
                   <Money n={r.settled} />
+                  <Money n={r.revenue - r.settled} />
                   <Money n={accRev} />
                   <Money n={accSet} />
+                  <Money n={accRev - accSet} />
                 </tr>
               )
             })}
@@ -567,11 +586,14 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
 
 function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string }) {
   const picked = model.creators.find((x) => x.name === sel)
+  const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
   const rows = sortRows(model.creators.filter((x) => hit(f, x.name)), s, {
     name: (x) => x.name, revenue: (x) => x.revenue, revenueCount: (x) => x.revenueCount, paid: (x) => x.paid, paidCount: (x) => x.paidCount,
-    rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held,
+    margin, rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held,
   })
+  // 합계는 표에 보이는 행(검색 적용) 기준. 마진율은 매출 몫이 있는 행끼리
+  const tot = rows.reduce((a, x) => ({ revenue: a.revenue + x.revenue, paid: a.paid + x.paid, margin: a.margin + (margin(x) ?? 0) }), { revenue: 0, paid: 0, margin: 0 })
   return (
     <div className="space-y-4">
       {picked && (
@@ -594,9 +616,14 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
           <PayoutTable payouts={picked.payouts} rates={rates} />
         </div>
       )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card label={f ? '매출 몫 합계 (검색 결과)' : '매출 몫 합계'} value={won2(tot.revenue)} note={won(tot.revenue)} />
+        <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, ${won(tot.margin)}`} />
+        <Card label={f ? '정산 합계 (검색 결과)' : '정산 합계'} value={won2(tot.paid)} note="상태 무관 지급 합" />
+      </div>
       <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
-      <Table head={['이름', '통화', '매출 몫', '매출 건수', '정산 합계', '정산 건수', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
-        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'paid', 'paidCount', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
+      <Table head={['이름', '통화', '매출 몫', '매출 건수', '정산 합계', '정산 건수', '마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
+        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'paid', 'paidCount', 'margin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.name} className={x.name === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
@@ -607,6 +634,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
             <td className={td}>{x.revenueCount}</td>
             <Money n={x.paid} />
             <td className={td}>{x.paidCount}</td>
+            <Money n={margin(x)} />
             <td className={td}>{pct(rate(x))}</td>
             <Money n={x.done} />
             <Money n={x.inFlight} />
@@ -615,7 +643,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
         ))}
       </Table>
       <p className="text-xs text-neutral-500">
-        매출 몫은 계약 공급가를 지급액 비율로 나눈 값이고, 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
+        매출 몫은 계약 공급가를 지급액 비율로 나눈 값이고, 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. 마진은 매출 몫에서 그 몫이 있는 지급을 뺀 값입니다. 기간을 지급일(송금일, 없으면 요청일)로 고르고 계약 연결 없는 지급은 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
       </p>
     </div>
   )
