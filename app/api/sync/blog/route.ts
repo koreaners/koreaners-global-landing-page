@@ -320,7 +320,8 @@ export async function POST(request: NextRequest) {
             meta_description: postData.meta_description,
             created_at: postData.created_at,
             faqs: postData.faqs,
-            updated_at: new Date().toISOString(),
+            // 동기화 시각이 아니라 노션 본문 수정 시각. sitemap lastmod·dateModified가 매 동기화마다 오늘로 바뀌던 문제.
+            updated_at: page.last_edited_time,
           },
           { onConflict: "slug" },
         );

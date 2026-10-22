@@ -132,6 +132,15 @@ export function BlogPostView({ blogPost, thumbnailSrc }: BlogPostViewProps) {
               </div>
               <TableOfContents />
             </div>
+            {locale !== "ja" && (
+              <p className="mt-8 text-center text-sm sm:text-base text-white/70 break-keep">
+                대행사를 고르고 있다면{" "}
+                <Link href="/japan-influencer-marketing" className="text-white underline underline-offset-4">
+                  일본 인플루언서 마케팅 대행사 비교와 비용
+                </Link>
+                을 먼저 확인하세요.
+              </p>
+            )}
             <MarketingCTA />
           </div>
         </article>

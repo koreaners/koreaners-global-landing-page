@@ -294,7 +294,8 @@ export default function RootLayout({
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+                // 관리자 화면(/admin)은 내부 사용이라 집계하지 않음
+                if (location.pathname.indexOf('/admin') !== 0) gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
               `}
             </Script>
           </>
