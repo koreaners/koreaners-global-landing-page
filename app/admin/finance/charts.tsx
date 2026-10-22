@@ -20,11 +20,11 @@ function niceTicks(max: number, min = 0) {
 const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`
 
 // 개요 탭 월별 유출입: 입금, 출금 막대와 순증감(입금 − 출금) 선. 한 축(원)
-export type FlowPoint = { label: string; in: number; out: number; net: number }
+export type FlowPoint = { label: string; in: number; out: number; net: number | null }
 export const NET_COLOR = '#e5e5e5'
 
 export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPoint[]; inColor: string; outColor: string; names: { in: string; out: string; net: string } }) {
-  const ticks = niceTicks(Math.max(0, ...data.flatMap((d) => [d.in, d.out, d.net])), Math.min(0, ...data.map((d) => d.net)))
+  const ticks = niceTicks(Math.max(0, ...data.flatMap((d) => [d.in, d.out, d.net ?? 0])), Math.min(0, ...data.map((d) => d.net ?? 0)))
   const colors = { in: inColor, out: outColor, net: NET_COLOR }
   return (
     <div className="h-72 w-full text-xs">
@@ -40,7 +40,7 @@ export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPo
               active && payload?.length ? (
                 <div className="space-y-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
                   <p className="text-neutral-400">{label}</p>
-                  {payload.map((p) => {
+                  {payload.filter((p) => p.value != null).map((p) => {
                     const k = p.dataKey as keyof typeof names
                     return (
                       <p key={k} className="flex items-center justify-between gap-6">

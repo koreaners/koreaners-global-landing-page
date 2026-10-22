@@ -336,9 +336,10 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   const flow = Array.from({ length: 12 }, (_, i) => {
     const r = byMonth.get(ym(cy, i + 1))
     const v = { in: r?.revenue ?? 0, out: r?.settled ?? 0 }
-    return { label: `${i + 1}월`, ...v, net: v.in - v.out }
+    // 올해의 오지 않은 달은 순증감 선을 끊음(0으로 떨어져 보이지 않게)
+    return { label: `${i + 1}월`, ...v, net: cy === thisYear && i + 1 > thisMonth ? null : v.in - v.out }
   })
-  const flowSum = flow.reduce((a, x) => ({ in: a.in + x.in, out: a.out + x.out, net: a.net + x.net }), { in: 0, out: 0, net: 0 })
+  const flowSum = flow.reduce((a, x) => ({ in: a.in + x.in, out: a.out + x.out, net: a.net + (x.net ?? 0) }), { in: 0, out: 0, net: 0 })
   const flowNames = cb ? { in: '매출(발생)', out: '정산(발생)', net: '차이' } : { in: '입금', out: '출금', net: '순증감' }
   const vs = (cur: number, v: number | undefined, fallback: string) =>
     p == null ? fallback : !v ? `${labels.prev} 기록 없음` : thin(cur, v) ? `${labels.prev} 기록 적음, 당시 ${won2(v)}` : `${labels.prev} 대비, 당시 ${won2(v)}`
