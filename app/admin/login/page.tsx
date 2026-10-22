@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { getSession, signIn, signOut } from '@/lib/admin-auth'
+import { getSession, signIn, signInWithGoogle, signOut } from '@/lib/admin-auth'
 import { useToast } from '@/hooks/use-toast'
 
 export default function AdminLoginPage() {
@@ -206,6 +206,22 @@ export default function AdminLoginPage() {
             <p className="text-muted-foreground mt-2">
               이메일과 비밀번호를 입력하세요
             </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={loading}
+            onClick={async () => {
+              const { error } = await signInWithGoogle()
+              if (error) toast({ title: '구글 로그인 실패', description: error.message, variant: 'destructive' })
+            }}
+          >
+            Google 계정(koreaners.com)으로 로그인
+          </Button>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />또는 이메일<span className="h-px flex-1 bg-border" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
