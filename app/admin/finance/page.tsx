@@ -340,7 +340,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     return { label: `${i + 1}월`, ...v, net: cy === thisYear && i + 1 > thisMonth ? null : v.in - v.out }
   })
   const flowSum = flow.reduce((a, x) => ({ in: a.in + x.in, out: a.out + x.out, net: a.net + (x.net ?? 0) }), { in: 0, out: 0, net: 0 })
-  const flowNames = cb ? { in: '매출(발생)', out: '정산(발생)', net: '차이' } : { in: '입금', out: '출금', net: '순증감' }
+  const flowNames = cb ? { in: '매출(발생)', out: '정산(발생)', net: '차이' } : { in: '입금(계약)', out: '출금(크리에이터 지급)', net: '순증감' }
   const vs = (cur: number, v: number | undefined, fallback: string) =>
     p == null ? fallback : !v ? `${labels.prev} 기록 없음` : thin(cur, v) ? `${labels.prev} 기록 적음, 당시 ${won2(v)}` : `${labels.prev} 대비, 당시 ${won2(v)}`
 
@@ -414,10 +414,10 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="lg:col-span-2">
           <Panel
-            title={cb ? '월별 매출과 정산 (발생 기준)' : '월별 현금 유출입'}
+            title={cb ? '월별 매출과 정산 (발생 기준)' : '월별 현금 유출입 (계약 입금, 크리에이터 지급 기준)'}
             sub={cb
               ? `${cy}년, 계약일의 달 기준 공급가 전액과 연결 지급액(상태 무관)`
-              : `${cy}년, 입금은 입금된 달의 공급가(부가세 제외), 출금은 송금 완료한 달의 크리에이터 지급액(원천징수 전). 인건비, 운영비는 없음. 통장 금액(부가세 포함, 실지급액)은 자금 캘린더`}
+              : `${cy}년, 입금은 입금된 달의 공급가(부가세 제외), 출금은 송금 완료한 달의 크리에이터 지급액(원천징수 전). 통장 금액(부가세 포함, 실지급액)은 자금 캘린더`}
             action={<Legend items={[[flowNames.in, REV], [flowNames.out, SET], [flowNames.net, NET_COLOR]]} />}>
             <div className="grid grid-cols-3 gap-3 text-sm">
               {([['in', REV], ['out', SET], ['net', NET_COLOR]] as const).map(([k, color]) => (
@@ -427,6 +427,11 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
                 </p>
               ))}
             </div>
+            {!cb && (
+              <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">
+                은행 잔고 변화가 아닙니다. 출금은 지급내역 DB에 기록된 크리에이터 지급만이라 인건비, 운영비, 세금, 카드 대금이 빠져 실제 은행 출금보다 훨씬 적습니다. 입금도 Contract DB에 입금일이 적힌 계약만입니다.
+              </p>
+            )}
             <CashflowChart data={flow} inColor={REV} outColor={SET} names={flowNames} />
           </Panel>
         </div>
@@ -589,12 +594,17 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
   const picked = model.creators.find((x) => x.name === sel)
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
+  // 건당 평균: 매출, 마진은 매출 몫이 있는 계약 수로, 정산은 지급 행 수로 나눔
+  const avgRevenue = (x: Model['creators'][number]) => (x.revenueCount ? x.revenue / x.revenueCount : null)
+  const avgPaid = (x: Model['creators'][number]) => (x.paidCount ? x.paid / x.paidCount : null)
+  const avgMargin = (x: Model['creators'][number]) => (x.revenueCount && x.revenue ? (x.revenue - x.linkedPaid) / x.revenueCount : null)
   const rows = sortRows(model.creators.filter((x) => hit(f, x.name)), s, {
     name: (x) => x.name, revenue: (x) => x.revenue, revenueCount: (x) => x.revenueCount, paid: (x) => x.paid, paidCount: (x) => x.paidCount,
-    margin, rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held,
+    margin, rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held, avgRevenue, avgPaid, avgMargin,
   })
   // 합계는 표에 보이는 행(검색 적용) 기준. 마진율은 매출 몫이 있는 행끼리
-  const tot = rows.reduce((a, x) => ({ revenue: a.revenue + x.revenue, paid: a.paid + x.paid, margin: a.margin + (margin(x) ?? 0) }), { revenue: 0, paid: 0, margin: 0 })
+  const tot = rows.reduce((a, x) => ({ revenue: a.revenue + x.revenue, paid: a.paid + x.paid, margin: a.margin + (margin(x) ?? 0), rn: a.rn + x.revenueCount, pn: a.pn + x.paidCount }), { revenue: 0, paid: 0, margin: 0, rn: 0, pn: 0 })
+  const per = (v: number, n: number) => (n ? won2(v / n) : '-')
   return (
     <div className="space-y-4">
       {picked && (
@@ -618,13 +628,13 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
         </div>
       )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card label={f ? '매출 몫 합계 (검색 결과)' : '매출 몫 합계'} value={won2(tot.revenue)} note={won(tot.revenue)} />
-        <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, ${won(tot.margin)}`} />
-        <Card label={f ? '정산 합계 (검색 결과)' : '정산 합계'} value={won2(tot.paid)} note="상태 무관 지급 합" />
+        <Card label={f ? '매출 몫 합계 (검색 결과)' : '매출 몫 합계'} value={won2(tot.revenue)} note={`${tot.rn}건, 건당 평균 ${per(tot.revenue, tot.rn)}`} />
+        <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, 건당 평균 ${per(tot.margin, tot.rn)}`} />
+        <Card label={f ? '정산 합계 (검색 결과)' : '정산 합계'} value={won2(tot.paid)} note={`상태 무관 지급 ${tot.pn}행, 건당 평균 ${per(tot.paid, tot.pn)}`} />
       </div>
       <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
-      <Table head={['이름', '통화', '매출 몫', '매출 건수', '정산 합계', '정산 건수', '마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
-        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'paid', 'paidCount', 'margin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
+      <Table head={['이름', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
+        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.name} className={x.name === sel ? 'bg-sky-950/40' : ''}>
             <td className={tdl}>
@@ -633,9 +643,12 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
             <Money n={x.revenue} />
             <td className={td}>{x.revenueCount}</td>
+            <Money n={avgRevenue(x)} />
             <Money n={x.paid} />
             <td className={td}>{x.paidCount}</td>
+            <Money n={avgPaid(x)} />
             <Money n={margin(x)} />
+            <Money n={avgMargin(x)} />
             <td className={td}>{pct(rate(x))}</td>
             <Money n={x.done} />
             <Money n={x.inFlight} />
