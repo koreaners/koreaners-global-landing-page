@@ -55,9 +55,9 @@ export async function proxy(request: NextRequest) {
   // 로그인 페이지 접근 시
   if (pathname === '/admin/login') {
     // 권한 있는 계정이 이미 로그인되어 있으면 대시보드로 리다이렉트
-    // (전체 어드민 → /admin, exec → 보고서)
+    // (전체 어드민 → /admin, exec → 재무 개요)
     if (user && (isFullAdmin || isExec)) {
-      return NextResponse.redirect(new URL(isFullAdmin ? '/admin' : '/admin/reports', request.url))
+      return NextResponse.redirect(new URL(isFullAdmin ? '/admin' : '/admin/finance', request.url))
     }
     // 세션이 없으면 로그인 페이지 접근 허용
     return response
@@ -74,9 +74,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/login?denied=1', request.url))
   }
 
-  // 역할 게이트: exec 는 /admin/reports, /admin/finance 만 접근
+  // 역할 게이트: exec 는 /admin/reports, /admin/finance 만 접근(첫 화면은 재무 개요)
   if (isExec && !pathname.startsWith('/admin/reports') && !pathname.startsWith('/admin/finance')) {
-    return NextResponse.redirect(new URL('/admin/reports', request.url))
+    return NextResponse.redirect(new URL('/admin/finance', request.url))
   }
 
   // 세션이 있으면 접근 허용
