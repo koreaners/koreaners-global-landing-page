@@ -605,12 +605,15 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
   // 합계는 표에 보이는 행(검색 적용) 기준. 마진율은 매출 몫이 있는 행끼리
   const tot = rows.reduce((a, x) => ({ revenue: a.revenue + x.revenue, paid: a.paid + x.paid, margin: a.margin + (margin(x) ?? 0), rn: a.rn + x.revenueCount, pn: a.pn + x.paidCount }), { revenue: 0, paid: 0, margin: 0, rn: 0, pn: 0 })
   const per = (v: number, n: number) => (n ? won2(v / n) : '-')
-  return (
-    <div className="space-y-4">
-      {picked && (
-        <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
+  // 이름을 누르면 목록 위 패널이 아니라 크리에이터 한 명만 보는 화면으로 바뀜
+  if (picked)
+    return (
+      <div className="space-y-4">
+        <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
+        <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <h2 className="text-base font-semibold text-neutral-50">{picked.name}</h2>
           <p className="text-sm text-neutral-200">
-            {picked.name}, 매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
+            매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
           </p>
           {picked.shares.length > 0 && (
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
@@ -626,7 +629,10 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
           )}
           <PayoutTable payouts={picked.payouts} rates={rates} />
         </div>
-      )}
+      </div>
+    )
+  return (
+    <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card label={f ? '매출 몫 합계 (검색 결과)' : '매출 몫 합계'} value={won2(tot.revenue)} note={`${tot.rn}건, 건당 평균 ${per(tot.revenue, tot.rn)}`} />
         <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, 건당 평균 ${per(tot.margin, tot.rn)}`} />
@@ -636,7 +642,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
       <Table head={['이름', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
         sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
-          <tr key={x.name} className={x.name === sel ? 'bg-sky-950/40' : ''}>
+          <tr key={x.name}>
             <td className={tdl}>
               <Link href={q({ sel: x.name })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
             </td>
