@@ -1,6 +1,9 @@
 import { MetadataRoute } from 'next'
 import { createStaticClient } from '@/lib/supabase/static'
 
+// 재검증이 없으면 배포 때만 만들어져 lastmod가 배포 시점에 고정된다. 블로그·포트폴리오와 같은 1시간 ISR.
+export const revalidate = 3600
+
 // 정적 콘텐츠 페이지의 실제 마지막 카피 변경일. 페이지 콘텐츠를 수정하면 이 값도 함께 갱신.
 const STATIC_CONTENT_DATES: Record<string, string> = {
   '/about': '2026-04-02',
