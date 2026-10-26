@@ -781,6 +781,9 @@ const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
 ]
 
 const LIST = 'cal-list'
+// 정상 흐름이 아닌 상태(정산일 임의, 서명 전, 서류·계좌 대기)는 날이 지나도 색을 바꾸지 않고 「예정일 지남」 글자만 붙임(Leo 261026)
+const ODD: CalItem['state'][] = ['guess', 'unsigned', 'docs']
+const Overdue = ({ show, short }: { show: boolean; short?: boolean }) => (show ? <span style={{ color: ALERT }}>{short ? ' 지남' : ', 예정일 지남'}</span> : null)
 /** 안건 칸 이름: 입금은 계약, 출금은 크리에이터 상세로 */
 function CalTitle({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
   const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.title }) : x.contractId ? q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId }) : null
@@ -842,7 +845,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
-                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : ''}</span></span>
+                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
                 })}
               </Link>
             )
@@ -869,7 +872,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                 </div>
                 <div className="shrink-0 text-right">
                   <span className="block tabular-nums text-neutral-100">{x.kind === 'in' ? '+' : '−'}{won(x.krw)}</span>
-                  <span className="block text-xs" style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state].replace(/\(.*\)/, '')}</span>
+                  <span className="block text-xs" style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state].replace(/\(.*\)/, '')}<Overdue show={ODD.includes(x.state) && x.date < today} /></span>
                 </div>
               </li>
             ))}
@@ -886,7 +889,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                   <CalSub x={x} q={q} />
                 </td>
                 <td className={td}>{x.kind === 'in' ? '입금' : '출금'}</td>
-                <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}</td>
+                <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}<Overdue show={ODD.includes(x.state) && x.date < today} /></td>
                 <td className={td}>{won(x.krw)}</td>
               </tr>
             ))}
