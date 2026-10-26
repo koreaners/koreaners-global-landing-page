@@ -179,15 +179,15 @@ function sortRows<T>(rows: T[], s: string, get: Record<string, (x: T) => string 
 }
 
 /** 표 위 검색창: 같은 주소 쿼리를 유지한 채 f만 바꿈 */
-function SearchBox({ q, f, n, total, placeholder }: { q: (o: Partial<Search>) => string; f?: string; n: number; total: number; placeholder: string }) {
+function SearchBox({ q, f, n, total, placeholder, anchor }: { q: (o: Partial<Search>) => string; f?: string; n: number; total: number; placeholder: string; anchor?: string }) {
   const base = new URLSearchParams(q({ f: undefined, sel: undefined, d: undefined }).split('?')[1])
   return (
-    <form action="/admin/finance" className="flex items-center gap-2 text-sm">
+    <form action={`/admin/finance${anchor ? `#${anchor}` : ''}`} className="flex w-full items-center gap-2 text-sm sm:w-auto">
       {[...base.entries()].filter(([k]) => k !== 'f').map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-      <input name="f" defaultValue={f} placeholder={placeholder} className="w-64 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600" />
-      <button className="rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">찾기</button>
+      <input name="f" defaultValue={f} placeholder={placeholder} className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600 sm:w-64 sm:flex-none" />
+      <button className="shrink-0 rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">찾기</button>
       {f && <Link href={q({ f: undefined, sel: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">지우기</Link>}
-      <span className="text-xs text-neutral-500">{f ? `${n}건 / 전체 ${total}건` : `${total}건`}</span>
+      <span className="shrink-0 text-xs text-neutral-500">{f ? `${n}건 / 전체 ${total}건` : `${total}건`}</span>
     </form>
   )
 }
@@ -301,9 +301,9 @@ function BarRow({ label, value, max, color, aside, href }: { label: string; valu
 
 function Legend({ items }: { items: [string, string][] }) {
   return (
-    <div className="flex gap-4 text-xs text-neutral-400">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400">
       {items.map(([label, color]) => (
-        <span key={label} className="flex items-center gap-1.5">
+        <span key={label} className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
           {label}
         </span>
@@ -777,6 +777,10 @@ const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
   ['out', ['done'], '출금'], ['out', ['flight', 'due'], '출금 예정(고객사 입금 완료)'], ['out', ['wait'], '출금 예정(고객사 입금 전)'], ['out', ['late'], '출금 예정일 지남'],
 ]
 
+const LIST = 'cal-list'
+/** 캘린더 칸(모바일): 만원 단위 숫자만, 1억 이상은 억 */
+const man = (n: number) => (n >= 1e8 ? `${(n / 1e8).toFixed(1)}억` : n < 1e4 ? '<1' : Math.round(n / 1e4).toLocaleString('ko-KR'))
+
 /** 자금 캘린더: 날짜별 들어오고 나가는 돈, 아래 표는 그 달 안건별 입출금 전체(날짜를 누르면 그날만, 안건명 검색) */
 function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: string; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string }) {
   const [y, m] = cur.split('-').map(Number)
@@ -820,31 +824,48 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
             const date = `${cur}-${String(i + 1).padStart(2, '0')}`
             const xs = byDay.get(date) ?? []
             return (
-              <Link key={date} href={go(y, m, date === day ? undefined : date)} className={`min-h-24 space-y-1 bg-neutral-900 p-2 text-xs hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
+              <Link key={date} href={date === day ? go(y, m) : `${go(y, m, date)}#${LIST}`} className={`min-h-16 space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-24 sm:p-2 sm:text-xs hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
-                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'} {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : ''}</span>
+                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : ''}</span></span>
                 })}
               </Link>
             )
           })}
         </div>
       </div>
-      <section className="space-y-2">
+      <p className="text-xs text-neutral-500 sm:hidden">칸 금액 단위는 만원입니다.</p>
+      <section id={LIST} className="scroll-mt-4 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-100">
             {day ?? `${m}월 전체`} 안건별 입출금
-            {day && <Link href={go(y, m)} className="ml-2 text-xs font-normal text-neutral-400 hover:text-neutral-200">월 전체 보기</Link>}
+            {day && <Link href={`${go(y, m)}#${LIST}`} className="ml-2 text-xs font-normal text-neutral-400 hover:text-neutral-200">월 전체 보기</Link>}
           </h3>
-          <SearchBox q={q} f={f} n={rows.length} total={day ? (byDay.get(day) ?? []).length : items.length} placeholder="안건, 크리에이터" />
+          <SearchBox q={q} f={f} n={rows.length} total={day ? (byDay.get(day) ?? []).length : items.length} placeholder="안건, 크리에이터" anchor={LIST} />
         </div>
-        {rows.length ? (
+        {rows.length ? (<>
+          <ul className="divide-y divide-neutral-800 rounded-xl border border-neutral-800 sm:hidden">
+            {rows.map((x, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <span className="block text-xs tabular-nums text-neutral-500">{x.date.slice(5).replace('-', '/')} {x.kind === 'in' ? '입금' : '출금'}</span>
+                  {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>}
+                  <span className="block break-words text-xs text-neutral-500">{x.sub}</span>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="block tabular-nums text-neutral-100">{x.kind === 'in' ? '+' : '−'}{won(x.krw)}</span>
+                  <span className="block text-xs" style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state].replace(/\(.*\)/, '')}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden sm:block">
           <Table head={['날짜', '안건', '구분', '상태', '금액']} left={2} tall>
             {rows.map((x, i) => (
               <tr key={i}>
                 <td className={`${tdl} whitespace-nowrap tabular-nums`}>
-                  <Link href={go(y, m, x.date)} className="text-neutral-400 hover:text-neutral-100">{x.date.slice(5).replace('-', '/')}</Link>
+                  <Link href={`${go(y, m, x.date)}#${LIST}`} className="text-neutral-400 hover:text-neutral-100">{x.date.slice(5).replace('-', '/')}</Link>
                 </td>
                 <td className={tdl}>
                   {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300 hover:underline">{x.title}</Link> : x.title}
@@ -856,7 +877,8 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
               </tr>
             ))}
           </Table>
-        ) : (
+          </div>
+        </>) : (
           <p className="text-sm text-neutral-500">{f ? '찾는 안건이 없습니다.' : day ? '이 날짜에 입출금이 없습니다.' : '이 달에 입출금이 없습니다.'}</p>
         )}
       </section>
