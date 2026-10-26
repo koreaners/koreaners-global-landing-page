@@ -112,7 +112,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </div>
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
-      {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} />}
+      {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
       {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
@@ -180,7 +180,7 @@ function sortRows<T>(rows: T[], s: string, get: Record<string, (x: T) => string 
 
 /** 표 위 검색창: 같은 주소 쿼리를 유지한 채 f만 바꿈 */
 function SearchBox({ q, f, n, total, placeholder }: { q: (o: Partial<Search>) => string; f?: string; n: number; total: number; placeholder: string }) {
-  const base = new URLSearchParams(q({ f: undefined, sel: undefined }).split('?')[1])
+  const base = new URLSearchParams(q({ f: undefined, sel: undefined, d: undefined }).split('?')[1])
   return (
     <form action="/admin/finance" className="flex items-center gap-2 text-sm">
       {[...base.entries()].filter(([k]) => k !== 'f').map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
@@ -777,8 +777,8 @@ const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
   ['out', ['done'], '출금'], ['out', ['flight', 'due'], '출금 예정(고객사 입금 완료)'], ['out', ['wait'], '출금 예정(고객사 입금 전)'], ['out', ['late'], '출금 예정일 지남'],
 ]
 
-/** 자금 캘린더: 날짜별 들어오고 나가는 돈, 날짜를 누르면 안건별 입출금 */
-function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: string; today: string; sel?: string; q: (o: Partial<Search>) => string }) {
+/** 자금 캘린더: 날짜별 들어오고 나가는 돈, 아래 표는 그 달 안건별 입출금 전체(날짜를 누르면 그날만, 안건명 검색) */
+function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: string; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string }) {
   const [y, m] = cur.split('-').map(Number)
   const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay() // 일요일 0
   const days = new Date(Date.UTC(y, m, 0)).getUTCDate()
@@ -788,7 +788,8 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
   const go = (yy: number, mm: number, d?: string) => q({ y: String(yy), m: String(mm), d })
   const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1]
   const [ny, nm] = m === 12 ? [y + 1, 1] : [y, m + 1]
-  const picked = sel?.startsWith(cur) ? (byDay.get(sel) ?? []) : null
+  const day = sel?.startsWith(cur) ? sel : undefined
+  const rows = (day ? (byDay.get(day) ?? []) : [...items].sort((a, b) => a.date.localeCompare(b.date))).filter((x) => hit(f, x.title, x.sub))
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -819,7 +820,7 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
             const date = `${cur}-${String(i + 1).padStart(2, '0')}`
             const xs = byDay.get(date) ?? []
             return (
-              <Link key={date} href={go(y, m, date)} className={`min-h-24 space-y-1 bg-neutral-900 p-2 text-xs hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
+              <Link key={date} href={go(y, m, date === day ? undefined : date)} className={`min-h-24 space-y-1 bg-neutral-900 p-2 text-xs hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
@@ -830,30 +831,35 @@ function Calendar({ items, ym: cur, today, sel, q }: { items: CalItem[]; ym: str
           })}
         </div>
       </div>
-      {picked ? (
-        <section className="space-y-2">
-          <h3 className="text-sm font-semibold text-neutral-100">{sel} 안건별 입출금 {picked.length}건</h3>
-          {picked.length ? (
-            <Table head={['안건', '구분', '상태', '금액']}>
-              {picked.map((x, i) => (
-                <tr key={i}>
-                  <td className={tdl}>
-                    {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300 hover:underline">{x.title}</Link> : x.title}
-                    <span className="block text-xs text-neutral-500">{x.sub}</span>
-                  </td>
-                  <td className={td}>{x.kind === 'in' ? '입금' : '출금'}</td>
-                  <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}</td>
-                  <td className={td}>{won(x.krw)}</td>
-                </tr>
-              ))}
-            </Table>
-          ) : (
-            <p className="text-sm text-neutral-500">이 날짜에 입출금이 없습니다.</p>
-          )}
-        </section>
-      ) : (
-        <p className="text-sm text-neutral-500">날짜를 누르면 그날의 안건별 입출금이 아래에 나옵니다.</p>
-      )}
+      <section className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-neutral-100">
+            {day ?? `${m}월 전체`} 안건별 입출금
+            {day && <Link href={go(y, m)} className="ml-2 text-xs font-normal text-neutral-400 hover:text-neutral-200">월 전체 보기</Link>}
+          </h3>
+          <SearchBox q={q} f={f} n={rows.length} total={day ? (byDay.get(day) ?? []).length : items.length} placeholder="안건, 크리에이터" />
+        </div>
+        {rows.length ? (
+          <Table head={['날짜', '안건', '구분', '상태', '금액']} left={2} tall>
+            {rows.map((x, i) => (
+              <tr key={i}>
+                <td className={`${tdl} whitespace-nowrap tabular-nums`}>
+                  <Link href={go(y, m, x.date)} className="text-neutral-400 hover:text-neutral-100">{x.date.slice(5).replace('-', '/')}</Link>
+                </td>
+                <td className={tdl}>
+                  {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300 hover:underline">{x.title}</Link> : x.title}
+                  <span className="block text-xs text-neutral-500">{x.sub}</span>
+                </td>
+                <td className={td}>{x.kind === 'in' ? '입금' : '출금'}</td>
+                <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}</td>
+                <td className={td}>{won(x.krw)}</td>
+              </tr>
+            ))}
+          </Table>
+        ) : (
+          <p className="text-sm text-neutral-500">{f ? '찾는 안건이 없습니다.' : day ? '이 날짜에 입출금이 없습니다.' : '이 달에 입출금이 없습니다.'}</p>
+        )}
+      </section>
       <p className="text-xs text-neutral-500">
         입금은 부가세 포함 입금 예상액, 출금은 실지급액입니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
       </p>
