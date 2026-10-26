@@ -778,6 +778,17 @@ const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
 ]
 
 const LIST = 'cal-list'
+/** 안건 칸 이름: 입금은 계약, 출금은 크리에이터 상세로 */
+function CalTitle({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
+  const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.title }) : x.contractId ? q({ tab: 'contracts', sel: x.contractId }) : null
+  return href ? <Link href={href} className="text-sky-300 hover:underline">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
+}
+/** 안건 칸 회색 줄: 계약 코드(누르면 계약), 예외 메모. 상태는 상태 칸에 */
+function CalSub({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
+  const code = x.code && x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{x.code}</Link> : x.code
+  if (!code && !x.sub) return null
+  return <span className="block break-words text-xs text-neutral-500">{code}{code && x.sub ? ', ' : ''}{x.sub}</span>
+}
 /** 캘린더 칸(모바일): 만원 단위 숫자만, 1억 이상은 억 */
 const man = (n: number) => (n >= 1e8 ? `${(n / 1e8).toFixed(1)}억` : n < 1e4 ? '<1' : Math.round(n / 1e4).toLocaleString('ko-KR'))
 
@@ -793,7 +804,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
   const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1]
   const [ny, nm] = m === 12 ? [y + 1, 1] : [y, m + 1]
   const day = sel?.startsWith(cur) ? sel : undefined
-  const rows = (day ? (byDay.get(day) ?? []) : [...items].sort((a, b) => a.date.localeCompare(b.date))).filter((x) => hit(f, x.title, x.sub))
+  const rows = (day ? (byDay.get(day) ?? []) : [...items].sort((a, b) => a.date.localeCompare(b.date))).filter((x) => hit(f, x.title, x.code, x.sub))
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -850,8 +861,8 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
               <li key={i} className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
                 <div className="min-w-0">
                   <span className="block text-xs tabular-nums text-neutral-500">{x.date.slice(5).replace('-', '/')} {x.kind === 'in' ? '입금' : '출금'}</span>
-                  {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>}
-                  <span className="block break-words text-xs text-neutral-500">{x.sub}</span>
+                  <CalTitle x={x} q={q} />
+                  <CalSub x={x} q={q} />
                 </div>
                 <div className="shrink-0 text-right">
                   <span className="block tabular-nums text-neutral-100">{x.kind === 'in' ? '+' : '−'}{won(x.krw)}</span>
@@ -868,8 +879,8 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                   <Link href={`${go(y, m, x.date)}#${LIST}`} className="text-neutral-400 hover:text-neutral-100">{x.date.slice(5).replace('-', '/')}</Link>
                 </td>
                 <td className={tdl}>
-                  {x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="text-sky-300 hover:underline">{x.title}</Link> : x.title}
-                  <span className="block text-xs text-neutral-500">{x.sub}</span>
+                  <CalTitle x={x} q={q} />
+                  <CalSub x={x} q={q} />
                 </td>
                 <td className={td}>{x.kind === 'in' ? '입금' : '출금'}</td>
                 <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}</td>
