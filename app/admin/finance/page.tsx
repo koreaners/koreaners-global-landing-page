@@ -761,8 +761,8 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
 }
 
 const CAL_STATE: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
-  in: { done: '입금됨', flight: '-', due: '입금 예정', wait: '-', late: '예정일 지남', guess: '입금 예정(정산일 임의)', unsigned: '입금 예정(서명 전)', docs: '-' },
-  out: { done: '송금 완료', flight: '송금 진행 중', due: '송금 가능(고객사 입금 완료)', wait: '고객사 입금 전', late: '예정일 지남', guess: '고객사 입금 전(정산일 임의)', unsigned: '-', docs: '서류·계좌 대기(고객사 입금 완료)' },
+  in: { done: '입금됨', flight: '-', due: '입금 예정', wait: '-', late: '입금 예정일 지남', guess: '입금 예정(정산일 임의)', unsigned: '입금 예정(서명 전)', docs: '-' },
+  out: { done: '송금 완료', flight: '송금 진행 중', due: '송금 가능(고객사 입금 완료)', wait: '고객사 입금 전', late: '출금 예정일 지남', guess: '고객사 입금 전(정산일 임의)', unsigned: '-', docs: '서류·계좌 대기(고객사 입금 완료)' },
 }
 // 들어옴: 들어온 돈 초록, 예정 회색, 예정일 지났는데 안 들어온 돈 빨강 / 나감: 정산해서 나간 돈 파랑, 나갈 돈 주황, 예정일 지남 빨강
 const GOOD = '#3fae6a'
@@ -845,7 +845,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
-                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? ' 예정일 지남' : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
+                  return k > 0 && <span key={label} className="block truncate tabular-nums" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
                 })}
               </Link>
             )
