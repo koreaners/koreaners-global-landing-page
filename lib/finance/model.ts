@@ -446,18 +446,25 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 }
 
 const monthEnd = (d: string) => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10)
+/** 토요일이면 금요일, 일요일이면 금요일로. 공휴일은 안 봄 */
+const weekdayBack = (d: string) => {
+  const t = Date.parse(d)
+  const w = new Date(t).getUTCDay()
+  return w === 6 || w === 0 ? new Date(t - (w === 6 ? 1 : 2) * DAY).toISOString().slice(0, 10) : d
+}
 
 /** 지급 예정일(설계 261002-설계-자금캘린더 1절). 정기 회차는 월말 1회 가정, 마감이 20일로 확인되면 「말일 이틀 전」을 「20일」로 */
 export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string): string | null {
   if (p.status === DONE) return p.sentDate
   if (p.status === '모인 접수' || p.status === '원화 이체 대기') return p.reqDate
-  if (p.status === '송금 가능') return monthEnd(today)
+  if (p.status === '송금 가능') return weekdayBack(monthEnd(today))
   if (p.status !== '대기') return null // 보류
   const c = p.contractId ? byId.get(p.contractId) : undefined
   const due = c ? (recognitions(c, today).find((x) => !x.date)?.due ?? null) : null
   if (!due) return null
   const end = monthEnd(due)
-  return Date.parse(due) > Date.parse(end) - 2 * DAY ? monthEnd(new Date(Date.parse(end) + DAY).toISOString().slice(0, 10)) : end
+  // 이틀 전 기준은 달력 말일, 지급일만 평일로 당김
+  return weekdayBack(Date.parse(due) > Date.parse(end) - 2 * DAY ? monthEnd(new Date(Date.parse(end) + DAY).toISOString().slice(0, 10)) : end)
 }
 
 export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'late'; date: string; krw: number; title: string; sub: string; contractId: string | null }
