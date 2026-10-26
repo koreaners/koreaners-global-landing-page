@@ -83,6 +83,7 @@ export function toContract(page: Page): Contract {
     contractDate: day(page, '계약일자'),
     startDate: day(page, '시작일'),
     link: (val(page, '계약서 링크') as string | null) ?? null,
+    dueGuess: str(page, '비고').includes('정산일 임의'),
   }
 }
 

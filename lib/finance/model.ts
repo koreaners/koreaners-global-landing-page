@@ -26,6 +26,7 @@ export type Contract = {
   contractDate: string | null
   startDate: string | null
   link: string | null
+  dueGuess?: boolean // 비고에 「정산일 임의」: 정산일을 모르는 계약에 임의로 넣은 날(수출바우처 계약월 +2달 말일 등, Leo 261026). 캘린더 색을 따로
   supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
   currency?: Currency | null // Contract DB 통화 칸(매출 통화별 나눔용, 금액은 공급가(원) 그대로)
   source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(코드 받기와 코드 대조 전 임시)
@@ -468,7 +469,7 @@ export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string)
 }
 
 // 나감 due: 송금 가능(고객사 입금 끝남), wait: 대기(고객사 입금 전, 계약 입금 예정일로 잡은 날짜)
-export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'wait' | 'late'; date: string; krw: number; title: string; sub: string; code: string | null; contractId: string | null }
+export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'wait' | 'late' | 'guess'; date: string; krw: number; title: string; sub: string; code: string | null; contractId: string | null }
 
 /** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
  * 들어옴은 실제 입금액(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음). 합계가 비면 공급가로 대신하고 표시
@@ -485,7 +486,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     for (const rec of recognitions(c, today)) {
       const date = rec.date ?? rec.due
       if (!date?.startsWith(ym)) continue
-      out.push({ kind: 'in', state: rec.date ? 'done' : date < today ? 'late' : 'due', date, krw: amt * rec.share, title: c.brand || c.corp || c.code, sub: total == null ? '합계 없음(공급가)' : '', code: c.code, contractId: c.id })
+      out.push({ kind: 'in', state: rec.date ? 'done' : c.dueGuess ? 'guess' : date < today ? 'late' : 'due', date, krw: amt * rec.share, title: c.brand || c.corp || c.code, sub: total == null ? '합계 없음(공급가)' : '', code: c.code, contractId: c.id })
     }
   }
   for (const p of payouts) {
@@ -494,7 +495,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     const c = p.contractId ? byId.get(p.contractId) : undefined
     // 모인 접수, 원화 이체 대기는 송금 요청일에 이미 나가는 중이라 지남으로 보지 않음
     const note = p.deduction === '세금계산서' && !p.vat ? '세금계산서(VAT 포함, 별도 미정)' : p.currency === 'KRW' && !p.deduction ? '공제 유형 빈칸' : ''
-    out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : date < today ? 'late' : p.status === '대기' ? 'wait' : 'due', date, krw: netPayoutKrw(p, r) ?? 0, title: p.name, sub: note, code: c?.code ?? null, contractId: c?.id ?? null })
+    out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : date < today ? 'late' : p.status === '대기' ? (c?.dueGuess ? 'guess' : 'wait') : 'due', date, krw: netPayoutKrw(p, r) ?? 0, title: p.name, sub: note, code: c?.code ?? null, contractId: c?.id ?? null })
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || b.krw - a.krw)
 }
