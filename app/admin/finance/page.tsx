@@ -835,7 +835,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
             const date = `${cur}-${String(i + 1).padStart(2, '0')}`
             const xs = byDay.get(date) ?? []
             return (
-              <Link key={date} href={date === day ? go(y, m) : `${go(y, m, date)}#${LIST}`} className={`min-h-16 space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-24 sm:p-2 sm:text-xs hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
+              <Link key={date} href={date === day ? go(y, m) : `${go(y, m, date)}#${LIST}`} className={`min-h-16 space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-32 sm:space-y-1.5 sm:p-2.5 sm:text-sm hover:bg-neutral-800/70 ${date === sel ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
