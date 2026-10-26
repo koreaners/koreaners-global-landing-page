@@ -780,12 +780,12 @@ const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
 const LIST = 'cal-list'
 /** 안건 칸 이름: 입금은 계약, 출금은 크리에이터 상세로 */
 function CalTitle({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
-  const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.title }) : x.contractId ? q({ tab: 'contracts', sel: x.contractId }) : null
+  const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.title }) : x.contractId ? q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId }) : null
   return href ? <Link href={href} className="text-sky-300 hover:underline">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
 }
 /** 안건 칸 회색 줄: 계약 코드(누르면 계약), 예외 메모. 상태는 상태 칸에 */
 function CalSub({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
-  const code = x.code && x.contractId ? <Link href={q({ tab: 'contracts', sel: x.contractId })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{x.code}</Link> : x.code
+  const code = x.code && x.contractId ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{x.code}</Link> : x.code
   if (!code && !x.sub) return null
   return <span className="block break-words text-xs text-neutral-500">{code}{code && x.sub ? ', ' : ''}{x.sub}</span>
 }
