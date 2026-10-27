@@ -48,6 +48,9 @@ export function sheetContracts(values: string[][], db: Contract[]): SheetResult 
     if (code) byCode.set(code, row)
   }
   const dbCodes = new Set(db.map((c) => c.code).filter(Boolean))
+  // 서명 전 봇 계약(코드 없음)과 법인명이 같은 시트 행은 같은 계약이라 더하지 않음(Maxim, 인플루디오 261027)
+  // ponytail: 법인명만 대조. 같은 법인의 별개 시트 계약도 빠짐, 시트가 261027 동결이라 대상은 고정
+  const unsignedCorps = new Set(db.filter((c) => c.unsigned).map((c) => normCorp(c.corp)).filter(Boolean))
   // 코드가 시트 어디에도 없는 DB 행: 같은 계약이 코드만 다르게 들어간 후보
   const orphans = db.filter((c) => c.code && !byCode.has(c.code))
 
@@ -85,6 +88,7 @@ export function sheetContracts(values: string[][], db: Contract[]): SheetResult 
     const usd = money(at(row, '계약 금액 / USD (부가세X)'))
     if (krw == null && jpy == null && usd == null) return null
     const corp = at(row, '법인명')
+    if (unsignedCorps.has(normCorp(corp))) return null
     const preDate = date(at(row, '선금 정산일'))
     const postDate = date(at(row, '잔금 정산일'))
     const c: Contract = {
