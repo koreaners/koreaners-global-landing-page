@@ -455,6 +455,17 @@ const weekdayBack = (d: string) => {
   return w === 6 || w === 0 ? new Date(t - (w === 6 ? 1 : 2) * DAY).toISOString().slice(0, 10) : d
 }
 
+/** d에서 평일 n일 앞(정산 람다 handler.weekdays_before와 같은 규칙). 공휴일은 안 봄 */
+const weekdaysBefore = (d: string, n: number) => {
+  let t = Date.parse(d)
+  while (n) {
+    t -= DAY
+    const w = new Date(t).getUTCDay()
+    if (w !== 0 && w !== 6) n--
+  }
+  return new Date(t).toISOString().slice(0, 10)
+}
+
 const paidUp = (c: Contract, today: string) => {
   const rs = recognitions(c, today)
   return rs.length > 0 && rs.every((x) => x.date)
@@ -463,7 +474,11 @@ const paidUp = (c: Contract, today: string) => {
 /** 지급 예정일(설계 261002-설계-자금캘린더 1절). 정기 회차는 월말 1회 가정, 마감이 20일로 확인되면 「말일 이틀 전」을 「20일」로 */
 export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string): string | null {
   if (p.status === DONE) return p.sentDate
-  if (p.status === '모인 접수' || p.status === '원화 이체 대기') return p.reqDate
+  if (p.status === '모인 접수' || p.status === '원화 이체 대기') {
+    // 정기 묶음은 송금일(마지막 평일) 3영업일 전에 만들어 요청일이 송금일보다 이르다. 그 사이 요청일은 송금일에 둔다(Leo 261027 「어드민 송금일정은 마지막 영업일」). 비정기 회차는 요청일 그대로
+    const pay = p.reqDate ? weekdayBack(monthEnd(p.reqDate)) : null
+    return pay && p.reqDate! >= weekdaysBefore(pay, 3) && p.reqDate! <= pay ? pay : p.reqDate
+  }
   if (p.status === '송금 가능') return weekdayBack(monthEnd(today))
   if (p.status !== '대기') return null // 보류
   const c = p.contractId ? byId.get(p.contractId) : undefined
