@@ -48,3 +48,19 @@ export function parseReportKey(name: string) {
   const [, y1, m1, d1, y2, m2, d2] = m
   return { start: `20${y1}-${m1}-${d1}`, end: `20${y2}-${m2}-${d2}`, title: `주간 경영 리포트 ${+m1}/${+d1}~${+m2}/${+d2}` }
 }
+
+// brain-weekly 가 신호등과 같은 계산으로 올리는 월별 추이(재무 탭 「퍼널 추이」). 배열은 months 와 같은 순서
+export const TREND_KEY = 'funnel-trend.json'
+export type FunnelTrend = {
+  version: 1
+  generated_at: string
+  today: string
+  months: string[]
+  deals: { goal: number; repeat_goal: number; new: number[]; repeat: number[] }
+  ontime: { a: number[]; k: number[] }
+  remit: { a: number[]; k: number[] }
+  // 컨택월 코호트. ripe 가 false 인 달(말일이 60일 안 지남)은 수주율을 그리지 않는다
+  leads: Record<string, { n: number[]; won: number[]; ripe: boolean[] }> | null
+  // 월간파이낸스 정본의 달별 값. % 단위는 비율(1 = 100%)
+  health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[] }[] | null
+}

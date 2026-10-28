@@ -68,3 +68,76 @@ export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPo
     </div>
   )
 }
+
+// 퍼널 추이: 한 축 차트. 막대는 stack 이 같으면 쌓고, 목표는 점선. 툴팁은 점에 `${key}_t` 글자가 있으면 그것을, title 이 있으면 머리에
+export type TrendSeries = { key: string; name: string; color: string; kind: 'bar' | 'line'; stack?: string }
+export type TrendPoint = { label: string; title?: string } & Record<string, string | number | null | undefined>
+
+// unit: 서버 화면에서 넘기므로 함수 대신 단위 글자. % 는 이미 100을 곱한 값
+export function TrendChart({ data, series, unit, goal }: { data: TrendPoint[]; series: TrendSeries[]; unit: '건' | '곳' | '%' | '원'; goal?: number }) {
+  const fmt = (n: number) => (unit === '원' ? compact(n) : `${+n.toFixed(1)}${unit}`)
+  const max = Math.max(goal ?? 0, ...data.map((d) => {
+    const by: Record<string, number> = {}
+    for (const s of series) by[s.stack ?? s.key] = (by[s.stack ?? s.key] ?? 0) + (Number(d[s.key]) || 0)
+    return Math.max(0, ...Object.values(by))
+  }))
+  const ticks = niceTicks(max)
+  const lastOf = (s: TrendSeries) => !s.stack || series.filter((x) => x.stack === s.stack).at(-1) === s
+  return (
+    <div className="space-y-3">
+      {series.length > 1 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400">
+          {series.map((s) => (
+            <span key={s.key} className="inline-flex items-center gap-1.5">
+              <i className={`block ${s.kind === 'bar' ? 'h-2.5 w-2.5 rounded-sm' : 'h-0.5 w-3'}`} style={{ background: s.color }} />
+              {s.name}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="h-56 w-full text-xs">
+        <ResponsiveContainer>
+          <ComposedChart data={data} barGap={2} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="#262626" />
+            <XAxis dataKey="label" interval={0} tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
+            <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: '#8a8a8a' }} tickFormatter={fmt} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} />
+            {goal != null && (
+              <ReferenceLine y={goal} stroke="#737373" strokeDasharray="4 4" label={{ value: `목표 ${fmt(goal)}`, position: 'insideTopRight', fill: '#a3a3a3', fontSize: 11 }} />
+            )}
+            <Tooltip
+              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              content={({ active, payload, label }) =>
+                active && payload?.length ? (
+                  <div className="space-y-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
+                    <p className="text-neutral-400">{(payload[0].payload as TrendPoint).title ?? label}</p>
+                    {series.map((s) => {
+                      const d = payload[0].payload as TrendPoint
+                      const v = d[s.key]
+                      if (v == null) return null
+                      return (
+                        <p key={s.key} className="flex items-center justify-between gap-6">
+                          <span className="flex items-center gap-1.5 text-neutral-400">
+                            <span className="h-0.5 w-3" style={{ background: s.color }} />
+                            {s.name}
+                          </span>
+                          <span className="font-medium tabular-nums text-neutral-50">{d[`${s.key}_t`] ?? fmt(Number(v))}</span>
+                        </p>
+                      )
+                    })}
+                  </div>
+                ) : null
+              }
+            />
+            {series.map((s) =>
+              s.kind === 'bar' ? (
+                <Bar key={s.key} dataKey={s.key} name={s.name} stackId={s.stack} fill={s.color} radius={lastOf(s) ? [4, 4, 0, 0] : 0} maxBarSize={18} isAnimationActive={false} />
+              ) : (
+                <Line key={s.key} dataKey={s.key} name={s.name} stroke={s.color} strokeWidth={2} dot={{ r: 4, fill: s.color, strokeWidth: 0 }} connectNulls={false} isAnimationActive={false} />
+              ),
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
