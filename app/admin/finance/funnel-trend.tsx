@@ -36,7 +36,8 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
   const upto = `${+t.today.slice(5, 7)}/${+t.today.slice(8)}`
   // 축은 짧게, 이번 달이 진행 중이라는 표시는 툴팁 머리에
   const label = (i: number) => `${+t.months[i].slice(5)}월`
-  const full = (i: number) => (t.months[i] === cur ? `${label(i)} (${upto}까지)` : label(i))
+  const closed = new Date(Date.UTC(+t.today.slice(0, 4), +t.today.slice(5, 7), 0)).getUTCDate() === +t.today.slice(8) // 기간 끝이 말일(마감 회차)
+  const full = (i: number) => (t.months[i] === cur && !closed ? `${label(i)} (${upto}까지)` : label(i))
   const pts = (f: (i: number) => Omit<TrendPoint, 'label'>) => t.months.map((_, i) => ({ label: label(i), title: full(i), ...f(i) }))
   const d = t.deals
   const leads = t.leads ? Object.entries(t.leads) : null
@@ -47,7 +48,7 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
         <h1 className="text-xl font-semibold text-neutral-50">퍼널 추이</h1>
         <p className="text-xs text-neutral-500">
           경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 매주 월 07:00 갱신,{' '}
-          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산. 이번 달은 {upto}까지
+          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}
         </p>
       </div>
 
