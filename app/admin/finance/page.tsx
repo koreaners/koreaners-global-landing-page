@@ -615,6 +615,16 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
           <p className="text-sm text-neutral-200">
             매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
           </p>
+          <Table head={['월', '안건 수', '매출', '정산액']}>
+            {picked.months.map((m) => (
+              <tr key={m.month}>
+                <td className={tdl}>{m.month}</td>
+                <td className={td}>{m.keys.length}</td>
+                <Money n={m.revenue} />
+                <Money n={m.paid} />
+              </tr>
+            ))}
+          </Table>
           {picked.shares.length > 0 && (
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
               {picked.shares.map((s) => (

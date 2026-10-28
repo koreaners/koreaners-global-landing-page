@@ -186,6 +186,7 @@ export type CreatorRow = {
   held: number
   payouts: Payout[]
   shares: { c: Contract; share: number; paid: number }[]
+  months: { month: string; revenue: number; paid: number; keys: string[] }[] // 지급 기준일의 달별, keys: 안건(계약, 계약 없으면 지급 행)
 }
 
 export type OwnerRow = { owner: string; count: number; supply: number; received: number; cost: number; margin: number; rate: number | null }
@@ -355,13 +356,20 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   // 크리에이터: 지급 기준일이 기간 안인 지급. 매출 몫은 계약 공급가 × (이 지급 / 그 계약 지급 합)
   const creators = new Map<string, CreatorRow>()
   for (const p of payouts) {
-    if (!inPeriod(payoutDay(p, byId), period)) continue
+    const day = payoutDay(p, byId)
+    if (!inPeriod(day, period)) continue
     const row: CreatorRow = creators.get(p.name) ?? {
       name: p.name, currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0,
-      done: 0, inFlight: 0, held: 0, payouts: [], shares: [],
+      done: 0, inFlight: 0, held: 0, payouts: [], shares: [], months: [],
     }
+    const ym = day?.slice(0, 7) ?? '날짜 없음'
+    let mo = row.months.find((x) => x.month === ym)
+    if (!mo) row.months.push((mo = { month: ym, revenue: 0, paid: 0, keys: [] }))
+    const key = p.contractId ?? `p:${p.id}`
+    if (!mo.keys.includes(key)) mo.keys.push(key)
     const v = krw(p)
     row.paid += v
+    mo.paid += v
     row.paidCount += 1
     row.payouts.push(p)
     if (p.currency && !row.currencies.includes(p.currency)) row.currencies.push(p.currency)
@@ -374,6 +382,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const total = (payByContract.get(c.id) ?? []).reduce((a, x) => a + krw(x), 0)
       const share = total > 0 ? (supply * v) / total : 0
       row.revenue += share
+      mo.revenue += share
       row.linkedPaid += v
       const prev = row.shares.find((s) => s.c.id === c.id)
       if (prev) {
@@ -386,6 +395,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     }
     creators.set(p.name, row)
   }
+  for (const c of creators.values()) c.months.sort((a, b) => b.month.localeCompare(a.month))
 
   // 담당자별
   const owners = new Map<string, OwnerRow>()
