@@ -590,7 +590,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
   )
 }
 
-// 크리에이터 월별: 첫 달부터 마지막 달까지 빈 달도 0으로 채움(건너뛴 달이 붙어 보이지 않게), 눈금 둘째 줄은 안건 수
+// 크리에이터 월별: 첫 달부터 마지막 달까지 빈 달도 0으로 채움(건너뛴 달이 붙어 보이지 않게), 안건 수는 보조축 선
 function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
   const by = new Map(months.map((m) => [m.month, m]))
   const ms = months.map((m) => m.month).filter((m) => m !== '날짜 없음').sort()
@@ -600,7 +600,7 @@ function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
   for (let [y, m] = ms[0].split('-').map(Number), last = ms[ms.length - 1]; ; m === 12 ? (y++, (m = 1)) : m++) {
     const key = `${y}-${String(m).padStart(2, '0')}`
     const x = by.get(key)
-    out.push({ label: oneYear ? `${m}월` : `${String(y).slice(2)}.${m}`, in: x?.revenue ?? 0, out: x?.paid ?? 0, net: null, sub: `${x?.keys.length ?? 0}건` })
+    out.push({ label: oneYear ? `${m}월` : `${String(y).slice(2)}.${m}`, in: x?.revenue ?? 0, out: x?.paid ?? 0, net: null, count: x?.keys.length ?? 0 })
     if (key === last) return out
   }
 }
@@ -632,8 +632,9 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
           </p>
           {picked.months.length > 0 && (
             <div className="space-y-2">
-              <Legend items={[['매출 몫', REV], ['정산액', SET]]} />
-              <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '' }} />
+              <Legend items={[['매출 몫', REV], ['정산액', SET], ['안건 수(오른쪽 축)', NET_COLOR]]} />
+              <p className="text-xs text-neutral-500">지급 기준 월: 송금일의 달(없으면 송금 요청일, 계약일). 매출 몫은 계약 공급가를 이 크리에이터 지급 비율로 나눈 값이라 고객사 입금 여부와 무관</p>
+              <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>
           )}
           {picked.shares.length > 0 && (
