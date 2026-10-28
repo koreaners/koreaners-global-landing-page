@@ -5,19 +5,37 @@ import type { Rates } from './model'
 const FALLBACK: Rates = { JPY: 8.5599, USD: 1349.9, CNY: 201.19, at: '2026-10-02', source: '고정값(261002 하나은행 매매기준율)' }
 
 export async function getRates(): Promise<Rates> {
+  const daily = await getDaily()
   try {
     const res = await fetch('https://open.er-api.com/v6/latest/KRW', { next: { revalidate: 86400 } })
     const j = await res.json()
     const k = j?.rates
-    if (!res.ok || !k?.JPY || !k?.USD || !k?.CNY) return FALLBACK
+    if (!res.ok || !k?.JPY || !k?.USD || !k?.CNY) return { ...FALLBACK, daily }
     return {
       JPY: 1 / k.JPY,
       USD: 1 / k.USD,
       CNY: 1 / k.CNY,
       at: String(j.time_last_update_utc ?? '').slice(5, 16),
       source: 'open.er-api.com 시장 환율',
+      daily,
     }
   } catch {
-    return FALLBACK
+    return { ...FALLBACK, daily }
+  }
+}
+
+// 외화 매출을 입금일 환율로 환산하는 일별 기준환율(유럽중앙은행, frankfurter.dev, 키 없음, 하루 캐시, 2025년부터 약 30KB).
+// 못 받으면 undefined: 모든 날짜에 오늘 환율(예전 동작)
+async function getDaily(): Promise<Rates['daily']> {
+  try {
+    const res = await fetch('https://api.frankfurter.dev/v1/2025-01-01..?base=KRW&symbols=JPY,USD,CNY', { next: { revalidate: 86400 } })
+    const j = await res.json()
+    if (!res.ok || !j?.rates) return undefined
+    const out: NonNullable<Rates['daily']> = { JPY: {}, USD: {}, CNY: {} }
+    for (const [day, x] of Object.entries(j.rates as Record<string, Record<string, number>>))
+      for (const cur of ['JPY', 'USD', 'CNY'] as const) if (x[cur]) out[cur]![day] = 1 / x[cur]
+    return out
+  } catch {
+    return undefined
   }
 }

@@ -52,7 +52,8 @@ export type Payout = {
   vat?: string | null // VAT: 포함, 별도(세금계산서 행. 별도면 지급액이 공급가라 부가세를 더해 보냄)
 }
 
-export type Rates = { JPY: number; USD: number; CNY: number; at: string; source: string }
+// daily: 통화별 날짜 → 원화 환율(fx.ts 일별 기준환율). 없으면 모든 날짜에 오늘 환율
+export type Rates = { JPY: number; USD: number; CNY: number; at: string; source: string; daily?: Partial<Record<'JPY' | 'USD' | 'CNY', Record<string, number>>> }
 
 // year null: 전체. upto: 연간일 때 이 달까지만(올해와 견주는 전년 같은 기간)
 export type Period = { year: number | null; month: number | null; upto?: number | null }
@@ -66,12 +67,29 @@ export function rateOf(c: Currency | null, r: Rates): number | null {
   return null
 }
 
-/** 계약 공급가 원화 환산. 원화 칸 우선, 없으면 엔화 칸 × 환율. 둘 다 없으면 null */
-export function supplyKrw(c: Contract, r: Rates): number | null {
+/** 그날 환율. 주말, 휴일은 앞선 7일 안의 가장 가까운 날, 날짜가 없거나 일별 환율이 없으면 오늘 환율 */
+export function rateOn(cur: 'JPY' | 'USD' | 'CNY', r: Rates, date?: string | null): number {
+  const d = date ? r.daily?.[cur] : undefined
+  if (d) for (let i = 0; i < 7; i++) {
+    const v = d[new Date(Date.parse(date!) - i * 86_400_000).toISOString().slice(0, 10)]
+    if (v) return v
+  }
+  return r[cur]
+}
+
+/** 계약 공급가 원화 환산. 원화 칸 우선, 없으면 엔화 칸 × 환율. 둘 다 없으면 null. date를 주면 그날 환율(입금일 환산) */
+export function supplyKrw(c: Contract, r: Rates, date?: string | null): number | null {
   if (c.supplyKrw != null) return c.supplyKrw
-  if (c.supplyJpy != null) return c.supplyJpy * r.JPY
-  if (c.supplyUsd != null) return c.supplyUsd * r.USD
+  if (c.supplyJpy != null) return c.supplyJpy * rateOn('JPY', r, date)
+  if (c.supplyUsd != null) return c.supplyUsd * rateOn('USD', r, date)
   return null
+}
+
+/** 입금된 몫은 입금일 환율, 입금 전 몫은 오늘 환율로 환산한 공급가 합(외화 계약의 매출, 마진용) */
+export function realizedSupplyKrw(c: Contract, r: Rates, today: string): number | null {
+  const recs = recognitions(c, today)
+  if (supplyKrw(c, r) == null || !recs.length) return supplyKrw(c, r)
+  return recs.reduce((a, x) => a + supplyKrw(c, r, x.date)! * x.share, 0)
 }
 
 /** 계약 통화: Contract DB 통화 칸, 없으면 채워진 공급가 칸(원 → KRW, 엔 → JPY, 달러 → USD) */
@@ -288,10 +306,10 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       if (!rec.date) {
         receivable += s * rec.share
         open.push({ c, due: rec.due, krw: s * rec.share })
-      } else if (basis === 'cash') count(rec.date, 'revenue', s * rec.share, cur)
+      } else if (basis === 'cash') count(rec.date, 'revenue', supplyKrw(c, r, rec.date)! * rec.share, cur)
     }
     const d = contractDay(c)
-    if (basis === 'contract' && d) count(d, 'revenue', s, cur)
+    if (basis === 'contract' && d) count(d, 'revenue', supplyKrw(c, r, d)!, cur)
   }
 
   let payable = 0
@@ -320,13 +338,13 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   // 안건별 마진: 계약 기준일이 기간 안인 수입 계약
   const rows: ContractRow[] = revenueContracts
     .map((c) => {
-      const supply = supplyKrw(c, r)
+      const supply = realizedSupplyKrw(c, r, today)
       const recs = recognitions(c, today)
       const ps = payByContract.get(c.id) ?? []
       // 보류(중복 행, 반송, 안 나갈 수 있는 돈)는 원가에서 뺌. 대기, 모인 접수는 곧 나갈 돈이라 원가에 둠(Leo 261028)
       const costPs = ps.filter((p) => p.status !== '보류')
       const cost = costPs.reduce((a, p) => a + krw(p), 0)
-      const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supply * x.share, 0)
+      const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supplyKrw(c, r, x.date)! * x.share, 0)
       // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
       const margin = supply == null || c.source === 'sheet' || !costPs.length ? null : supply - cost
       const unpaid = recs.filter((x) => !x.date)
@@ -373,7 +391,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     else if (IN_FLIGHT.includes(p.status)) row.inFlight += v
     else row.held += v
     const c = p.contractId ? byId.get(p.contractId) : undefined
-    const supply = c && !c.isExpense ? supplyKrw(c, r) : null
+    const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
     const total = c ? (payByContract.get(c.id) ?? []).reduce((a, x) => a + krw(x), 0) : 0
     const share = supply != null && total > 0 ? (supply * v) / total : 0
     if (c && supply != null) {
