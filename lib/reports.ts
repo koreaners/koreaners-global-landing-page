@@ -29,6 +29,13 @@ export type WeeklyReport = {
     lines: string[]
     done: string
   }
+  // 10/26 이후 회차부터. 퍼널 신호등(색은 마감된 지난달 기준, light 가 null 이면 색 없는 참고 줄)
+  funnel?: {
+    month: string
+    mtd: string
+    rows: { group: string; label: string; value: string; target: string; mtd: string; note: string; rate: number | null; light: 'green' | 'yellow' | 'red' | null }[]
+    lines: string[]
+  }
 }
 
 // 키 weekly-report-YYMMDD-YYMMDD.json 에서 기간을 읽는다. 모양이 다른 키는 목록에 안 띄우고 열지도 않는다
