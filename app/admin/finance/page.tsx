@@ -114,7 +114,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
-      {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
+      {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
     </div>
@@ -593,7 +593,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
 // 크리에이터 월별: 첫 달부터 마지막 달까지 빈 달도 0으로 채움(건너뛴 달이 붙어 보이지 않게), 안건 수는 보조축 선
 function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
   const by = new Map(months.map((m) => [m.month, m]))
-  const ms = months.map((m) => m.month).filter((m) => m !== '날짜 없음').sort()
+  const ms = months.map((m) => m.month).sort()
   if (!ms.length) return []
   const oneYear = ms[0].slice(0, 4) === ms[ms.length - 1].slice(0, 4)
   const out: FlowPoint[] = []
@@ -605,7 +605,7 @@ function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
   }
 }
 
-function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string }) {
+function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
   const picked = model.creators.find((x) => x.name === sel)
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
@@ -632,8 +632,20 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
           </p>
           {picked.months.length > 0 && (
             <div className="space-y-2">
-              <Legend items={[['매출 몫', REV], ['정산액', SET], ['안건 수(오른쪽 축)', NET_COLOR]]} />
-              <p className="text-xs text-neutral-500">지급 기준 월: 송금일의 달(없으면 송금 요청일, 계약일). 매출 몫은 계약 공급가를 이 크리에이터 지급 비율로 나눈 값이라 고객사 입금 여부와 무관</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Legend items={[['매출 몫', REV], ['정산액', SET], ['안건 수(오른쪽 축)', NET_COLOR]]} />
+                <div className="flex gap-1 text-xs">
+                  {([['cash', '현금 기준'], ['contract', '발생 기준']] as const).map(([b, label]) => (
+                    <Link key={b} href={q({ b: b === 'contract' ? b : undefined })} className={`rounded-md border px-2 py-1 ${basis === b ? 'border-sky-500 text-sky-300' : 'border-neutral-700 text-neutral-400 hover:text-neutral-200'}`}>{label}</Link>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-neutral-500">
+                {basis === 'contract'
+                  ? '발생 기준: 매출 몫, 정산액 모두 계약 기준일의 달(계약 없는 지급은 송금일의 달)'
+                  : '현금 기준: 매출 몫은 고객사가 입금한 회차의 달(선금, 잔금 나눔, 입금 전 몫은 빠짐), 정산액은 송금 완료 건의 송금일 달(없으면 송금 요청일)'}
+                . 매출 몫은 계약 공급가를 이 크리에이터 지급 비율로 나눈 값
+              </p>
               <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>
           )}

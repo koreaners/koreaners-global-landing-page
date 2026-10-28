@@ -186,7 +186,7 @@ export type CreatorRow = {
   held: number
   payouts: Payout[]
   shares: { c: Contract; share: number; paid: number }[]
-  months: { month: string; revenue: number; paid: number; keys: string[] }[] // 지급 기준일의 달별, keys: 안건(계약, 계약 없으면 지급 행)
+  months: { month: string; revenue: number; paid: number; keys: string[] }[] // 기준(basis)에 따른 달별, keys: 안건(계약, 계약 없으면 지급 행)
 }
 
 export type OwnerRow = { owner: string; count: number; supply: number; received: number; cost: number; margin: number; rate: number | null }
@@ -362,14 +362,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       name: p.name, currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0,
       done: 0, inFlight: 0, held: 0, payouts: [], shares: [], months: [],
     }
-    const ym = day?.slice(0, 7) ?? '날짜 없음'
-    let mo = row.months.find((x) => x.month === ym)
-    if (!mo) row.months.push((mo = { month: ym, revenue: 0, paid: 0, keys: [] }))
-    const key = p.contractId ?? `p:${p.id}`
-    if (!mo.keys.includes(key)) mo.keys.push(key)
     const v = krw(p)
     row.paid += v
-    mo.paid += v
     row.paidCount += 1
     row.payouts.push(p)
     if (p.currency && !row.currencies.includes(p.currency)) row.currencies.push(p.currency)
@@ -378,11 +372,10 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     else row.held += v
     const c = p.contractId ? byId.get(p.contractId) : undefined
     const supply = c && !c.isExpense ? supplyKrw(c, r) : null
+    const total = c ? (payByContract.get(c.id) ?? []).reduce((a, x) => a + krw(x), 0) : 0
+    const share = supply != null && total > 0 ? (supply * v) / total : 0
     if (c && supply != null) {
-      const total = (payByContract.get(c.id) ?? []).reduce((a, x) => a + krw(x), 0)
-      const share = total > 0 ? (supply * v) / total : 0
       row.revenue += share
-      mo.revenue += share
       row.linkedPaid += v
       const prev = row.shares.find((s) => s.c.id === c.id)
       if (prev) {
@@ -392,6 +385,22 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
         row.shares.push({ c, share, paid: v })
         row.revenueCount += 1
       }
+    }
+    // 월별: 발생은 매출 몫, 정산 모두 계약 기준일의 달(계약 없으면 지급 기준일). 현금은 매출 몫을 고객사 입금 회차의 달로 나누고, 정산은 송금 완료의 송금일(없으면 요청일) 달
+    const key = p.contractId ?? `p:${p.id}`
+    const put = (d: string | null | undefined, rev: number, paid: number) => {
+      if (!d) return
+      const ym = d.slice(0, 7)
+      let mo = row.months.find((x) => x.month === ym)
+      if (!mo) row.months.push((mo = { month: ym, revenue: 0, paid: 0, keys: [] }))
+      if (!mo.keys.includes(key)) mo.keys.push(key)
+      mo.revenue += rev
+      mo.paid += paid
+    }
+    if (basis === 'contract') put((c && contractDay(c)) ?? day, share, v)
+    else {
+      if (p.status === DONE) put(p.sentDate ?? p.reqDate, 0, v)
+      if (c && share) for (const rec of recognitions(c, today)) if (rec.date) put(rec.date, share * rec.share, 0)
     }
     creators.set(p.name, row)
   }
