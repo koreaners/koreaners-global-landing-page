@@ -145,37 +145,6 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
 
       {r.funnel && <Funnel f={r.funnel} />}
 
-      <section className="space-y-4">
-        <H2>이번 주 결정할 것</H2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {r.decisions.map((d) => (
-            <Go key={d.title} href={d.href} className="flex flex-col gap-4 rounded-xl border border-neutral-800 border-t-4 border-t-red-500 bg-neutral-900 p-5">
-              <div className="space-y-1.5 pr-5">
-                <h3 className="text-base font-semibold text-neutral-50">{d.title}</h3>
-                <p className="text-xl font-bold text-red-400">
-                  {d.amount} <span className="text-sm font-medium text-neutral-500">{d.note}</span>
-                </p>
-              </div>
-              <Lines items={d.bullets} />
-              {d.ask.length > 0 && (
-                <div className="mt-auto rounded-lg bg-neutral-800/70 px-4 py-3">
-                  <p className="text-sm font-semibold text-neutral-400">정할 것</p>
-                  <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[15px] font-medium leading-relaxed text-neutral-100">
-                    {d.ask.map((a) => <li key={a}>{a}</li>)}
-                  </ul>
-                </div>
-              )}
-            </Go>
-          ))}
-        </div>
-        {r.more.length > 0 && (
-          <div className={`${card} space-y-3`}>
-            <p className="text-sm font-semibold text-neutral-400">그 밖에 결정 대기</p>
-            <Lines items={r.more} />
-          </div>
-        )}
-      </section>
-
       <div className="grid gap-4 lg:grid-cols-3">
         <section className={`${card} space-y-5`}>
           <div className="space-y-1">
