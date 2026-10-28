@@ -33,7 +33,8 @@ export type WeeklyReport = {
   funnel?: {
     month: string
     mtd: string
-    rows: { group: string; label: string; value: string; target: string; mtd: string; note: string; rate: number | null; light: 'green' | 'yellow' | 'red' | null }[]
+    // define, imply 는 10/28 이후 회차부터(카드를 누르면 펼침)
+    rows: { group: string; label: string; value: string; target: string; mtd: string; note: string; rate: number | null; light: 'green' | 'yellow' | 'red' | null; define?: string; imply?: string }[]
     lines: string[]
   }
 }

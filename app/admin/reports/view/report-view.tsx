@@ -81,28 +81,37 @@ function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
       {groups.map((g) => (
         <div key={g} className="space-y-2">
           <p className="text-sm font-semibold text-neutral-400">{g}</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {f.rows.filter((x) => x.group === g).map((x) => {
               const l = x.light ? LIGHT[x.light] : null
               return (
-                <div key={x.label} className="flex flex-col gap-2 rounded-lg border border-neutral-800 bg-neutral-950/40 p-4">
-                  <span className="flex items-center gap-2 text-sm text-neutral-400">
-                    <i className={`block h-2.5 w-2.5 rounded-full ${l ? l[0] : 'bg-neutral-600'}`} aria-label={l ? l[1] : '색 없음'} />
-                    {x.label}
-                  </span>
-                  <span className="text-lg font-semibold tabular-nums text-neutral-50">{x.value}</span>
-                  {x.rate !== null && (
-                    <div className="h-1.5 overflow-hidden rounded-full bg-neutral-800">
-                      <i className={`block h-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate, 100)}%` }} />
+                <details key={x.label} className="group rounded-lg border border-neutral-800 bg-neutral-950/40 open:border-neutral-600">
+                  <summary className="flex cursor-pointer list-none flex-col gap-2 p-4 [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2 text-sm text-neutral-400">
+                      <i className={`block h-2.5 w-2.5 rounded-full ${l ? l[0] : 'bg-neutral-600'}`} aria-label={l ? l[1] : '색 없음'} />
+                      {x.label}
+                      {(x.define || x.imply) && <span className="ml-auto text-xs text-neutral-600 group-open:hidden">정의, 함의 ▾</span>}
+                    </span>
+                    <span className="text-lg font-semibold tabular-nums text-neutral-50">{x.value}</span>
+                    {x.rate !== null && (
+                      <div className="h-1.5 overflow-hidden rounded-full bg-neutral-800">
+                        <i className={`block h-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate, 100)}%` }} />
+                      </div>
+                    )}
+                    <span className="text-[13px] text-neutral-400">
+                      {x.target && <>목표 {x.target}{x.rate !== null && ` 대비 ${x.rate}%`}</>}
+                    </span>
+                    {(x.mtd || x.note) && (
+                      <span className="text-xs text-neutral-500">{[x.mtd && `${f.mtd.split(' ')[0]} ${x.mtd}`, x.note].filter(Boolean).join(', ')}</span>
+                    )}
+                  </summary>
+                  {(x.define || x.imply) && (
+                    <div className="space-y-2 border-t border-neutral-800 px-4 pb-4 pt-3 text-[13px] leading-relaxed">
+                      {x.imply && <p className="text-neutral-100"><span className="font-semibold text-neutral-400">함의 </span>{x.imply}</p>}
+                      {x.define && <p className="text-neutral-400"><span className="font-semibold">정의 </span>{x.define}</p>}
                     </div>
                   )}
-                  <span className="text-[13px] text-neutral-400">
-                    {x.target && <>목표 {x.target}{x.rate !== null && ` 대비 ${x.rate}%`}</>}
-                  </span>
-                  {(x.mtd || x.note) && (
-                    <span className="text-xs text-neutral-500">{[x.mtd && `${f.mtd.split(' ')[0]} ${x.mtd}`, x.note].filter(Boolean).join(', ')}</span>
-                  )}
-                </div>
+                </details>
               )
             })}
           </div>
