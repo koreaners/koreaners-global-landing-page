@@ -635,7 +635,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: M
                 {basis === 'contract'
                   ? '발생 기준: 매출 몫, 정산액 모두 계약 기준일의 달(계약 없는 지급은 송금일의 달)'
                   : '현금 기준: 매출 몫은 고객사가 입금한 회차의 달(선금, 잔금 나눔, 입금 전 몫은 빠짐), 정산액은 송금 완료 건의 송금일 달(없으면 송금 요청일)'}
-                . 매출 몫은 계약 공급가를 이 크리에이터 지급 비율로 나눈 값
+                . 안건 수는 두 기준 모두 계약 기준일의 달. 매출 몫은 계약 공급가를 이 크리에이터 지급 비율로 나눈 값
               </p>
               <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>

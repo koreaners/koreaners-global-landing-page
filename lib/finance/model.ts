@@ -186,7 +186,7 @@ export type CreatorRow = {
   held: number
   payouts: Payout[]
   shares: { c: Contract; share: number; paid: number }[]
-  months: { month: string; revenue: number; paid: number; keys: string[] }[] // 기준(basis)에 따른 달별, keys: 안건(계약, 계약 없으면 지급 행)
+  months: { month: string; revenue: number; paid: number; keys: string[] }[] // 기준(basis)에 따른 달별, keys: 안건(계약, 계약 없으면 지급 행), 기준과 무관하게 계약 기준일의 달
 }
 
 export type OwnerRow = { owner: string; count: number; supply: number; received: number; cost: number; margin: number; rate: number | null }
@@ -389,18 +389,21 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       }
     }
     // 월별: 발생은 매출 몫, 정산 모두 계약 기준일의 달(계약 없으면 지급 기준일). 현금은 매출 몫을 고객사 입금 회차의 달로 나누고, 정산은 송금 완료의 송금일(없으면 요청일) 달
+    // 안건 수는 두 기준 모두 계약 기준일의 달(Leo 261028 「안건은 계약기준으로」), 기준 전환은 돈만 옮김
     const key = p.contractId ?? `p:${p.id}`
+    const kd = (c && contractDay(c)) ?? day
     const put = (d: string | null | undefined, rev: number, paid: number) => {
       if (!d) return
       const ym = d.slice(0, 7)
       let mo = row.months.find((x) => x.month === ym)
       if (!mo) row.months.push((mo = { month: ym, revenue: 0, paid: 0, keys: [] }))
-      if (!mo.keys.includes(key)) mo.keys.push(key)
+      if (d === kd && !mo.keys.includes(key)) mo.keys.push(key)
       mo.revenue += rev
       mo.paid += paid
     }
-    if (basis === 'contract') put((c && contractDay(c)) ?? day, share, v)
+    if (basis === 'contract') put(kd, share, v)
     else {
+      put(kd, 0, 0)
       if (p.status === DONE) put(p.sentDate ?? p.reqDate, 0, v)
       if (c && share) for (const rec of recognitions(c, today)) if (rec.date) put(rec.date, share * rec.share, 0)
     }
