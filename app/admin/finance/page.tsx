@@ -6,7 +6,7 @@ import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
-import { CashflowChart, NET_COLOR } from './charts'
+import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -590,6 +590,21 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
   )
 }
 
+// 크리에이터 월별: 첫 달부터 마지막 달까지 빈 달도 0으로 채움(건너뛴 달이 붙어 보이지 않게), 눈금 둘째 줄은 안건 수
+function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
+  const by = new Map(months.map((m) => [m.month, m]))
+  const ms = months.map((m) => m.month).filter((m) => m !== '날짜 없음').sort()
+  if (!ms.length) return []
+  const oneYear = ms[0].slice(0, 4) === ms[ms.length - 1].slice(0, 4)
+  const out: FlowPoint[] = []
+  for (let [y, m] = ms[0].split('-').map(Number), last = ms[ms.length - 1]; ; m === 12 ? (y++, (m = 1)) : m++) {
+    const key = `${y}-${String(m).padStart(2, '0')}`
+    const x = by.get(key)
+    out.push({ label: oneYear ? `${m}월` : `${String(y).slice(2)}.${m}`, in: x?.revenue ?? 0, out: x?.paid ?? 0, net: null, sub: `${x?.keys.length ?? 0}건` })
+    if (key === last) return out
+  }
+}
+
 function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string }) {
   const picked = model.creators.find((x) => x.name === sel)
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
@@ -615,16 +630,12 @@ function Creators({ model, rates, sel, q, f, s = '-revenue' }: { model: Model; r
           <p className="text-sm text-neutral-200">
             매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
           </p>
-          <Table head={['월', '안건 수', '매출', '정산액']}>
-            {picked.months.map((m) => (
-              <tr key={m.month}>
-                <td className={tdl}>{m.month}</td>
-                <td className={td}>{m.keys.length}</td>
-                <Money n={m.revenue} />
-                <Money n={m.paid} />
-              </tr>
-            ))}
-          </Table>
+          {picked.months.length > 0 && (
+            <div className="space-y-2">
+              <Legend items={[['매출 몫', REV], ['정산액', SET]]} />
+              <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '' }} />
+            </div>
+          )}
           {picked.shares.length > 0 && (
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
               {picked.shares.map((s) => (

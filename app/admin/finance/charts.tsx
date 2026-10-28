@@ -20,18 +20,26 @@ function niceTicks(max: number, min = 0) {
 const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`
 
 // 개요 탭 월별 유출입: 입금, 출금 막대와 순증감(입금 − 출금) 선. 한 축(원)
-export type FlowPoint = { label: string; in: number; out: number; net: number | null }
+// sub: 눈금 아래 둘째 줄과 툴팁에 붙는 글(크리에이터 월별 안건 수)
+export type FlowPoint = { label: string; in: number; out: number; net: number | null; sub?: string }
 export const NET_COLOR = '#e5e5e5'
 
 export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPoint[]; inColor: string; outColor: string; names: { in: string; out: string; net: string } }) {
   const ticks = niceTicks(Math.max(0, ...data.flatMap((d) => [d.in, d.out, d.net ?? 0])), Math.min(0, ...data.map((d) => d.net ?? 0)))
   const colors = { in: inColor, out: outColor, net: NET_COLOR }
+  const subs = new Map(data.map((d) => [d.label, d.sub]))
   return (
     <div className="h-72 w-full text-xs">
       <ResponsiveContainer>
         <ComposedChart data={data} barGap={2} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="#262626" />
-          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
+          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: '#404040' }} height={data.some((d) => d.sub) ? 40 : 30}
+            tick={({ x, y, payload }) => (
+              <text x={x} y={y + 12} textAnchor="middle" fill="#8a8a8a">
+                {payload.value}
+                {subs.get(payload.value) && <tspan x={x} dy={15} fill="#d4d4d4">{subs.get(payload.value)}</tspan>}
+              </text>
+            )} />
           <YAxis tickLine={false} axisLine={false} width={60} tick={{ fill: '#8a8a8a' }} tickFormatter={compact} ticks={ticks} domain={[ticks[0], ticks[ticks.length - 1]]} />
           <ReferenceLine y={0} stroke="#525252" />
           <Tooltip
@@ -39,7 +47,7 @@ export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPo
             content={({ active, payload, label }) =>
               active && payload?.length ? (
                 <div className="space-y-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
-                  <p className="text-neutral-400">{label}</p>
+                  <p className="text-neutral-400">{label}{subs.get(label) ? `, ${subs.get(label)}` : ''}</p>
                   {payload.filter((p) => p.value != null).map((p) => {
                     const k = p.dataKey as keyof typeof names
                     return (
