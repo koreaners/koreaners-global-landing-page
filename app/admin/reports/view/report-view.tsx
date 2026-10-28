@@ -67,6 +67,51 @@ function Refs({ refs }: { refs: Ref[] }) {
 }
 
 const card = 'rounded-xl border border-neutral-800 bg-neutral-900 p-5'
+
+const LIGHT = { green: ['bg-emerald-500', '초록'], yellow: ['bg-amber-400', '노랑'], red: ['bg-red-500', '빨강'] } as const
+
+function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
+  const groups = [...new Set(f.rows.map((x) => x.group))]
+  return (
+    <section className={`${card} space-y-5`}>
+      <div className="space-y-1">
+        <H2>퍼널 신호등</H2>
+        <p className="text-sm text-neutral-500">색은 {f.month} 마감 기준, 아래 작은 글씨는 {f.mtd}</p>
+      </div>
+      {groups.map((g) => (
+        <div key={g} className="space-y-2">
+          <p className="text-sm font-semibold text-neutral-400">{g}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {f.rows.filter((x) => x.group === g).map((x) => {
+              const l = x.light ? LIGHT[x.light] : null
+              return (
+                <div key={x.label} className="flex flex-col gap-2 rounded-lg border border-neutral-800 bg-neutral-950/40 p-4">
+                  <span className="flex items-center gap-2 text-sm text-neutral-400">
+                    <i className={`block h-2.5 w-2.5 rounded-full ${l ? l[0] : 'bg-neutral-600'}`} aria-label={l ? l[1] : '색 없음'} />
+                    {x.label}
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums text-neutral-50">{x.value}</span>
+                  {x.rate !== null && (
+                    <div className="h-1.5 overflow-hidden rounded-full bg-neutral-800">
+                      <i className={`block h-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate, 100)}%` }} />
+                    </div>
+                  )}
+                  <span className="text-[13px] text-neutral-400">
+                    {x.target && <>목표 {x.target}{x.rate !== null && ` 대비 ${x.rate}%`}</>}
+                  </span>
+                  {(x.mtd || x.note) && (
+                    <span className="text-xs text-neutral-500">{[x.mtd && `${f.mtd.split(' ')[0]} ${x.mtd}`, x.note].filter(Boolean).join(', ')}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      <Lines items={f.lines} />
+    </section>
+  )
+}
 const H2 = ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-semibold text-neutral-100">{children}</h2>
 
 export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode }) {
@@ -97,6 +142,8 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
           </Go>
         ))}
       </div>
+
+      {r.funnel && <Funnel f={r.funnel} />}
 
       <section className="space-y-4">
         <H2>이번 주 결정할 것</H2>
