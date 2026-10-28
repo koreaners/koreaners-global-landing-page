@@ -323,10 +323,12 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const supply = supplyKrw(c, r)
       const recs = recognitions(c, today)
       const ps = payByContract.get(c.id) ?? []
-      const cost = ps.reduce((a, p) => a + krw(p), 0)
+      // 보류(중복 행, 반송, 안 나갈 수 있는 돈)는 원가에서 뺌. 대기, 모인 접수는 곧 나갈 돈이라 원가에 둠(Leo 261028)
+      const costPs = ps.filter((p) => p.status !== '보류')
+      const cost = costPs.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supply * x.share, 0)
       // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
-      const margin = supply == null || c.source === 'sheet' || !ps.length ? null : supply - cost
+      const margin = supply == null || c.source === 'sheet' || !costPs.length ? null : supply - cost
       const unpaid = recs.filter((x) => !x.date)
       const due = unpaid.map((x) => x.due).filter((d): d is string => !!d).sort()[0] ?? null
       const late = due ? -daysFrom(today, due) : 0
