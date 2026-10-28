@@ -87,6 +87,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </form>
         <AutoForm className="flex items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
+          {/* 기준, 기간을 바꿔도 보던 크리에이터, 계약 상세와 검색, 정렬은 그대로 */}
+          {(['sel', 'f', 's'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
           <select name="y" defaultValue={year == null ? 'all' : String(year)} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
             <option value="all">전체 기간</option>
             {years.map((y) => (
@@ -99,14 +101,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
               <option key={i + 1} value={i + 1}>{i + 1}월</option>
             ))}
           </select>
-          {tab === 'summary' ? (
-            <select name="b" defaultValue={basis} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
-              <option value="cash">현금 기준(입금)</option>
-              <option value="contract">발생 기준(계약)</option>
-            </select>
-          ) : (
-            basis === 'contract' && <input type="hidden" name="b" value={basis} />
-          )}
+          <select name="b" defaultValue={basis} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
+            <option value="cash">현금 기준(입금)</option>
+            <option value="contract">발생 기준(계약)</option>
+          </select>
         </AutoForm>
         </div>
       </div>
@@ -632,14 +630,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: M
           </p>
           {picked.months.length > 0 && (
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Legend items={[['매출 몫', REV], ['정산액', SET], ['안건 수(오른쪽 축)', NET_COLOR]]} />
-                <div className="flex gap-1 text-xs">
-                  {([['cash', '현금 기준'], ['contract', '발생 기준']] as const).map(([b, label]) => (
-                    <Link key={b} href={q({ b: b === 'contract' ? b : undefined })} className={`rounded-md border px-2 py-1 ${basis === b ? 'border-sky-500 text-sky-300' : 'border-neutral-700 text-neutral-400 hover:text-neutral-200'}`}>{label}</Link>
-                  ))}
-                </div>
-              </div>
+              <Legend items={[['매출 몫', REV], ['정산액', SET], ['안건 수(오른쪽 축)', NET_COLOR]]} />
               <p className="text-xs text-neutral-500">
                 {basis === 'contract'
                   ? '발생 기준: 매출 몫, 정산액 모두 계약 기준일의 달(계약 없는 지급은 송금일의 달)'
