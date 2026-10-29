@@ -226,7 +226,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       </div>
       ) : (
         <p className="text-xs text-neutral-400">
-          이번 회차 {md(payday(cycle))}, 송금 진행 중 {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
+          이번 회차 {md(payday(cycle))}, 송금 진행 중(모든 회차) {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
           {reasons.length > 0 && <>, 막힌 사유 {reasons.map(([k, n], i) => <span key={k}>{i ? ', ' : ''}<Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-neutral-300 underline hover:text-neutral-100">{k} {n}</Link></span>)}</>}
         </p>
       )}

@@ -47,7 +47,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <div className="space-y-2 rounded-xl border border-red-900 bg-red-950/40 p-6">
         <h1 className="text-base font-semibold text-red-300">노션 데이터를 불러오지 못했습니다</h1>
         <p className="text-sm text-red-200/80">{e instanceof Error ? e.message : String(e)}</p>
-        <p className="text-xs text-neutral-500">노션 연결(통합)이 Contract DB, 지급내역 DB에 초대되어 있는지, 환경변수가 있는지 확인하십시오.</p>
+        <p className="text-xs text-neutral-500">노션 연결(통합)이 노션 계약 DB, 지급내역 DB에 초대되어 있는지, 환경변수가 있는지 확인하십시오.</p>
       </div>
     )
   }
@@ -77,7 +77,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-neutral-50">{TABS.find(([k]) => k === tab)?.[1]}</h1>
           <div className="text-xs text-neutral-500">
-            노션 Contract DB, 지급내역 DB 기준{tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
+            노션 계약 DB, 지급내역 DB 기준{tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -260,7 +260,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
         {src.sheet
           ? <>노션 계약 DB에 아직 안 올라온 계약 <span className="text-neutral-200">{src.sheet.added}건</span>은 운영 대시보드 시트에서 읽어 함께 셉니다(같은 계약인지 확인 중 {src.sheet.dups.length}건, 계약 코드가 없는 행 {src.sheet.codeless}건).</>
-          : <span className="text-[#e66767]">운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: {src.sheetError ?? '원인 미상'}</span>}
+          : <span className="text-[#e66767]">운영 대시보드 시트를 읽지 못해 노션 계약 DB 계약만 집계합니다: {src.sheetError ?? '원인 미상'}</span>}
         {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
         <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
       </p>
@@ -309,7 +309,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
             </div>
             {!cb && (
               <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">
-                은행 잔고 변화가 아닙니다. 출금은 지급내역 DB에 기록된 크리에이터 지급만이라 인건비, 운영비, 세금, 카드 대금이 빠져 실제 은행 출금보다 훨씬 적습니다. 입금도 Contract DB에 입금일이 적힌 계약만입니다.
+                은행 잔고 변화가 아닙니다. 출금은 지급내역 DB에 기록된 크리에이터 지급만이라 인건비, 운영비, 세금, 카드 대금이 빠져 실제 은행 출금보다 훨씬 적습니다. 입금도 노션 계약 DB에 입금일이 적힌 계약만입니다.
               </p>
             )}
             <CashflowChart data={flow} inColor={REV} outColor={SET} names={flowNames} />
@@ -467,7 +467,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
                 {x.c.source === 'sheet'
                   ? <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
                   : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="min-w-0 truncate text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
-                {x.c.source === 'sheet' && <span className="shrink-0 rounded bg-neutral-800 px-1 text-[10px] text-neutral-400" title="Contract DB에 없어 운영 대시보드 시트에서 읽은 계약">시트</span>}
+                {x.c.source === 'sheet' && <span className="shrink-0 rounded bg-neutral-800 px-1 text-[10px] text-neutral-400" title="노션 계약 DB에 없어 운영 대시보드 시트에서 읽은 계약">시트</span>}
               </span>
             </td>
             <td className={tdl}>
@@ -690,7 +690,7 @@ function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Sear
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">Contract DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다. 공급가가 없는 계약은 빠집니다.</p>
+      <p className="text-xs text-neutral-500">노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다. 공급가가 없는 계약은 빠집니다.</p>
     </div>
   )
 }
@@ -722,7 +722,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 외화 계약 공급가는 입금된 몫을 입금일 환율(유럽중앙은행 기준환율), 입금 전 몫과 매출채권을 지금 환율로 셉니다(발생 기준 매출은 계약 기준일 환율). 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
           </li>
           <li>
-            개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 Contract DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠지고, 공급가가 없는 계약의 지급은 정산에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 조금 다릅니다.
+            개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 노션 계약 DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠지고, 공급가가 없는 계약의 지급은 정산에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 조금 다릅니다.
           </li>
           <li>
             자금 캘린더
@@ -739,8 +739,8 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
           </li>
           <li>
             {src.sheet
-              ? `운영 대시보드 시트(${src.sheet.tab})에서 Contract DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(코드 받기와 코드 대조 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 공급가를 시트에서 채운 계약 ${src.sheet.supplyFrom.length}건.`
-              : `운영 대시보드 시트를 읽지 못해 Contract DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
+              ? `운영 대시보드 시트(${src.sheet.tab})에서 노션 계약 DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(코드 받기와 코드 대조 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 공급가를 시트에서 채운 계약 ${src.sheet.supplyFrom.length}건.`
+              : `운영 대시보드 시트를 읽지 못해 노션 계약 DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
           </li>
         </ul>
       </section>
@@ -826,7 +826,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(Contract DB 먼저, 없으면 시트, 은행 대조 전)" />
+        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(노션 계약 DB 먼저, 없으면 시트, 은행 대조 전)" />
         <Card label="입금 예정" value={won2(sum(items, 'in', ['due', 'late', 'guess']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}, 정산일 임의 ${won2(sum(items, 'in', ['guess']))}, 서명 전 계약 ${won2(sum(items, 'in', ['unsigned']))}은 따로(합계 제외)`} />
         <Card label="출금" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
         <Card label="출금 예정" value={won2(sum(items, 'out', ['flight', 'due', 'wait', 'late', 'guess', 'docs']))} note={`실지급액, 고객사 입금 완료 ${won2(sum(items, 'out', ['flight', 'due']))}, 고객사 입금 전 ${won2(sum(items, 'out', ['wait', 'guess']))}, 서류·계좌 대기 ${won2(sum(items, 'out', ['docs']))}, 보류 제외`} />
@@ -849,7 +849,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
-                  return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? ' 송금 가능' : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
+                  return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? (xs.some((x) => x.kind === 'out' && x.state === 'due') ? (xs.some((x) => x.kind === 'out' && x.state === 'flight') ? ' 송금 진행 중, 가능' : ' 송금 가능') : ' 송금 진행 중') : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
                 })}
               </Link>
             )

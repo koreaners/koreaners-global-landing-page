@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { CleanForm } from './auto-form'
+import { FitBox } from './fit-box'
 import type { Currency, Payout } from '@/lib/finance/model'
 
 // 재무 대시보드(/admin/finance)와 정산 마스터(/admin/payouts)가 함께 쓰는 표, 칸, 금액 글
@@ -28,8 +29,9 @@ export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => 
 
 /** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값) */
 export function Table({ head, left = 1, sort, tall, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; children: React.ReactNode }) {
+  const Box = tall ? FitBox : 'div'
   return (
-    <div className={`overflow-auto rounded-xl border border-neutral-800 ${tall ? 'max-h-[calc(100dvh-16rem)]' : ''}`}>
+    <Box className={`overflow-auto rounded-xl border border-neutral-800 ${tall ? 'max-h-[calc(100dvh-16rem)]' : ''}`}>
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-neutral-900 text-xs text-neutral-500">
           <tr>
@@ -51,7 +53,7 @@ export function Table({ head, left = 1, sort, tall, children }: { head: string[]
         </thead>
         <tbody className="divide-y divide-neutral-800 text-neutral-200">{children}</tbody>
       </table>
-    </div>
+    </Box>
   )
 }
 
