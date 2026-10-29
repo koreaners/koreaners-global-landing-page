@@ -628,14 +628,14 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
         <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
       </div>
-      <Table head={['이름', '인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
-        sort={{ keys: ['name', null, null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
+      <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
+        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.name}>
             <td className={tdl}>
               <Link href={q({ sel: x.name })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
+              {igs.get(x.name)?.size ? <span className="block max-w-[11rem] truncate text-xs"><Insta urls={igs.get(x.name)} /></span> : null}
             </td>
-            <td className={tdl}><Insta urls={igs.get(x.name)} /></td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
             <Money n={x.revenue} />
             <td className={td}>{x.revenueCount}</td>

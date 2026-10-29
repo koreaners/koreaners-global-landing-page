@@ -52,6 +52,7 @@ const FIX: Record<string, string> = {
   '계좌 없음': '크리에이터 계좌 정보가 없습니다. 계좌를 받아 등록합니다',
   '문서 확인 필요': '서명, 인보이스 확인이 남았거나 원화 행에 공제 유형이 비었습니다',
   '계약 초과': '같은 계약의 지급 합이 공급가를 넘습니다. 금액을 확인하고 송금 확인일을 넣습니다',
+  '통화 불일치': '이체 주소록 계좌 나라와 지급 통화가 다릅니다(예: 일본 계좌인데 KRW). 통화나 계좌를 바로잡습니다',
 }
 const notionUrl = (id: string) => `https://www.notion.so/${id.replace(/-/g, '')}`
 
@@ -156,9 +157,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             <td className={tdl}><Link href={go({ sel: p.name })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
             <td className={tdl}><span className="block max-w-[9rem] truncate" title={c?.code}>{c ? c.brand || c.code || '-' : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</span></td>
             <td className={td}>{p.status}</td>
-            <td className={`${td}${p.blocked.length && p.status !== DONE ? ' text-amber-300' : ''}`}>{p.blocked.join(', ') || '-'}</td>
+            <td className={`px-2 py-2 text-right text-xs${p.blocked.length && p.status !== DONE ? ' text-amber-300' : ''}`}>{p.blocked.join(', ') || '-'}</td>
             <td className={td}>{p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '미상'}`}</td>
-            <td className={td}>{p.deduction ? `${p.deduction}${p.deduction === '세금계산서' && p.vat ? ` (VAT ${p.vat})` : ''}` : '-'}</td>
+            <td className="px-2 py-2 text-right text-xs">{p.deduction ? `${p.deduction}${p.deduction === '세금계산서' && p.vat ? ` (VAT ${p.vat})` : ''}` : '-'}</td>
             <td className={td}>{won(netPayoutKrw(p, rates))}</td>
             <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}</td>
             <td className={td}>{p.reqDate ?? '-'}</td>
@@ -176,7 +177,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
     </details>
   )
   const TABS: [string, string, string][] = [
-    ['todo', '할 일', `이번 회차 ${thisCycle.length}건, 막힌 ${notDone.filter((p) => p.blocked.length).length}건`],
+    ['todo', '할 일', `보낼 것 ${thisCycle.length}건, 막힌 ${notDone.filter((p) => p.blocked.length).length}건`],
     ['cycles', '회차별', `${months.length}개 회차`],
     ['creators', '크리에이터별', `${creators.length}명`],
     ['rows', '지급 행 전체', `${all.length}행`],
@@ -229,14 +230,6 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
 
       {view === 'todo' && (
         <>
-          <Panel title={`이번 회차 보낼 것: ${md(payday(cycle))} 송금 (${thisCycle.length}건, ${won2(total(thisCycle, rates).krw)})`} sub="송금 가능, 모인 접수, 원화 이체 대기 중 이번 회차 송금일에 나가는 행입니다. 송금 예정일 순">
-            {thisCycle.length ? <RowsTable xs={thisCycle} /> : <p className="text-sm text-neutral-500">이번 회차에 나갈 행이 없습니다.</p>}
-          </Panel>
-          {late.length > 0 && (
-            <Panel title={`송금일이 지났는데 진행 중 (${late.length}건)`} sub="지난 회차 송금일에 나갔어야 하는데 아직 송금 완료가 아닌 행입니다. 모인, 은행에서 실제로 나갔는지 확인하고 노션 상태를 고칩니다">
-              <RowsTable xs={late} />
-            </Panel>
-          )}
           <Panel title={`막힌 것: 사유별 (${notDone.filter((p) => p.blocked.length).length}건)`} sub="송금 완료가 아닌 행 중 정산 봇이 막힌 사유를 적은 행입니다. 한 행에 사유가 여럿이면 각 사유에 셉니다. 「행 보기」로 그 행들을 엽니다">
             <Table head={['막힌 사유', '건수', '원화 환산', '푸는 법', '']} left={1}>
               {reasons.map(([k, n]) => (
@@ -250,6 +243,14 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               ))}
             </Table>
           </Panel>
+          <Panel title={`이번 회차 보낼 것: ${md(payday(cycle))} 송금 (${thisCycle.length}건, ${won2(total(thisCycle, rates).krw)})`} sub="송금 가능, 모인 접수, 원화 이체 대기 중 이번 회차 송금일에 나가는 행입니다. 송금 예정일 순">
+            {thisCycle.length ? <RowsTable xs={thisCycle} /> : <p className="text-sm text-neutral-500">이번 회차에 나갈 행이 없습니다.</p>}
+          </Panel>
+          {late.length > 0 && (
+            <Panel title={`송금일이 지났는데 진행 중 (${late.length}건)`} sub="지난 회차 송금일에 나갔어야 하는데 아직 송금 완료가 아닌 행입니다. 모인, 은행에서 실제로 나갔는지 확인하고 노션 상태를 고칩니다">
+              <RowsTable xs={late} />
+            </Panel>
+          )}
           {later.length > 0 && (
             <Panel title={`다음 회차 이후 (${later.length}건, ${won2(total(later, rates).krw)})`} sub="이미 송금 진행 중이지만 송금일이 다음 회차 이후인 행입니다(묶음 생성일 뒤에 송금 가능이 된 행 등)">
               <RowsTable xs={later} />
@@ -260,7 +261,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'cycles' && (
-        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중은 회차 송금일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 회차를 누르면 그 회차 지급 행">
+        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중은 회차 송금일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「보낼 것」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
           <Table head={['회차 (정기 송금일)', '건수', '통화별 합계', '원화 환산', '상태']}>
             {[...months, null].map((m) => {
               const xs = byMonth(m)
