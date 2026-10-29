@@ -27,7 +27,7 @@ type Tab = (typeof TABS)[number][0]
 
 const pct = (r: number | null | undefined) => (r == null ? '-' : `${(r * 100).toFixed(1)}%`)
 
-type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string }
+type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string; o?: string } // o: 안건 탭을 담당자 한 명으로 거름
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams
@@ -65,7 +65,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const years = [...new Set(data.contracts.map((c) => c.contractDate?.slice(0, 4)).filter(Boolean) as string[])].sort().reverse()
   const q = (over: Partial<Search>) => {
     const s = new URLSearchParams()
-    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s } // 탭을 옮기면 검색어, 정렬은 버림
+    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s, o: sp.o } // 탭을 옮기면 검색어, 정렬은 버림
     const merged = { tab, y: year == null ? 'all' : String(year), m: month ? String(month) : undefined, b: basis === 'contract' ? basis : undefined, ...keep, ...over }
     for (const [k, v] of Object.entries(merged)) if (v) s.set(k, v)
     return `/admin/finance?${s}`
@@ -90,7 +90,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <AutoForm className="flex items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
           {/* 기준, 기간을 바꿔도 보던 크리에이터, 계약 상세와 검색, 정렬은 그대로 */}
-          {(['sel', 'f', 's'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
+          {(['sel', 'f', 's', 'o'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
           <select name="y" defaultValue={year == null ? 'all' : String(year)} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
             <option value="all">전체 기간</option>
             {years.map((y) => (
@@ -113,7 +113,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} />}
-      {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
+      {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
@@ -419,9 +419,10 @@ function PayoutTable({ payouts, rates }: { payouts: Payout[]; rates: Rates }) {
   )
 }
 
-function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string }) {
+function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string }) {
   const picked = model.contracts.find((x) => x.c.id === sel)
-  const rows = sortRows(model.contracts.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
+  const pool = o ? model.contracts.filter((x) => (x.c.owner || '미지정') === o) : model.contracts
+  const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
     supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => x.overdue, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
   })
@@ -435,7 +436,14 @@ function Contracts({ model, rates, sel, q, f, s = '-day' }: { model: Model; rate
           {picked.payouts.length ? <PayoutTable payouts={picked.payouts} rates={rates} /> : <p className="text-xs text-neutral-500">이 계약에 연결된 지급 행이 없습니다.</p>}
         </div>
       )}
-      <SearchBox q={q} f={f} n={rows.length} total={model.contracts.length} placeholder="코드, 브랜드, 법인, 담당자" />
+      {o && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href={q({ tab: 'owners' })} className="text-sm text-sky-300 hover:underline">← 담당자 목록</Link>
+          <span className="text-sm text-neutral-200">담당자 {o}의 안건</span>
+          <Link href={q({ o: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
+        </div>
+      )}
+      <SearchBox q={q} f={f} n={rows.length} total={pool.length} placeholder="코드, 브랜드, 법인, 담당자" />
       <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '입금 예정일', '초과 기간', '변동비', '마진', '계약서']} left={2} tall
         sort={{ keys: ['code', 'brand', 'owner', 'day', 'supply', 'received', 'due', 'overdue', 'cost', 'margin', null], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
@@ -630,7 +638,9 @@ function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Sear
         sort={{ keys: ['owner', 'count', 'supply', 'received', 'cost', 'margin', 'rate'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((o) => (
           <tr key={o.owner}>
-            <td className={tdl}>{o.owner}</td>
+            <td className={tdl}>
+              <Link href={q({ tab: 'contracts', o: o.owner })} className="text-sky-300 hover:underline">{o.owner}</Link>
+            </td>
             <td className={td}>{o.count}</td>
             <Money n={o.supply} />
             <Money n={o.received} />
