@@ -112,9 +112,9 @@ function FunnelCard({ x, mtdMonth, weeks }: { x: FunnelRow; mtdMonth: string; we
         <div className={`h-1.5 overflow-hidden rounded-full bg-neutral-800 ${x.rate === null ? 'invisible' : ''}`}>
           <i className={`block h-full rounded-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate ?? 0, 100)}%` }} />
         </div>
-        <span className="flex justify-between gap-2 whitespace-nowrap text-[13px] tabular-nums text-neutral-400">
-          <span className="truncate">{x.target ? `목표 ${x.target}` : ' '}</span>
-          {x.rate !== null && <span className="text-neutral-200">달성 {x.rate}%</span>}
+        <span className="flex justify-between gap-2 text-[13px] tabular-nums text-neutral-400">
+          <span className="min-w-0">{x.target ? `목표 ${x.target}` : ' '}</span>
+          {x.rate !== null && <span className="shrink-0 whitespace-nowrap text-neutral-200">달성 {x.rate}%</span>}
         </span>
         {weeks && (
           <span className="min-h-[2lh] text-xs leading-snug tabular-nums text-neutral-400">
