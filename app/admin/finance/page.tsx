@@ -601,7 +601,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
               {picked.shares.map((s) => (
                 <tr key={s.c.id}>
-                  <td className={tdl}>{s.c.code}</td>
+                  <td className={tdl}><Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: s.c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{s.c.code}</Link></td>
                   <td className={td}>{s.c.brand || s.c.corp}</td>
                   <Money n={s.paid} />
                   <Money n={s.share} />
