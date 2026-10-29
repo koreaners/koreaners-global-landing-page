@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks } from 'lucide-react'
+import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 
 // 재무 메뉴는 /admin/finance 의 tab 쿼리. 고른 연도(y), 월(m), 집계 기준(b)은 메뉴를 옮겨도 유지
@@ -14,6 +14,7 @@ const FINANCE = [
   ['creators', '크리에이터', Users],
   ['owners', '담당자', UserCog],
   ['basis', '기준', ListChecks],
+  ['funnel', '퍼널 추이', TrendingUp],
 ] as const
 
 const item = (active: boolean) =>

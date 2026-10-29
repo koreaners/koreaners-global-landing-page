@@ -138,7 +138,7 @@ function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
     <section className={`${card} space-y-6 p-6`}>
       <div className="space-y-1">
         <H2>퍼널 신호등</H2>
-        <p className="text-sm text-neutral-500">색은 {f.month} 마감 기준, 값 옆 작은 숫자는 {f.mtd}. 카드를 누르면 함의와 정의가 펼쳐집니다</p>
+        <p className="text-sm text-neutral-500">{f.head ?? `색은 ${f.month} 마감 기준, 값 옆 작은 숫자는 ${f.mtd}`}. 카드를 누르면 함의와 정의가 펼쳐집니다</p>
       </div>
       {lines.map((line) => {
         const n = line.reduce((a, y) => a + y.rows.length, 0)

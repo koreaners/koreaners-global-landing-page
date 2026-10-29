@@ -33,18 +33,42 @@ export type WeeklyReport = {
   funnel?: {
     month: string
     mtd: string
+    // 10/28 이후 회차부터(월간 누적): 색 기준과 비교 숫자 설명 한 줄. 없으면 옛 문장(지난달 마감 색, 이번 달 진행)
+    head?: string
     // define, imply 는 10/28 이후 회차부터(카드를 누르면 펼침)
     rows: { group: string; label: string; value: string; target: string; mtd: string; note: string; rate: number | null; light: 'green' | 'yellow' | 'red' | null; define?: string; imply?: string }[]
     lines: string[]
   }
 }
 
-// 키 weekly-report-YYMMDD-YYMMDD.json 에서 기간을 읽는다. 모양이 다른 키는 목록에 안 띄우고 열지도 않는다
+// 키 weekly-report-YYMMDD-YYMMDD.json 에서 기간을 읽는다. 모양이 다른 키는 목록에 안 띄우고 열지도 않는다.
+// 제목은 brain-weekly report_title 과 같은 규칙: 이달 1일부터면 누적(말일까지면 마감), 아니면 옛 주간
 const KEY = /^weekly-report-(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.json$/
 
 export function parseReportKey(name: string) {
   const m = KEY.exec(name)
   if (!m) return null
   const [, y1, m1, d1, y2, m2, d2] = m
-  return { start: `20${y1}-${m1}-${d1}`, end: `20${y2}-${m2}-${d2}`, title: `주간 경영 리포트 ${+m1}/${+d1}~${+m2}/${+d2}` }
+  const start = `20${y1}-${m1}-${d1}`
+  const end = `20${y2}-${m2}-${d2}`
+  const span = `${+m1}/${+d1}~${+m2}/${+d2}`
+  if (d1 !== '01' || y1 + m1 !== y2 + m2) return { start, end, title: `주간 경영 리포트 ${span}` }
+  const last = new Date(Date.UTC(2000 + +y2, +m2, 0)).getUTCDate() === +d2
+  return { start, end, title: `${+m2}월 ${last ? '마감' : '누적'} 경영 리포트 ${span}` }
+}
+
+// brain-weekly 가 신호등과 같은 계산으로 올리는 월별 추이(재무 탭 「퍼널 추이」). 배열은 months 와 같은 순서
+export const TREND_KEY = 'funnel-trend.json'
+export type FunnelTrend = {
+  version: 1
+  generated_at: string
+  today: string
+  months: string[]
+  deals: { goal: number; repeat_goal: number; new: number[]; repeat: number[] }
+  ontime: { a: number[]; k: number[] }
+  remit: { a: number[]; k: number[] }
+  // 컨택월 코호트. ripe 가 false 인 달(말일이 60일 안 지남)은 수주율을 그리지 않는다
+  leads: Record<string, { n: number[]; won: number[]; ripe: boolean[] }> | null
+  // 월간파이낸스 정본의 달별 값. % 단위는 비율(1 = 100%)
+  health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[] }[] | null
 }

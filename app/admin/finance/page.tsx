@@ -7,6 +7,7 @@ import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
+import { FunnelTrendTab } from './funnel-trend'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -19,6 +20,7 @@ const TABS = [
   ['creators', '크리에이터'],
   ['owners', '담당자'],
   ['basis', '기준'],
+  ['funnel', '퍼널 추이'],
 ] as const
 type Tab = (typeof TABS)[number][0]
 
@@ -31,6 +33,7 @@ type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams
   const tab: Tab = (TABS.find(([k]) => k === sp.tab)?.[0] ?? 'summary') as Tab
+  if (tab === 'funnel') return <FunnelTrendTab /> // 노션을 읽지 않고 주간 잡이 올린 파일만
   const thisYear = new Date().getFullYear()
   const year = sp.y === 'all' ? null : Number(sp.y) || thisYear
   const month = year != null && Number(sp.m) >= 1 && Number(sp.m) <= 12 ? Number(sp.m) : null
