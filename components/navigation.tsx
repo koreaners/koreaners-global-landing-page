@@ -252,7 +252,7 @@ export default function Navigation() {
                     </SheetTitle>
                   </SheetHeader>
                   {/* 시트가 헤더 토글을 덮으므로 시트 안에도 동일한 언어 토글을 둔다 */}
-                  <div className="mb-4 flex items-center gap-1 relative z-10">
+                  <div className="mb-4 px-4 flex items-center gap-1 relative z-10">
                     <button
                       type="button"
                       onClick={() => setLocale('ko')}
@@ -272,13 +272,13 @@ export default function Navigation() {
                       JP
                     </button>
                   </div>
-                  <nav className="flex flex-col gap-0 relative z-10">
+                  <nav className="flex flex-col gap-0 px-4 pb-6 relative z-10">
                     {menuItems.filter((m) => m.href !== '/contact').map((item, index) => (
                       <div key={item.href} className="contents">
                       <Link
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
-                        className={`group flex items-center justify-between hover:bg-background active:bg-card transition-all duration-200 py-4 px-5 rounded-[var(--radius-sm)] text-base sm:text-sm font-bold tracking-tight relative z-10 border-b border-border break-words ${
+                        className={`group flex items-center justify-between hover:bg-background active:bg-card transition-all duration-200 py-4 px-3 rounded-[var(--radius-sm)] text-base sm:text-sm font-bold tracking-tight relative z-10 border-b border-border break-words ${
                           pathname === item.href ? 'text-white border-l-2 border-l-white bg-background' : 'text-white'
                         }`}
                         style={{
@@ -296,7 +296,7 @@ export default function Navigation() {
                             key={svc.href}
                             href={svc.href}
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center justify-between py-3 pl-9 pr-5 text-sm font-bold text-white/70 hover:text-white hover:bg-background active:bg-card transition-all duration-200 border-b border-border break-words"
+                            className="flex items-center justify-between py-3 pl-7 pr-3 text-sm font-bold text-white/70 hover:text-white hover:bg-background active:bg-card transition-all duration-200 border-b border-border break-words"
                             style={{
                               animation: `fadeInSlide 0.3s ease-out ${index * 60}ms both`,
                             }}
