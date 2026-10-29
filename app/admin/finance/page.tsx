@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -114,7 +114,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} />}
-      {tab === 'creators' && <Creators model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
+      {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
     </div>
@@ -485,7 +485,37 @@ function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
   }
 }
 
-function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
+/** 크리에이터가 볼 화면 미리보기: 브랜드, 지급액, 지급일, 지급 완료만(설계 261028-설계-크리에이터-정산포털). 기간 필터와 무관하게 이 이름의 전체 지급 행.
+ * 지급일은 정산 마스터와 같은 규칙(payoutDue, 대기 보류는 미정). 공급가, 유니크코드, 막힌 사유는 보이지 않음 */
+function CreatorView({ payouts, contracts, today }: { payouts: Payout[]; contracts: Contract[]; today: string }) {
+  const byId = new Map(contracts.map((c) => [c.id, c]))
+  const rows = payouts
+    .map((p) => {
+      const c = p.contractId ? byId.get(p.contractId) : undefined
+      const done = p.status === '송금 완료'
+      // 계약 맵을 넘기지 않아 대기는 미정(정산 마스터와 같음). 송금일 없는 송금 완료는 요청일
+      const due = done ? (p.sentDate ?? p.reqDate) : payoutDue(p, new Map(), today)
+      return { p, brand: c?.brand || '-', due, done }
+    })
+    .sort((a, b) => Number(a.done) - Number(b.done) || (b.due ?? '9999').localeCompare(a.due ?? '9999'))
+  return (
+    <div className="space-y-2 rounded-xl border border-sky-900 bg-neutral-900 p-4">
+      <h2 className="text-sm font-semibold text-neutral-50">크리에이터가 보는 화면</h2>
+      <Table head={['브랜드', '지급액', '지급일', '지급 완료']} left={1}>
+        {rows.map(({ p, brand, due, done }) => (
+          <tr key={p.id}>
+            <td className={tdl}>{brand}</td>
+            <td className={td}>{orig(p)}</td>
+            <td className={td}>{due ? `${due}${done ? '' : ' 예정'}` : '미정'}</td>
+            <td className={td}>{done ? '✓' : ''}</td>
+          </tr>
+        ))}
+      </Table>
+    </div>
+  )
+}
+
+function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; all: Payout[]; contracts: Contract[]; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
   const picked = model.creators.find((x) => x.name === sel)
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
@@ -508,6 +538,7 @@ function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: M
           <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
           <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
         </div>
+        <CreatorView payouts={all.filter((p) => p.name === picked.name)} contracts={contracts} today={today} />
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}</h2>
           <p className="text-sm text-neutral-200">
