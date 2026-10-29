@@ -69,6 +69,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/login', request.url))
   }
 
+  // 크리에이터 계정은 정산 화면으로(로그인 화면은 로그아웃시키므로 보내지 않는다)
+  if (role === 'creator') {
+    return NextResponse.redirect(new URL('/settlement', request.url))
+  }
+
   // 역할 없는 계정은 로그인 화면으로 보내 로그아웃시킨다
   if (!isFullAdmin && !isExec) {
     return NextResponse.redirect(new URL('/admin/login?denied=1', request.url))
