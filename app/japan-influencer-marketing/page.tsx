@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   },
 }
 
+const COMPARISON_HEADERS = ['업체', '소재', '대상 시장', '운영 방식', '공개한 크리에이터 풀', '공개 가격']
+
 const COMPARISON_ROWS = [
   ['Find Model', '일본', '일본 국내', '전담 담당자 대행형', '13,800명 이상', '팔로워당 1.5엔부터, 최저 20만 엔'],
   ['UUUM Marketing', '일본', '일본 국내', 'MCN 기반 대행형', '10,000명', '비공개'],
@@ -202,16 +204,29 @@ export default function JapanInfluencerMarketingPage() {
             <p className={`${bodyClass} mb-6`}>
               2026년 9월 14일 각사 공식 페이지 기준. 비공개 항목은 그대로 비공개로 적었습니다.
             </p>
-            <div className="overflow-x-auto">
+            {/* 모바일: 6열 표가 화면 밖으로 나가므로 업체별 카드 */}
+            <div className="sm:hidden space-y-3">
+              {COMPARISON_ROWS.map(([name, ...cells]) => (
+                <div key={name} className="rounded-[var(--radius-sm)] border border-white/10 bg-surface-1 p-4 text-sm">
+                  <div className="mb-3 font-bold text-white">{name}</div>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[#A8A29E]">
+                    {cells.map((cell, i) => (
+                      <div key={i} className="contents">
+                        <dt className="whitespace-nowrap text-white/50">{COMPARISON_HEADERS[i + 1]}</dt>
+                        <dd>{cell}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm border-collapse text-[#A8A29E]">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className={thClass}>업체</th>
-                    <th className={thClass}>소재</th>
-                    <th className={thClass}>대상 시장</th>
-                    <th className={thClass}>운영 방식</th>
-                    <th className={thClass}>공개한 크리에이터 풀</th>
-                    <th className={thClass}>공개 가격</th>
+                    {COMPARISON_HEADERS.map((h) => (
+                      <th key={h} className={thClass}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>

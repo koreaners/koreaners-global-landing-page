@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Navigation from "@/components/navigation";
 
 export const metadata: Metadata = {
   title: "개인정보처리방침",
@@ -9,7 +10,8 @@ export const metadata: Metadata = {
 export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-background text-white/60">
-      <div className="mx-auto max-w-3xl px-6 py-20">
+      <Navigation />
+      <div className="mx-auto max-w-3xl px-6 pt-32 sm:pt-40 pb-20">
         <h1 className="mb-10 text-3xl font-bold text-white">
           개인정보처리방침
         </h1>
@@ -111,7 +113,7 @@ export default function PrivacyPolicyPage() {
                 <strong className="text-white/80">이메일:</strong>{" "}
                 <a
                   href="mailto:sales@koreaners.com"
-                  className="text-blue-400 hover:underline"
+                  className="text-[#FF4500] hover:underline"
                 >
                   sales@koreaners.com
                 </a>

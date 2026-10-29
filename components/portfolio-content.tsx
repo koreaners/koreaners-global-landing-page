@@ -37,13 +37,14 @@ export default function PortfolioContent({ initialPortfolios }: PortfolioContent
         })
       })
 
+  // 탭은 실제 카드가 있는 카테고리만(빈 탭, 탭 없는 카테고리 방지). 알려진 카테고리는 이 순서, 나머지는 뒤에
+  const TAB_ORDER = ['Beauty', 'Medical', 'F&B', 'Fashion', 'Lifestyle']
+  const rank = (c: string) => (TAB_ORDER.includes(c) ? TAB_ORDER.indexOf(c) : TAB_ORDER.length)
   const tabs = [
     { id: 'all', label: 'All' },
-    { id: 'Beauty', label: 'Beauty' },
-    { id: 'Medical', label: 'Medical' },
-    { id: 'F&B', label: 'F&B' },
-    { id: 'Fashion', label: 'Fashion' },
-    { id: 'etc', label: 'etc' },
+    ...Array.from(new Set(portfolios.flatMap((p) => (p.category ?? []).map((c) => (c === 'fb' ? 'F&B' : c)))))
+      .sort((a, b) => rank(a) - rank(b))
+      .map((c) => ({ id: c, label: c })),
   ]
 
   // 카테고리 표시용 함수
