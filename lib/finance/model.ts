@@ -507,29 +507,34 @@ export const weekdaysBefore = (d: string, n: number) => {
   return new Date(t).toISOString().slice(0, 10)
 }
 
+// 정기 회차(정산 handler.py): 송금일은 그 달 마지막 평일, 묶음은 송금일 3평일 전에 만듦. 공휴일은 안 봄
+export const payday = (ym: string) => weekdayBack(monthEnd(`${ym}-01`))
+export const bundleDay = (ym: string) => weekdaysBefore(payday(ym), 3)
+export const addMonth = (ym: string, n: number) => {
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7)
+}
+/** d에 송금 가능이 된 행의 송금일: 그 달 묶음 생성일 전이면 그 달 송금일, 아니면 다음 달 송금일 */
+const cyclePayday = (d: string) => payday(d < bundleDay(d.slice(0, 7)) ? d.slice(0, 7) : addMonth(d.slice(0, 7), 1))
+
 const paidUp = (c: Contract, today: string) => {
   const rs = recognitions(c, today)
   return rs.length > 0 && rs.every((x) => x.date)
 }
 
-/** 지급 예정일(설계 261002-설계-자금캘린더 1절). 정기 회차는 월말 1회 가정, 마감이 20일로 확인되면 「말일 이틀 전」을 「20일」로 */
+/** 지급 예정일. 정산 마스터와 자금 캘린더가 같이 씀(설계 261028-설계-크리에이터-정산포털 「날짜 규칙」, Leo 261029 통일).
+ * 송금 완료: 송금일. 모인 접수, 원화 이체 대기: 요청일 달의 송금일. 송금 가능: 오늘 기준 회차 송금일. 보류: 없음
+ * 대기는 정산 마스터에선 미정이고, 자금 캘린더용으로 송금 가능이 될 날(고객사 입금이 끝났으면 오늘, 아니면 계약 입금 예정일)의 회차 송금일 */
 export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string): string | null {
   if (p.status === DONE) return p.sentDate
-  if (p.status === '모인 접수' || p.status === '원화 이체 대기') {
-    // 정기 묶음은 송금일(마지막 평일) 3영업일 전에 만들어 요청일이 송금일보다 이르다. 그 사이 요청일은 송금일에 둔다(Leo 261027 「어드민 송금일정은 마지막 영업일」). 비정기 회차는 요청일 그대로
-    const pay = p.reqDate ? weekdayBack(monthEnd(p.reqDate)) : null
-    return pay && p.reqDate! >= weekdaysBefore(pay, 3) && p.reqDate! <= pay ? pay : p.reqDate
-  }
-  if (p.status === '송금 가능') return weekdayBack(monthEnd(today))
+  if (p.status === '모인 접수' || p.status === '원화 이체 대기') return p.reqDate ? payday(p.reqDate.slice(0, 7)) : null
+  if (p.status === '송금 가능') return cyclePayday(today)
   if (p.status !== '대기') return null // 보류
   const c = p.contractId ? byId.get(p.contractId) : undefined
-  // 고객사 입금은 끝났는데 서류, 계좌로 대기인 행: 이번 달 말일(송금 가능과 같은 날, 「서류·계좌 대기」, Leo 261026)
-  if (c && paidUp(c, today)) return weekdayBack(monthEnd(today))
+  // 고객사 입금은 끝났는데 서류, 계좌로 대기인 행: 송금 가능과 같은 날(「서류·계좌 대기」, Leo 261026)
+  if (c && paidUp(c, today)) return cyclePayday(today)
   const due = c ? (recognitions(c, today).find((x) => !x.date)?.due ?? null) : null
-  if (!due) return null
-  const end = monthEnd(due)
-  // 이틀 전 기준은 달력 말일, 지급일만 평일로 당김
-  return weekdayBack(Date.parse(due) > Date.parse(end) - 2 * DAY ? monthEnd(new Date(Date.parse(end) + DAY).toISOString().slice(0, 10)) : end)
+  return due ? cyclePayday(due) : null
 }
 
 // 나감 due: 송금 가능(고객사 입금 끝남), wait: 대기(고객사 입금 전, 계약 입금 예정일로 잡은 날짜)

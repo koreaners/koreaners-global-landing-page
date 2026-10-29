@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { monthEnd, netPayoutKrw, payoutKrw, weekdayBack, weekdaysBefore, type Contract, type Payout, type Rates } from '@/lib/finance/model'
+import { addMonth, bundleDay, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { hit, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
@@ -16,29 +16,14 @@ const DONE = '송금 완료'
 const IN_FLIGHT = ['송금 가능', '모인 접수', '원화 이체 대기']
 const STATUSES = ['대기', '송금 가능', '모인 접수', '원화 이체 대기', '송금 완료', '보류']
 
-// 정기 회차(정산 handler.py): 송금일은 그 달 마지막 평일, 묶음은 송금일 3평일 전에 만듦. 공휴일은 안 봄
-const payday = (ym: string) => weekdayBack(monthEnd(`${ym}-01`))
-const bundleDay = (ym: string) => weekdaysBefore(payday(ym), 3)
-const addMonth = (ym: string, n: number) => {
-  const [y, m] = ym.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7)
-}
 const md = (d: string) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`
 
-/** 행이 속한 회차(달)와 표에 쓸 날짜. 송금 완료: 송금일(없으면 요청일)의 달, 송금 가능: 이번 달 묶음 생성일 전이면 이번 달 아니면 다음 달,
- * 모인 접수, 원화 이체 대기: 송금 요청일 달의 송금일, 대기, 보류: 미정(null) */
+/** 행이 속한 회차(달)와 표에 쓸 날짜. 송금 완료: 송금일(없으면 요청일)의 달, 송금 가능, 모인 접수, 원화 이체 대기: payoutDue(자금 캘린더와 같은 규칙),
+ * 대기, 보류: 미정(null) */
 function slot(p: Payout, today: string): { month: string | null; date: string | null } {
   if (p.status === DONE) return { month: (p.sentDate ?? p.reqDate)?.slice(0, 7) ?? null, date: p.sentDate }
-  if (p.status === '송금 가능') {
-    const ym = today.slice(0, 7)
-    const month = today < bundleDay(ym) ? ym : addMonth(ym, 1)
-    return { month, date: payday(month) }
-  }
-  if (p.status === '모인 접수' || p.status === '원화 이체 대기') {
-    const month = p.reqDate?.slice(0, 7) ?? null
-    return { month, date: month ? payday(month) : null }
-  }
-  return { month: null, date: null }
+  const date = IN_FLIGHT.includes(p.status) ? payoutDue(p, new Map(), today) : null
+  return { month: date?.slice(0, 7) ?? null, date }
 }
 
 type Sum = { n: number; krw: number; by: Record<string, number> }
