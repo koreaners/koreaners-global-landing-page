@@ -31,6 +31,58 @@ export async function FunnelTrendTab() {
   return <FunnelTrendView t={t} />
 }
 
+// 주별: 월~일 13주, 축은 그 주 월요일. 달을 걸친 주도 자르지 않아 월별 값과 합이 맞지 않을 수 있다
+function WeeklyTrend({ w, goal }: { w: NonNullable<FunnelTrend['weeks']>; goal: number }) {
+  const md = (iso: string) => `${+iso.slice(5, 7)}/${+iso.slice(8)}`
+  const pts = (f: (i: number) => Omit<TrendPoint, 'label'>) => w.start.map((s, i) => ({ label: md(s), title: `${md(s)}~${md(w.end[i])}`, ...f(i) }))
+  const leads = w.leads ? Object.entries(w.leads) : null
+  const wgoal = +((goal * 12) / 52).toFixed(1)
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="text-base font-semibold text-neutral-100">주별 (최근 {w.start.length}주)</h2>
+        <p className="text-xs text-neutral-500">월~일 주 단위, 축은 그 주 월요일. 계산은 위 월별과 같고 기간만 주입니다</p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="안건 수" note={`주 목표 ${wgoal}건(월 ${goal}건 × 12 ÷ 52)`}>
+          <TrendChart
+            unit="건"
+            goal={wgoal}
+            series={[
+              { key: 'new', name: '신규 고객 첫 계약', color: C1, kind: 'bar', stack: 'd' },
+              { key: 'repeat', name: '재계약', color: C2, kind: 'bar', stack: 'd' },
+            ]}
+            data={pts((i) => ({ new: w.deals.new[i], repeat: w.deals.repeat[i] }))}
+          />
+        </Panel>
+        <Panel title="입금, 송금" note="기한 내 입금률: 예정일이 그 주인 회차. 송금 처리율: 그 주 일요일 기준(90일 창)">
+          <TrendChart
+            unit="%"
+            goal={100}
+            series={[
+              { key: 'on', name: '기한 내 입금률', color: C1, kind: 'line' },
+              { key: 're', name: '송금 처리율', color: C2, kind: 'line' },
+            ]}
+            data={pts((i) => ({
+              on: rate(w.ontime.a[i], w.ontime.k[i]), on_t: `${w.ontime.a[i]}/${w.ontime.k[i]}건`,
+              re: rate(w.remit.a[i], w.remit.k[i]), re_t: `${w.remit.a[i]}/${w.remit.k[i]}건`,
+            }))}
+          />
+        </Panel>
+        {leads && (
+          <Panel title="신규 리드" note="Lead Status 최초 컨택일이 그 주인 고객사 수">
+            <TrendChart
+              unit="곳"
+              series={leads.map(([ch], j) => ({ key: `l${j}`, name: ch, color: j ? C2 : C1, kind: 'bar' as const }))}
+              data={pts((i) => Object.fromEntries(leads.map(([, v], j) => [`l${j}`, v[i]])))}
+            />
+          </Panel>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function FunnelTrendView({ t }: { t: FunnelTrend }) {
   const cur = t.today.slice(0, 7)
   const upto = `${+t.today.slice(5, 7)}/${+t.today.slice(8)}`
@@ -47,7 +99,7 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold text-neutral-50">퍼널 추이</h1>
         <p className="text-xs text-neutral-500">
-          경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 매주 월 07:00 갱신,{' '}
+          경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별, 주별 값입니다. 매주 월 07:00 갱신,{' '}
           {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}
         </p>
       </div>
@@ -104,6 +156,8 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
           <p className="text-sm text-neutral-500 lg:col-span-2">Lead Status 읽기 실패로 영업 추이가 없습니다.</p>
         )}
       </div>
+
+      {t.weeks && <WeeklyTrend w={t.weeks} goal={d.goal} />}
 
       {t.health ? (
         <div className="space-y-3">
