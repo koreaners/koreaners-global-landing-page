@@ -113,7 +113,7 @@ export default function PortfolioContent({ initialPortfolios }: PortfolioContent
               {filteredItems.map(item => (
                 <Link key={item.id} href={`/portfolio/${item.id}`} className="block h-full">
                   <Card
-                    className="group overflow-hidden bg-surface-1 border border-border hover:border-[#FF4500]/60 transition-all duration-300 cursor-pointer h-full flex flex-col"
+                    className="group overflow-hidden bg-surface-1 border border-border hover:border-[#FF4500]/60 transition-all duration-300 cursor-pointer h-full flex flex-col py-0 gap-0 sm:py-6 sm:gap-6"
                   >
                     {/* Image */}
                     {item.thumbnail_url ? (
@@ -129,7 +129,7 @@ export default function PortfolioContent({ initialPortfolios }: PortfolioContent
                         {/* 톤 통일: 하단 그라데이션 오버레이 (로고형/사진형 썸네일 편차 흡수) */}
                         <div className="absolute inset-0 bg-gradient-to-t from-[#1C1917]/70 via-transparent to-transparent pointer-events-none z-[5]" />
                         <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10">
-                          <span className="px-2 sm:px-3 py-1 bg-[#FF4500]/10 text-[#FF4500] text-xs font-bold rounded-full uppercase">
+                          <span className="px-2 sm:px-3 py-1 bg-[#1C1917]/80 sm:bg-[#FF4500]/10 text-[#FF4500] text-xs font-bold rounded-full uppercase">
                             {getCategoryDisplay(item.category)}
                           </span>
                         </div>
@@ -145,7 +145,7 @@ export default function PortfolioContent({ initialPortfolios }: PortfolioContent
                           </div>
                         </div>
                         <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10">
-                          <span className="px-2 sm:px-3 py-1 bg-[#FF4500]/10 text-[#FF4500] text-xs font-bold rounded-full uppercase">
+                          <span className="px-2 sm:px-3 py-1 bg-[#1C1917]/80 sm:bg-[#FF4500]/10 text-[#FF4500] text-xs font-bold rounded-full uppercase">
                             {getCategoryDisplay(item.category)}
                           </span>
                         </div>

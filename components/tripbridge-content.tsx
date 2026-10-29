@@ -304,7 +304,7 @@ export default function TripbridgeContent() {
             </Link>
             <Link
               href="#proof"
-              className="text-sm uppercase tracking-wider font-bold text-[var(--kn-light)] border-b border-[var(--kn-light)]/30 hover:border-[#FF4500] hover:text-[#FF4500] pb-1 transition-colors duration-300 self-start sm:self-auto"
+              className="text-sm uppercase tracking-wider font-bold text-[var(--kn-light)] border-b border-[var(--kn-light)]/30 hover:border-[#FF4500] hover:text-[#FF4500] pb-1 transition-colors duration-300 self-start sm:self-auto relative after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5"
             >
               {c.ctaSecondary} →
             </Link>
@@ -341,7 +341,9 @@ export default function TripbridgeContent() {
 
           <p className="text-lg text-[#78716C] max-w-2xl mt-4 leading-relaxed break-keep">
             {c.coreNote1}
-            <br />
+            {/* 강제 줄바꿈은 데스크톱만 — 모바일은 자연 줄바꿈(KO만 띄어쓰기) */}
+            {locale === 'ja' ? '' : ' '}
+            <br className="hidden sm:inline" />
             {c.coreNote2}
           </p>
 
@@ -379,7 +381,7 @@ export default function TripbridgeContent() {
 
           <div className="flex flex-col sm:flex-row sm:items-end gap-6 sm:gap-12 mt-12">
             {c.proofChips.map((chip) => (
-              <div key={chip.label} className="flex items-end gap-2">
+              <div key={chip.label} className="flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:gap-2">
                 <div className="font-display font-bold text-3xl gradient-warm-text leading-none">{chip.value}</div>
                 <div className="text-sm text-[#78716C] break-keep">{chip.label}</div>
               </div>

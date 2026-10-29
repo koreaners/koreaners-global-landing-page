@@ -236,7 +236,7 @@ export default function Navigation() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-card border-0 flex-shrink-0"
+                    className="rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center border border-white/20 bg-card/50 hover:bg-card hover:border-white/40 flex-shrink-0"
                     aria-label="메뉴 열기"
                   >
                     <Menu className="h-5 w-5 text-white" />

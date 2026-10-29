@@ -112,8 +112,8 @@ export function BlogPostView({ blogPost, thumbnailSrc }: BlogPostViewProps) {
                     <span className="font-semibold text-white/80">조인혁</span>
                     <span className="text-white/40">|</span>
                     <span>BD 팀장, KOREANERS</span>
-                    <span className="text-white/40">|</span>
-                    <span>일본 인플루언서 마케팅, 크로스보더 마케팅, K-뷰티 일본 진출</span>
+                    <span className="hidden sm:inline text-white/40">|</span>
+                    <span className="basis-full sm:basis-auto">일본 인플루언서 마케팅, 크로스보더 마케팅, K-뷰티 일본 진출</span>
                   </div>
                 </div>
               </div>

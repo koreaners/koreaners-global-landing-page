@@ -152,18 +152,17 @@ export default function DiagnosisLanding() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
+                {/* 체크박스까지 label 안에 — 행 전체(44px)가 탭 영역, * 는 문구 바로 뒤 */}
+                <label className="min-h-[44px] flex items-center gap-3 cursor-pointer text-sm text-white/60">
                   <input id="dx-privacyConsent" name="privacyConsent" type="checkbox" required className={CHECKBOX} />
-                  <label htmlFor="dx-privacyConsent" className="flex-1 min-h-[44px] flex items-center cursor-pointer text-sm text-white/60">
-                    진단 결과 발송을 위한 이메일 수집과 이용에 동의합니다. <span className="ml-1">*</span>
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
+                  <span>
+                    진단 결과 발송을 위한 이메일 수집과 이용에 동의합니다.<span className="ml-1">*</span>
+                  </span>
+                </label>
+                <label className="min-h-[44px] flex items-center gap-3 cursor-pointer text-sm text-white/60">
                   <input id="dx-marketingConsent" name="marketingConsent" type="checkbox" className={CHECKBOX} />
-                  <label htmlFor="dx-marketingConsent" className="flex-1 min-h-[44px] flex items-center cursor-pointer text-sm text-white/60">
-                    코리너스의 일본 마케팅 정보 메일 수신에 동의합니다. (선택)
-                  </label>
-                </div>
+                  <span>코리너스의 일본 마케팅 정보 메일 수신에 동의합니다. (선택)</span>
+                </label>
               </div>
 
               <button

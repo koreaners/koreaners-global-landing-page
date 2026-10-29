@@ -159,6 +159,7 @@
   "formPrivacyRequired": "[필수]",
   "formMarketingLabel": "마케팅 활용 동의",
   "formMarketingOptional": "",
+  "formConsentView": "보기",
   "formSubmit": "무료 상담 신청하기",
   "formSubmitting": "처리 중...",
   "toastRequiredConsent": "필수 동의",

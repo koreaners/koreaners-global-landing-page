@@ -28,7 +28,7 @@ function MarqueeRow({ clients, direction, duration }: { clients: string[]; direc
   const animName = direction === 'left' ? 'marquee-left' : 'marquee-right'
 
   return (
-    <div className="overflow-hidden py-2" role="marquee" aria-label={`Client brands: ${clients.join(', ')}`}>
+    <div className="marquee-fade overflow-hidden py-2" role="marquee" aria-label={`Client brands: ${clients.join(', ')}`}>
       <div
         className="flex gap-3 w-max"
         style={{ animation: `${animName} ${duration} linear infinite` }}

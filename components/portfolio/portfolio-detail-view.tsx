@@ -107,7 +107,7 @@ export function PortfolioDetailView({ portfolio, otherPortfolios }: PortfolioDet
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {otherPortfolios.map((item) => (
                 <Link key={item.id} href={`/portfolio/${item.id}`} className="block h-full">
-                  <Card className="group overflow-hidden bg-card border-border hover:border-[#FF4500]/60 transition-all duration-300 cursor-pointer h-full flex flex-col">
+                  <Card className="group overflow-hidden bg-card border-border hover:border-[#FF4500]/60 transition-all duration-300 cursor-pointer h-full flex flex-col py-0 gap-0 sm:py-6 sm:gap-6">
                     <div className="aspect-video relative overflow-hidden bg-card">
                       {item.thumbnail_url ? (
                         <Image

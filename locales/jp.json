@@ -159,6 +159,7 @@
   "formPrivacyRequired": "[必須]",
   "formMarketingLabel": "マーケティング利用の同意",
   "formMarketingOptional": "",
+  "formConsentView": "見る",
   "formSubmit": "無料相談申し込み",
   "formSubmitting": "送信中...",
   "toastRequiredConsent": "必須同意",

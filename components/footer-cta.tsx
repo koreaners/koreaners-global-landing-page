@@ -277,7 +277,8 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
                 US
               </Heading>
               <p className="text-base text-white/60 mt-8 leading-relaxed">
-                {t("footerCtaDesc1")} {t("footerCtaDesc2")} {t("footerCtaDesc3")}
+                {/* JA 는 띄어쓰기 없이 이어 붙임 */}
+                {[t("footerCtaDesc1"), t("footerCtaDesc2"), t("footerCtaDesc3")].join(locale === "ja" ? "" : " ")}
               </p>
             </div>
           )}
@@ -460,62 +461,53 @@ export function FooterCTA({ headingLevel = "h2", instanceId = "consult-form", co
 
             {/* Row 4: Checkboxes */}
             <div className="space-y-3">
+              {/* 체크박스+문구 전체가 label(탭 높이 44px), 약관은 옆 「보기」 버튼으로 */}
               <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id={`${instanceId}-privacyConsent`}
-                  name="privacyConsent"
-                  aria-invalid={invalid === "privacyConsent" || undefined}
-                  checked={formData.privacyConsent}
-                  onChange={handleChange}
-                  className="w-5 h-5 rounded-[var(--radius-sm)] border-2 border-white/30 bg-transparent checked:bg-white checked:border-white focus:ring-2 focus:ring-white transition-all cursor-pointer shrink-0"
-                />
-                <label
-                  htmlFor={`${instanceId}-privacyConsent`}
-                  className="flex-1 min-h-[44px] flex items-center cursor-pointer group"
-                >
-                  <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setPrivacyModalOpen(true);
-                      }}
-                      className="text-white/80 underline hover:no-underline focus:outline-none"
-                    >
-                      {t("formPrivacyLabel")}
-                    </button>{" "}
+                <label className="flex-1 min-h-[44px] flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    id={`${instanceId}-privacyConsent`}
+                    name="privacyConsent"
+                    aria-invalid={invalid === "privacyConsent" || undefined}
+                    checked={formData.privacyConsent}
+                    onChange={handleChange}
+                    className="w-5 h-5 rounded-[var(--radius-sm)] border-2 border-white/30 bg-transparent checked:bg-white checked:border-white focus:ring-2 focus:ring-white transition-all cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm text-white/80 group-hover:text-white transition-colors">
+                    {t("formPrivacyLabel")}{" "}
                     <span className="text-white/60">*</span>
                   </span>
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setPrivacyModalOpen(true)}
+                  className="shrink-0 min-h-[44px] px-2 text-sm text-white/60 underline hover:no-underline hover:text-white/80"
+                >
+                  {t("formConsentView")}
+                </button>
               </div>
 
               <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id={`${instanceId}-marketingConsent`}
-                  name="marketingConsent"
-                  checked={formData.marketingConsent}
-                  onChange={handleChange}
-                  className="w-5 h-5 rounded-[var(--radius-sm)] border-2 border-white/30 bg-transparent checked:bg-white checked:border-white focus:ring-2 focus:ring-white transition-all cursor-pointer shrink-0"
-                />
-                <label
-                  htmlFor={`${instanceId}-marketingConsent`}
-                  className="flex-1 min-h-[44px] flex items-center cursor-pointer group"
-                >
-                  <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setMarketingModalOpen(true);
-                      }}
-                      className="text-white/80 underline hover:no-underline focus:outline-none"
-                    >
-                      {t("formMarketingLabel")}
-                    </button>
+                <label className="flex-1 min-h-[44px] flex items-center gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    id={`${instanceId}-marketingConsent`}
+                    name="marketingConsent"
+                    checked={formData.marketingConsent}
+                    onChange={handleChange}
+                    className="w-5 h-5 rounded-[var(--radius-sm)] border-2 border-white/30 bg-transparent checked:bg-white checked:border-white focus:ring-2 focus:ring-white transition-all cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm text-white/80 group-hover:text-white transition-colors">
+                    {t("formMarketingLabel")}
                   </span>
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setMarketingModalOpen(true)}
+                  className="shrink-0 min-h-[44px] px-2 text-sm text-white/60 underline hover:no-underline hover:text-white/80"
+                >
+                  {t("formConsentView")}
+                </button>
               </div>
             </div>
 

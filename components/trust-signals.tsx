@@ -20,7 +20,7 @@ export function TrustSignals() {
 
   return (
     <div className="bg-background overflow-hidden">
-      <div className="overflow-hidden py-4" role="marquee" aria-label={PHRASES.join(' · ')}>
+      <div className="marquee-fade overflow-hidden py-4" role="marquee" aria-label={PHRASES.join(' · ')}>
         <div
           className="flex gap-6 w-max"
           style={{ animation: 'marquee-left 50s linear infinite' }}

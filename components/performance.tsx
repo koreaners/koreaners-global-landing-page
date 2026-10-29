@@ -63,8 +63,8 @@ export function Performance() {
           </div>
         ) : (
           <>
-            {/* 한 줄 캐러셀 (마퀴, hover 시 정지). height = 카드 한 칸 */}
-            <div className="mt-16 overflow-hidden">
+            {/* 한 줄 캐러셀 (마퀴, hover 시 정지). height = 카드 한 칸. 모바일은 화면 끝까지 + 끝 페이드 */}
+            <div className="marquee-fade -mx-6 sm:mx-0 mt-16 overflow-hidden">
               <div className="portfolio-marquee flex w-max gap-6">
                 {[...portfolios, ...portfolios].map((item, i) => (
                   <Link
@@ -108,7 +108,7 @@ export function Performance() {
               <div className="mt-12 text-center">
                 <Link
                   href="/portfolio"
-                  className="text-sm uppercase tracking-wider font-bold text-[var(--kn-light)] border-b border-[var(--kn-light)]/30 hover:border-[#FF4500] hover:text-[#FF4500] pb-1 transition-colors duration-300"
+                  className="inline-block text-sm uppercase tracking-wider font-bold text-[var(--kn-light)] border-b border-[var(--kn-light)]/30 hover:border-[#FF4500] hover:text-[#FF4500] pb-1 transition-colors duration-300 relative after:content-[''] after:absolute after:inset-x-0 after:-inset-y-2.5"
                 >
                   {t('performanceViewAll')} →
                 </Link>

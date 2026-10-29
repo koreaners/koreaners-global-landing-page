@@ -706,6 +706,13 @@ main p {
 @media (prefers-reduced-motion: reduce) {
   .portfolio-marquee { animation: none; }
 }
+/* 마퀴 좌우 끝 페이드 (모바일만) — 화면 끝에서 글자·카드가 칼같이 잘리지 않게 */
+@media (max-width: 639px) {
+  .marquee-fade {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  }
+}
 
 /* Hero glow: radial gradient spotlight from top */
 .hero-glow {

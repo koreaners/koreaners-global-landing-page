@@ -75,7 +75,7 @@ function MarqueeRow({ logos, direction }: { logos: Logo[]; direction: "left" | "
   const dup = [...logos, ...logos];
   const anim = direction === "left" ? "marquee-left" : "marquee-right";
   return (
-    <div className="overflow-hidden py-2">
+    <div className="marquee-fade overflow-hidden py-2">
       {/* 속도 40% 증가 (40s → 28.6s) */}
       <div className="flex gap-4 w-max" style={{ animation: `${anim} 28.6s linear infinite` }}>
         {dup.map((logo, i) => (
