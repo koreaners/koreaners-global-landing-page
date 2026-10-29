@@ -450,7 +450,9 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
           <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : (x.margin ?? 0) < 0 ? 'bg-red-950/50' : ''}>
             <td className={tdl}>
               <span className="flex max-w-[13rem] items-center gap-1">
-                <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
+                {x.c.source === 'sheet'
+                  ? <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
+                  : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="min-w-0 truncate text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
                 {x.c.source === 'sheet' && <span className="shrink-0 rounded bg-neutral-800 px-1 text-[10px] text-neutral-400" title="Contract DB에 없어 운영 대시보드 시트에서 읽은 계약">시트</span>}
               </span>
             </td>
@@ -464,7 +466,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
             <td className={td}>{x.open ? (x.due ?? <span className="text-neutral-500">예정일 없음</span>) : '-'}</td>
             <td className={`${td}${x.overdue ? ' font-semibold text-red-400' : ''}`}>{x.overdue ? `${x.overdue}일` : '-'}</td>
-            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : won2(x.cost)}</td>
+            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : <Link href={q({ sel: x.c.id })} className="text-sky-300 hover:underline">{won2(x.cost)}</Link>}</td>
             <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{x.c.source !== 'sheet' && x.supply != null && !x.payouts.length ? '지급 연결 없음' : pct(x.rate)}</span>
@@ -473,7 +475,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다. 변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다. 변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 노션 계약 페이지가, 변동비를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
     </div>
   )
 }
