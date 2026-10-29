@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CleanForm } from './auto-form'
 import type { Currency, Payout } from '@/lib/finance/model'
 
 // 재무 대시보드(/admin/finance)와 정산 마스터(/admin/payouts)가 함께 쓰는 표, 칸, 금액 글
@@ -25,10 +26,10 @@ export function Card({ label, value, note }: { label: string; value: string; not
 
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
 
-/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정 */
+/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값) */
 export function Table({ head, left = 1, sort, tall, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; children: React.ReactNode }) {
   return (
-    <div className={`overflow-auto rounded-xl border border-neutral-800 ${tall ? 'max-h-[75vh]' : ''}`}>
+    <div className={`overflow-auto rounded-xl border border-neutral-800 ${tall ? 'max-h-[calc(100dvh-16rem)]' : ''}`}>
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 bg-neutral-900 text-xs text-neutral-500">
           <tr>
@@ -73,13 +74,13 @@ export function SearchBox({ q, f, n, total, placeholder, anchor }: { q: (o: { f?
   const [path, query] = q({ f: undefined, sel: undefined, d: undefined }).split('?')
   const base = new URLSearchParams(query)
   return (
-    <form action={`${path}${anchor ? `#${anchor}` : ''}`} className="flex w-full items-center gap-2 text-sm sm:w-auto">
+    <CleanForm action={`${path}${anchor ? `#${anchor}` : ''}`} className="flex w-full items-center gap-2 text-sm sm:w-auto">
       {[...base.entries()].filter(([k]) => k !== 'f').map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
       <input name="f" defaultValue={f} autoComplete="off" placeholder={placeholder} className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600 sm:w-64 sm:flex-none" />
       <button className="shrink-0 rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">찾기</button>
       {f && <Link href={q({ f: undefined, sel: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">지우기</Link>}
       <span className="shrink-0 text-xs text-neutral-500">{f ? `${n}건 / 전체 ${total}건` : `${total}건`}</span>
-    </form>
+    </CleanForm>
   )
 }
 

@@ -4,6 +4,7 @@ import { getRates } from '@/lib/finance/fx'
 import { addMonth, bundleDay, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
+import { CleanForm } from '../finance/auto-form'
 import { hit, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
 
 // 정산 마스터: 노션 지급내역 DB 전체 행을 회차, 크리에이터, 행 단위로 (관리자 전용, proxy가 exec를 막음)
@@ -54,6 +55,12 @@ const FIX: Record<string, string> = {
   '계약 초과': '같은 계약의 지급 합이 공급가를 넘습니다. 금액을 확인하고 송금 확인일을 넣습니다',
   '통화 불일치': '이체 주소록 계좌 나라와 지급 통화가 다릅니다(예: 일본 계좌인데 KRW). 통화나 계좌를 바로잡습니다',
 }
+// 이번 회차 상태별 다음 할 일(settlement transfer_file.py, bank_krw.py 흐름)
+const STEP: [string, string][] = [
+  ['원화 이체 대기', '은행(신한 기업뱅킹)에서 이체할 차례입니다. 이체 뒤 은행 입출금 엑셀 대조로 송금 완료와 송금일이 적힙니다'],
+  ['송금 가능', '묶음 생성일(송금일 3평일 전)에 송금 파일로 묶이며 외화는 모인 접수, 원화는 원화 이체 대기로 바뀝니다'],
+  ['모인 접수', '모인에 넘긴 외화 송금입니다. 모인 처리를 기다리는 중입니다'],
+]
 const notionUrl = (id: string) => `https://www.notion.so/${id.replace(/-/g, '')}`
 
 export default async function PayoutsPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -99,8 +106,8 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const notDone = all.filter((p) => p.status !== DONE)
   const reasons = count(notDone.flatMap((p) => p.blocked))
 
-  // 2. 회차별: 송금 완료가 있는 지난 달 전부와 이번 회차, 다음 두 회차. 날짜를 정할 수 없는 행은 미정 줄
-  const months = [...new Set([...all.map((p) => slots.get(p.id)!.month).filter((m): m is string => !!m), cycle, addMonth(cycle, 1), addMonth(cycle, 2)])].sort().reverse()
+  // 2. 회차별: 행이 있는 회차 전부와 이번 회차(0건이어도). 날짜를 정할 수 없는 행은 미정 줄
+  const months = [...new Set([...all.map((p) => slots.get(p.id)!.month).filter((m): m is string => !!m), cycle])].sort().reverse()
   const byMonth = (m: string | null) => all.filter((p) => slots.get(p.id)!.month === m)
 
   // 3. 크리에이터별
@@ -144,6 +151,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const due = (p: Payout) => slots.get(p.id)!.date ?? ''
   const thisCycle = planned.filter((p) => slots.get(p.id)!.month === cycle).sort((a, b) => due(a).localeCompare(due(b)) || (b.pid ?? 0) - (a.pid ?? 0))
   const later = planned.filter((p) => (slots.get(p.id)!.month ?? '') > cycle).sort((a, b) => due(a).localeCompare(due(b)))
+  const doneThis = all.filter((p) => p.status === DONE && slots.get(p.id)!.month === cycle)
   const late = planned.filter((p) => (slots.get(p.id)!.month ?? '9999') < cycle)
 
   const RowsTable = ({ xs, tall }: { xs: Payout[]; tall?: boolean }) => (
@@ -177,7 +185,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
     </details>
   )
   const TABS: [string, string, string][] = [
-    ['todo', '할 일', `보낼 것 ${thisCycle.length}건, 막힌 ${notDone.filter((p) => p.blocked.length).length}건`],
+    ['todo', '할 일', `이번 회차 ${thisCycle.length}건, 막힌 ${notDone.filter((p) => p.blocked.length).length}건`],
     ['cycles', '회차별', `${months.length}개 회차`],
     ['creators', '크리에이터별', `${creators.length}명`],
     ['rows', '지급 행 전체', `${all.length}행`],
@@ -200,6 +208,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
+      {view === 'todo' ? (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label="이번 회차 송금일" value={md(payday(cycle))} full={payday(cycle)} note={`묶음 생성일 ${md(bundleDay(cycle))}${rolled && cycle === thisYm ? `, 묶음 생성 뒤라 송금 가능은 다음 회차 ${md(payday(addMonth(thisYm, 1)))}` : ''}`} />
         <Tile label="송금 진행 중 (모든 회차)" value={won2(plan.krw)} full={won(plan.krw)} note={`${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
@@ -215,6 +224,12 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
           )) : <p className="text-sm text-neutral-500">없음</p>}
         </div>
       </div>
+      ) : (
+        <p className="text-xs text-neutral-400">
+          이번 회차 {md(payday(cycle))}, 송금 진행 중 {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
+          {reasons.length > 0 && <>, 막힌 사유 {reasons.map(([k, n], i) => <span key={k}>{i ? ', ' : ''}<Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-neutral-300 underline hover:text-neutral-100">{k} {n}</Link></span>)}</>}
+        </p>
+      )}
 
       {view === 'creator' ? (
         <CreatorPanel name={sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} />
@@ -243,8 +258,16 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               ))}
             </Table>
           </Panel>
-          <Panel title={`이번 회차 보낼 것: ${md(payday(cycle))} 송금 (${thisCycle.length}건, ${won2(total(thisCycle, rates).krw)})`} sub="송금 가능, 모인 접수, 원화 이체 대기 중 이번 회차 송금일에 나가는 행입니다. 송금 예정일 순">
-            {thisCycle.length ? <RowsTable xs={thisCycle} /> : <p className="text-sm text-neutral-500">이번 회차에 나갈 행이 없습니다.</p>}
+          <Panel title={`이번 회차: ${md(payday(cycle))} 송금 (진행 중 ${thisCycle.length}건, ${won2(total(thisCycle, rates).krw)})`} sub={`송금일이 오늘이거나 아직 오지 않은 가장 가까운 정기 송금일의 회차입니다. 송금일이 지나면 다음 달 회차로 넘어갑니다. 이 회차 송금 완료 ${doneThis.length}건은 회차별 탭에`}>
+            {thisCycle.length ? STEP.map(([st, step]) => {
+              const xs = thisCycle.filter((p) => p.status === st)
+              return xs.length > 0 && (
+                <div key={st} className="space-y-2">
+                  <h3 className="text-sm font-semibold text-neutral-100">{st} {xs.length}건, {won2(total(xs, rates).krw)} <span className="ml-1 text-xs font-normal text-neutral-500">{step}</span></h3>
+                  <RowsTable xs={xs} />
+                </div>
+              )
+            }) : <p className="text-sm text-neutral-500">이번 회차에 진행 중인 행이 없습니다.</p>}
           </Panel>
           {late.length > 0 && (
             <Panel title={`송금일이 지났는데 진행 중 (${late.length}건)`} sub="지난 회차 송금일에 나갔어야 하는데 아직 송금 완료가 아닌 행입니다. 모인, 은행에서 실제로 나갔는지 확인하고 노션 상태를 고칩니다">
@@ -261,7 +284,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'cycles' && (
-        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중은 회차 송금일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「보낼 것」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
+        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중은 회차 송금일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「이번 회차」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
           <Table head={['회차 (정기 송금일)', '건수', '통화별 합계', '원화 환산', '상태']}>
             {[...months, null].map((m) => {
               const xs = byMonth(m)
@@ -309,7 +332,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-neutral-100">{sp.sel ? `${sp.sel} 지급 행` : '지급 행'}</h2>
             {/* key: 링크로 필터가 바뀌어도 드롭다운이 이전 값을 붙들지 않게 다시 그림 */}
-            <form key={[sp.st, sp.cur, sp.bl, sp.t, sp.cy, sp.nc].join('|')} action="/admin/payouts" className="flex flex-wrap items-center gap-2 text-sm">
+            <CleanForm key={[sp.st, sp.cur, sp.bl, sp.t, sp.cy, sp.nc].join('|')} action="/admin/payouts" className="flex flex-wrap items-center gap-2 text-sm">
               {(['v', 'sel'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
               {!sp.sel && !sp.v && <input type="hidden" name="v" value="rows" />}
               <select name="st" defaultValue={sp.st ?? ''} className={sel}>
@@ -337,7 +360,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               <input name="t" defaultValue={sp.t} autoComplete="off" placeholder="이름, 지급 ID, 안건, 사유" className={`${sel} w-48 placeholder:text-neutral-600`} />
               <button className="rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">적용</button>
               {filtered && <Link href={q({ st: undefined, cur: undefined, bl: undefined, t: undefined, cy: undefined, nc: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">필터 지우기</Link>}
-            </form>
+            </CleanForm>
           </div>
           <p className="text-xs text-neutral-500">{rows.length}건 / {base.length}건, {curText(rowSum)}, 원화 환산 {won(rowSum.krw)}</p>
           {legend}
