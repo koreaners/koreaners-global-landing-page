@@ -444,9 +444,12 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
     <div className="space-y-4">
       {picked && (
         <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
-          <p className="text-sm text-neutral-200">
-            {picked.c.code}, 공급가 {won(picked.supply)}, 변동비 {picked.c.source === 'sheet' ? '-' : won(picked.cost)}, 마진 {won(picked.margin)} ({pct(picked.rate)})
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-neutral-200">
+              {picked.c.code}, 공급가 {won(picked.supply)}, 변동비 {picked.c.source === 'sheet' ? '-' : won(picked.cost)}, 마진 {won(picked.margin)} ({pct(picked.rate)})
+            </p>
+            <Link href={q({ sel: undefined })} className="shrink-0 text-xs text-neutral-400 hover:text-neutral-200">닫기 ✕</Link>
+          </div>
           {picked.payouts.length ? <PayoutTable payouts={picked.payouts} rates={rates} /> : <p className="text-xs text-neutral-500">이 계약에 연결된 지급 행이 없습니다.</p>}
         </div>
       )}
@@ -857,7 +860,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
         </div>
       </div>
       <p className="text-xs text-neutral-500 sm:hidden">칸 금액 단위는 만원입니다.</p>
-      <section id={LIST} className="scroll-mt-4 space-y-2">
+      <section id={LIST} className={`scroll-mt-4 space-y-2 ${day ? 'min-h-[calc(100dvh-4rem)]' : ''}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-100">
             {day ?? `${m}월 전체`} 안건별 입출금

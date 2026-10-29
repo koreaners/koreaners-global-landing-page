@@ -208,7 +208,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
-      {view === 'todo' ? (
+      {view === 'creator' ? null : view === 'todo' ? (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label="이번 회차 송금일" value={md(payday(cycle))} full={payday(cycle)} note={`묶음 생성일 ${md(bundleDay(cycle))}${rolled && cycle === thisYm ? `, 묶음 생성 뒤라 송금 가능은 다음 회차 ${md(payday(addMonth(thisYm, 1)))}` : ''}`} />
         <Tile label="송금 진행 중 (모든 회차)" value={won2(plan.krw)} full={won(plan.krw)} note={`${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
@@ -232,7 +232,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'creator' ? (
-        <CreatorPanel name={sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} />
+        <CreatorPanel name={sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} reason={(k) => go({ sel: sp.sel, bl: k, st: OPEN })} />
       ) : (
         <nav className="flex flex-wrap gap-2 border-b border-neutral-800 pb-3">
           {TABS.map(([k, label, note]) => (
@@ -372,7 +372,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
 }
 
 /** 크리에이터 한 명: 목록 아래가 아니라 화면 맨 위에 열림(재무 크리에이터 탭과 같은 방식). 아래 지급 행 표가 그 사람 행만 */
-function CreatorPanel({ name, xs, back, rates }: { name: string; xs: Payout[]; back: string; rates: Rates }) {
+function CreatorPanel({ name, xs, back, rates, reason }: { name: string; xs: Payout[]; back: string; rates: Rates; reason: (k: string) => string }) {
   const done = total(xs.filter((p) => p.status === DONE), rates)
   const flight = total(xs.filter((p) => IN_FLIGHT.includes(p.status)), rates)
   const held = total(xs.filter((p) => p.status === '대기' || p.status === '보류'), rates)
@@ -385,8 +385,8 @@ function CreatorPanel({ name, xs, back, rates }: { name: string; xs: Payout[]; b
       </div>
       <h2 className="text-base font-semibold text-neutral-50">{name}</h2>
       <p className="text-sm text-neutral-300">
-        송금 완료 {won2(done.krw)}({done.n}건), 진행 중 {won2(flight.krw)}({flight.n}건), 미정 {won2(held.krw)}({held.n}건)
-        {blocked.length > 0 && <span className="text-amber-300">, 막힌 사유 {blocked.map(([k, n]) => `${k} ${n}`).join(', ')}</span>}
+        이 크리에이터: 송금 완료 {won2(done.krw)}({done.n}건), 진행 중 {won2(flight.krw)}({flight.n}건), 미정 {won2(held.krw)}({held.n}건)
+        {blocked.length > 0 && <span className="text-amber-300">, 막힌 사유 {blocked.map(([k, n], i) => <span key={k}>{i ? ', ' : ''}<Link href={reason(k)} className="underline hover:text-amber-200">{k} {n}</Link></span>)}</span>}
       </p>
     </div>
   )
