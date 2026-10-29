@@ -32,7 +32,6 @@ export type Contract = {
   currency?: Currency | null // Contract DB 통화 칸(매출 통화별 나눔용, 금액은 공급가(원) 그대로)
   source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(코드 받기와 코드 대조 전 임시)
   supplyFrom?: 'sheet' // Contract DB 공급가(원, 엔)가 둘 다 비어 같은 코드 시트 행의 계약 금액으로 채운 계약
-  paidFrom?: 'sheet' // Contract DB 입금일이 둘 다 비어 같은 코드 시트 행의 선금, 잔금 정산일로 채운 계약
 }
 
 export type Payout = {

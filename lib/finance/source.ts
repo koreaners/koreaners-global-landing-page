@@ -112,7 +112,7 @@ export type FinanceData = {
   contracts: Contract[]
   payouts: Payout[]
   fetchedAt: string
-  sheet: { tab: string; added: number; codeless: number; dups: string[]; paidFrom: string[]; supplyFrom: string[] } | null
+  sheet: { tab: string; added: number; codeless: number; dups: string[]; supplyFrom: string[] } | null
   sheetError: string | null
 }
 
@@ -164,7 +164,7 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
     const { tab, values } = await readDashboard(env)
     const r = sheetContracts(values, contracts)
     contracts.push(...r.contracts)
-    sheet = { tab, added: r.contracts.length, codeless: r.codeless, dups: r.dups, paidFrom: r.paidFrom, supplyFrom: r.supplyFrom }
+    sheet = { tab, added: r.contracts.length, codeless: r.codeless, dups: r.dups, supplyFrom: r.supplyFrom }
   } catch (e) {
     sheetError = e instanceof Error ? e.message : String(e)
   }

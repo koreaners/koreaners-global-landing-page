@@ -29,11 +29,10 @@ export type SheetResult = {
   contracts: Contract[]
   codeless: number // contracts 가운데 코드가 없거나 형식이 다른 행
   dups: string[] // 코드만 다른 중복 후보(확인 요청 중, 집계에 포함)
-  paidFrom: string[] // 입금일을 시트 정산일로 채운 Contract DB 계약 코드
   supplyFrom: string[] // 공급가(원, 엔)가 둘 다 비어 시트 계약 금액으로 채운 Contract DB 계약 코드
 }
 
-// 매출은 입금된 회차를 입금된 달에(Leo 10/5). db 계약 가운데 입금일이 둘 다 없는 것은 같은 코드 시트 행의 정산일로 채운다(db 항목을 바로 고침)
+// 매출은 입금된 회차를 입금된 달에(Leo 10/5). db 계약 입금일은 시트 정산일로 채우지 않음: 입금일은 은행 확정 줄로만(Leo 261029)
 export function sheetContracts(values: string[][], db: Contract[]): SheetResult {
   const [header = [], ...rows] = values
   const col = (name: string) => header.indexOf(name)
@@ -54,7 +53,6 @@ export function sheetContracts(values: string[][], db: Contract[]): SheetResult 
   // 코드가 시트 어디에도 없는 DB 행: 같은 계약이 코드만 다르게 들어간 후보
   const orphans = db.filter((c) => c.code && !byCode.has(c.code))
 
-  const paidFrom: string[] = []
   const supplyFrom: string[] = []
   for (const c of db) {
     const s = c.code && c.supplyKrw == null && c.supplyJpy == null ? byCode.get(c.code) : undefined
@@ -66,14 +64,6 @@ export function sheetContracts(values: string[][], db: Contract[]): SheetResult 
         c.supplyFrom = 'sheet'
         supplyFrom.push(c.code)
       }
-    }
-    const row = c.code && !c.preDate && !c.postDate ? byCode.get(c.code) : undefined
-    if (!row) continue
-    c.preDate = date(at(row, '선금 정산일'))
-    c.postDate = date(at(row, '잔금 정산일'))
-    if (c.preDate || c.postDate) {
-      c.paidFrom = 'sheet'
-      paidFrom.push(c.code)
     }
   }
 
@@ -129,5 +119,5 @@ export function sheetContracts(values: string[][], db: Contract[]): SheetResult 
     if (CODE.test(text) || dbCodes.has(text)) return
     if (add(`sheet-row:${i + 2}`, text || `시트 ${i + 2}`, row)) codeless++
   })
-  return { contracts, codeless, dups, paidFrom, supplyFrom }
+  return { contracts, codeless, dups, supplyFrom }
 }
