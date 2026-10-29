@@ -241,7 +241,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, '#receivables', true])
   if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
   if (noDue.count) todo.push(['입금 예정일이 없는 매출채권', `${noDue.count}건`, noDue.krw, '#receivables', false])
-  if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, q({ tab: 'basis' }), false])
+  if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, '/admin/payouts?v=rows&nc=none', false])
 
   const bMax = Math.max(...buckets.map((b) => b.krw))
   const pMax = Math.max(1, ...model.payables.map((b) => b.krw))
@@ -267,7 +267,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 
       {todo.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-100">지금 볼 것</h2>
+          <h2 className="text-sm font-semibold text-neutral-100">지금 볼 것 <span className="ml-1 text-xs font-normal text-neutral-500">손이 필요한 항목, 누르면 해당 목록으로</span></h2>
           <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${['', 'xl:grid-cols-1', 'xl:grid-cols-2', 'xl:grid-cols-3', 'xl:grid-cols-4'][todo.length]}`}>
             {todo.map(([title, count, krw, href, alert]) => (
               <Link key={title} href={href} className={`flex flex-col justify-between gap-3 rounded-xl border bg-neutral-900 p-4 hover:bg-neutral-800/60 ${alert ? 'border-[#e66767]/60' : 'border-neutral-800'}`}>
@@ -407,20 +407,20 @@ function PayoutTable({ payouts, rates, contracts, q }: { payouts: Payout[]; rate
   const ym = (p: Payout) => { const c = con(p); return (c && contractDay(c)?.slice(0, 7)) ?? null }
   const rows = contracts ? [...payouts].sort((a, b) => (ym(b) ?? '').localeCompare(ym(a) ?? '') || (b.pid ?? 0) - (a.pid ?? 0)) : payouts
   return (
-    <Table head={[...(contracts ? ['계약', '계약월', '브랜드'] : []), '지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']} left={contracts ? 3 : 2}>
+    <Table head={[...(contracts ? ['계약', '계약월', '브랜드'] : []), '지급 ID', ...(contracts ? [] : ['이름']), '상태', '지급액', '원화', '송금일', '막힌 사유']} left={contracts ? 4 : 2}>
       {rows.map((p) => {
         const c = con(p)
         return (
           <tr key={p.id}>
             {contracts && (
               <>
-                <td className={tdl}>{c ? (q ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{c.code}</Link> : c.code) : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
-                <td className={tdl}>{ym(p) ?? '-'}</td>
+                <td className={`${tdl} whitespace-nowrap`}>{c ? (q ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{c.code}</Link> : c.code) : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
+                <td className={`${tdl} whitespace-nowrap`}>{ym(p) ?? '-'}</td>
                 <td className={tdl}>{c ? c.brand || c.corp : '-'}</td>
               </>
             )}
             <td className={tdl}>{p.pid ?? '-'}</td>
-            <td className={tdl}>{p.name}</td>
+            {!contracts && <td className={tdl}>{p.name}</td>}
             <td className={td}>{p.status}</td>
             <td className={td}>{orig(p)}</td>
             <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
@@ -524,7 +524,7 @@ function CreatorView({ payouts, contracts, today }: { payouts: Payout[]; contrac
     .sort((a, b) => Number(a.done) - Number(b.done) || (b.due ?? '9999').localeCompare(a.due ?? '9999'))
   return (
     <div className="space-y-2 rounded-xl border border-sky-900 bg-neutral-900 p-4">
-      <h2 className="text-sm font-semibold text-neutral-50">크리에이터가 보는 화면</h2>
+      <h2 className="text-sm font-semibold text-neutral-50">크리에이터가 보는 화면 <span className="ml-1 text-xs font-normal text-neutral-500">크리에이터 정산 포털(설계 중)에서 이 사람에게 보일 내용 미리보기. 공급가, 유니크코드, 막힌 사유는 보이지 않음</span></h2>
       <Table head={['브랜드', '지급액', '지급일', '지급 완료']} left={1}>
         {rows.map(({ p, brand, due, done }) => (
           <tr key={p.id}>
@@ -598,6 +598,9 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             </div>
           )}
           {picked.shares.length > 0 && (
+            <h3 className="pt-2 text-sm font-semibold text-neutral-100">계약별 매출 몫 <span className="ml-1 text-xs font-normal text-neutral-500">이 크리에이터가 들어간 계약, 계약 공급가를 지급 비율로 나눈 몫</span></h3>
+          )}
+          {picked.shares.length > 0 && (
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
               {picked.shares.map((s) => (
                 <tr key={s.c.id}>
@@ -609,6 +612,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
               ))}
             </Table>
           )}
+          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 송금 처리는 <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="underline hover:text-neutral-300">정산 마스터</Link>에서</span></h3>
           <PayoutTable payouts={picked.payouts} rates={rates} contracts={new Map(contracts.map((c) => [c.id, c]))} q={q} />
         </div>
       </div>
@@ -693,13 +697,13 @@ function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Sear
 
 function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis: Basis; src: Src }) {
   const g = model.gaps
-  const rows: [string, string][] = [
+  const rows: [string, React.ReactNode][] = [
     ['서명 전 계약(유니크코드 없음, 모든 집계에서 빠짐)', `${g.unsigned}건`],
     ['입금일이 하나도 없는 수입 계약', `${g.noDeposit}건`],
     ['공급가가 없는 수입 계약(합계에서 빠짐)', `${g.noSupply}건`],
     ['날짜(계약일자, 시작일, 입금일)가 없는 수입 계약', `${g.noDay}건`],
     ['선금, 잔금 금액을 읽지 못해 반반으로 나눈 계약', `${g.estimatedSplit}건`],
-    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', `${g.unlinked.count}행, ${won(g.unlinked.krw)}`],
+    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', <Link key="u" href="/admin/payouts?v=rows&nc=none" className="text-sky-300 hover:underline">{g.unlinked.count}행, {won(g.unlinked.krw)} →</Link>],
     ['송금일 없이 신청일로 센 송금 완료(정산 어림)', `${g.doneByReq.count}행, ${won(g.doneByReq.krw)}`],
     ['송금일, 신청일 모두 없는 송금 완료(정산에서 빠짐)', `${g.doneNoDate.count}행, ${won(g.doneNoDate.krw)}`],
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],

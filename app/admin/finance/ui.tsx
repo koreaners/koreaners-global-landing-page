@@ -10,8 +10,8 @@ export const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocal
 export const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }
 export const CURS = Object.keys(CUR_NAME) as Currency[]
 
-export const td = 'whitespace-nowrap px-3 py-2 text-right tabular-nums'
-export const tdl = 'px-3 py-2 text-left'
+export const td = 'whitespace-nowrap px-2.5 py-2 text-right tabular-nums'
+export const tdl = 'px-2.5 py-2 text-left'
 
 export function Card({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -37,7 +37,7 @@ export function Table({ head, left = 1, sort, tall, children }: { head: string[]
               const on = k != null && sort!.cur.replace('-', '') === k
               const desc = on && sort!.cur.startsWith('-')
               return (
-                <th key={h} className={`whitespace-nowrap px-3 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
+                <th key={h} className={`break-keep px-2.5 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
                   {k == null ? h : (
                     <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
                       {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
@@ -75,7 +75,7 @@ export function SearchBox({ q, f, n, total, placeholder, anchor }: { q: (o: { f?
   return (
     <form action={`${path}${anchor ? `#${anchor}` : ''}`} className="flex w-full items-center gap-2 text-sm sm:w-auto">
       {[...base.entries()].filter(([k]) => k !== 'f').map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-      <input name="f" defaultValue={f} placeholder={placeholder} className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600 sm:w-64 sm:flex-none" />
+      <input name="f" defaultValue={f} autoComplete="off" placeholder={placeholder} className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600 sm:w-64 sm:flex-none" />
       <button className="shrink-0 rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">찾기</button>
       {f && <Link href={q({ f: undefined, sel: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">지우기</Link>}
       <span className="shrink-0 text-xs text-neutral-500">{f ? `${n}건 / 전체 ${total}건` : `${total}건`}</span>
