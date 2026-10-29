@@ -18,7 +18,7 @@ export default async function ReportsPage() {
   const reports = (files ?? []).flatMap((f) => {
     const k = parseReportKey(f.name)
     return k ? [{ ...k, name: f.name, updated: f.updated_at }] : []
-  }).sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start)) // 키 이름순이면 10/19~ 가 10/1~10/31 마감보다 위로 온다
+  }).sort((a, b) => b.end.localeCompare(a.end) || a.start.localeCompare(b.start)) // 키 이름순이면 10/19~ 가 10/1~10/31 마감보다 위로 온다. 끝이 같으면 긴 기간(월간 누적)이 위
 
   return (
     <div className="space-y-6">
