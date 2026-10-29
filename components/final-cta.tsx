@@ -29,14 +29,14 @@ export function FinalCTA() {
         </FadeIn>
 
         {/* Stats Grid */}
-        <StaggerContainer staggerDelay={0.1} className="grid grid-cols-3 gap-8 mt-16">
+        <StaggerContainer staggerDelay={0.1} className="grid grid-cols-3 gap-4 sm:gap-8 mt-16">
           {stats.map((stat, index) => (
             <StaggerItem key={stat.key}>
               <div className={`cursor-default select-none ${index < stats.length - 1 ? 'border-r border-[var(--kn-dark)]/10' : ''}`}>
                 <CountUp
                   value={stat.value}
                   suffix={stat.suffix(locale)}
-                  className="block font-display font-bold text-4xl sm:text-6xl lg:text-8xl gradient-warm-text leading-none whitespace-nowrap"
+                  className="block font-display font-bold text-3xl sm:text-6xl lg:text-8xl gradient-warm-text leading-none whitespace-nowrap"
                 />
                 <div className="text-sm text-[#78716C] mt-3 uppercase tracking-wider">
                   {t(stat.key)}

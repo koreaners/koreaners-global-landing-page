@@ -158,11 +158,9 @@ footer {
   }
 }
 
-/* 일본어·한국어 공통: 카드/섹션 내 텍스트 박스 오른쪽 패딩 유지 및 줄바꿈 */
-[lang="ja"] .break-words,
-[lang="ko"] .break-words,
+/* 카드/섹션 내 텍스트 박스 줄바꿈: 한국어는 어절 단위(word-break: break-word는 음절 단위로 끊음), 일본어는 아래 [lang="ja"] 규칙 */
 .break-words {
-  word-break: break-word;
+  word-break: keep-all;
   overflow-wrap: break-word;
   min-width: 0;
 }
@@ -204,14 +202,32 @@ footer {
   [lang="ja"] .text-3xl { font-size: 1.5rem; }
 }
 
-/* 일본어: 텍스트 넘침 방지로 우측 여백이 유지되도록(한국어와 동일한 체감 여백) */
+/* 일본어: 띄어쓰기가 없어 keep-all이면 문장 전체가 한 덩어리로 칸을 넘침 → 글자 단위 + 금칙(줄머리 「ー」, 「。」 금지) */
+[lang="ja"] body,
+[lang="ja"] div,
+[lang="ja"] span,
+[lang="ja"] .break-words {
+  word-break: normal;
+  line-break: strict;
+}
+/* 제목 끝 한두 글자만 다음 줄로 떨어지지 않게 */
+main h1,
+main h2,
+main h3,
+main p.text-center {
+  text-wrap: balance;
+}
+main p {
+  text-wrap: pretty;
+}
 [lang="ja"] main p,
 [lang="ja"] main h1,
 [lang="ja"] main h2,
 [lang="ja"] main h3,
 [lang="ja"] main h4 {
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: normal;
+  line-break: strict;
   max-width: 100%;
 }
 

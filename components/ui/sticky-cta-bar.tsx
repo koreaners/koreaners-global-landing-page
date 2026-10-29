@@ -24,11 +24,17 @@ export function StickyCtaBar() {
   }, []);
 
   useEffect(() => {
-    // 문의 폼(#consult-form) 진입 시 바 숨김 — 폼 위 오버레이 방지 (Task 1.5)
-    const form = document.getElementById('consult-form');
-    if (!form) return;
-    const io = new IntersectionObserver(([e]) => setFormInView(e.isIntersecting), { threshold: 0 });
-    io.observe(form);
+    // 문의 폼(#consult-form)이나 푸터 진입 시 바 숨김 — 폼 위 오버레이, 푸터 마지막 줄 가림 방지 (Task 1.5)
+    const targets = [document.getElementById('consult-form'), document.querySelector('footer')].filter(
+      (el): el is HTMLElement => !!el,
+    );
+    if (!targets.length) return;
+    const visible = new Set<Element>();
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => (e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)));
+      setFormInView(visible.size > 0);
+    }, { threshold: 0 });
+    targets.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 

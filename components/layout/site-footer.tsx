@@ -59,7 +59,7 @@ export function SiteFooter() {
           </div>
 
           {/* 2) 사이트맵 */}
-          <nav aria-label={t('footerSitemapHeading')} className="flex flex-col gap-3">
+          <nav aria-label={t('footerSitemapHeading')} className="flex flex-col gap-1">
             <h2 className="text-xs font-bold uppercase tracking-widest text-white/60">
               {t('footerSitemapHeading')}
             </h2>
@@ -67,7 +67,7 @@ export function SiteFooter() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit"
+                className="text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit py-2"
               >
                 {item.label}
               </Link>
@@ -76,7 +76,7 @@ export function SiteFooter() {
             {locale === 'ko' && (
               <Link
                 href="/japan-influencer-marketing"
-                className="text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit"
+                className="text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit py-2"
               >
                 {t('navJapanInfluencer')}
               </Link>
@@ -85,19 +85,19 @@ export function SiteFooter() {
 
           {/* 3) 연락 + 팔로우 */}
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               <h2 className="text-xs font-bold uppercase tracking-widest text-white/60">
                 {t('footerContactHeading')}
               </h2>
               <a
                 href={`mailto:${SALES_EMAIL}`}
-                className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit"
+                className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit py-2"
               >
                 <Mail className="h-4 w-4 flex-shrink-0" aria-hidden />
                 {SALES_EMAIL}
               </a>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               <h2 className="text-xs font-bold uppercase tracking-widest text-white/60">
                 {t('footerFollowHeading')}
               </h2>
@@ -107,7 +107,7 @@ export function SiteFooter() {
                   href={ig.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit"
+                  className="inline-flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-[#FF4500] w-fit py-2"
                 >
                   <Instagram className="h-4 w-4 flex-shrink-0" aria-hidden />
                   {ig.label}
@@ -122,15 +122,15 @@ export function SiteFooter() {
           <div className="text-xs sm:text-sm font-semibold text-white/70 break-keep">
             {t('companyName')}
           </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/60 break-keep">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-x-2 gap-y-1 text-xs text-white/60 break-keep">
             <span className="break-keep">
               {t('ceo')}: {t('ceoName')}
             </span>
-            <span className="text-white/25">|</span>
+            <span className="hidden sm:inline text-white/25">|</span>
             <span className="break-keep">
               {t('bizNo')}: {t('bizNoValue')}
             </span>
-            <span className="text-white/25">|</span>
+            <span className="hidden sm:inline text-white/25">|</span>
             <span className="break-keep">
               {t('address')}: {t('addressValue')}
             </span>
@@ -139,7 +139,7 @@ export function SiteFooter() {
             <span>{t('copyright')}</span>
             <Link
               href="/privacy"
-              className="text-white/60 transition-colors hover:text-white/80"
+              className="py-2 text-white/60 transition-colors hover:text-white/80"
             >
               {locale === 'ja' ? 'プライバシーポリシー' : '개인정보처리방침'}
             </Link>
