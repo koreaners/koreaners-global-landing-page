@@ -46,6 +46,7 @@ function WeeklyTrend({ w, goal }: { w: NonNullable<FunnelTrend['weeks']>; goal: 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="안건 수" note={`주 목표 ${wgoal}건(월 ${goal}건 × 12 ÷ 52)`}>
           <TrendChart
+            dense
             unit="건"
             goal={wgoal}
             series={[
@@ -57,6 +58,7 @@ function WeeklyTrend({ w, goal }: { w: NonNullable<FunnelTrend['weeks']>; goal: 
         </Panel>
         <Panel title="입금, 송금" note="기한 내 입금률: 예정일이 그 주인 회차. 송금 처리율: 그 주 일요일 기준(90일 창)">
           <TrendChart
+            dense
             unit="%"
             goal={100}
             series={[
@@ -72,6 +74,7 @@ function WeeklyTrend({ w, goal }: { w: NonNullable<FunnelTrend['weeks']>; goal: 
         {leads && (
           <Panel title="신규 리드" note="Lead Status 최초 컨택일이 그 주인 고객사 수">
             <TrendChart
+              dense
               unit="곳"
               series={leads.map(([ch], j) => ({ key: `l${j}`, name: ch, color: j ? C2 : C1, kind: 'bar' as const }))}
               data={pts((i) => Object.fromEntries(leads.map(([, v], j) => [`l${j}`, v[i]])))}

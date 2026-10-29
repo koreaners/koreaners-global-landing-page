@@ -74,7 +74,8 @@ export type TrendSeries = { key: string; name: string; color: string; kind: 'bar
 export type TrendPoint = { label: string; title?: string } & Record<string, string | number | null | undefined>
 
 // unit: 서버 화면에서 넘기므로 함수 대신 단위 글자. % 는 이미 100을 곱한 값
-export function TrendChart({ data, series, unit, goal }: { data: TrendPoint[]; series: TrendSeries[]; unit: '건' | '곳' | '%' | '원'; goal?: number }) {
+/** dense: 라벨이 많은 주별 차트, x축 라벨이 겹치면 사이 라벨을 건너뜀(월별은 전부 표시) */
+export function TrendChart({ data, series, unit, goal, dense }: { data: TrendPoint[]; series: TrendSeries[]; unit: '건' | '곳' | '%' | '원'; goal?: number; dense?: boolean }) {
   const fmt = (n: number) => (unit === '원' ? compact(n) : `${+n.toFixed(1)}${unit}`)
   const max = Math.max(goal ?? 0, ...data.map((d) => {
     const by: Record<string, number> = {}
@@ -106,7 +107,7 @@ export function TrendChart({ data, series, unit, goal }: { data: TrendPoint[]; s
         <ResponsiveContainer>
           <ComposedChart data={data} barGap={2} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="#262626" />
-            <XAxis dataKey="label" interval="preserveStartEnd" minTickGap={4} tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
+            <XAxis dataKey="label" interval={dense ? 'preserveStartEnd' : 0} minTickGap={4} tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
             <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: '#8a8a8a' }} tickFormatter={fmt} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} />
             {goal != null && (
               <ReferenceLine y={goal} stroke="#737373" strokeDasharray="4 4" />
