@@ -206,7 +206,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         <Tile label="미정 (대기, 보류)" value={won2(openSum.krw)} full={won(openSum.krw)} note={`${openSum.n}건(보류 ${open.filter((p) => p.status === '보류').length}건), ${curText(openSum)}`} />
         <Tile label={`${year}년 송금 완료 누적`} value={won2(doneYear.krw)} full={won(doneYear.krw)} note={`${doneYear.n}건, ${curText(doneYear)}`} />
         <div className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <p className="text-xs text-neutral-400">막힌 사유 (송금 완료 제외, 누르면 그 행)</p>
+          <p className="text-xs text-neutral-400">막힌 사유 (송금 완료 제외)</p>
           {reasons.length ? reasons.slice(0, 5).map(([k, n]) => (
             <Link key={k} href={go({ v: 'rows', bl: k, st: OPEN })} className="flex justify-between gap-2 text-sm text-neutral-200 hover:text-neutral-50">
               <span className="truncate" title={k}>{k}</span>
@@ -231,13 +231,13 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       {view === 'todo' && (
         <>
           <Panel title={`막힌 것: 사유별 (${notDone.filter((p) => p.blocked.length).length}건)`} sub="송금 완료가 아닌 행 중 정산 봇이 막힌 사유를 적은 행입니다. 한 행에 사유가 여럿이면 각 사유에 셉니다. 「행 보기」로 그 행들을 엽니다">
-            <Table head={['막힌 사유', '건수', '원화 환산', '푸는 법', '']} left={1}>
+            <Table head={['막힌 사유', '푸는 법', '건수', '원화 환산', '']} left={2}>
               {reasons.map(([k, n]) => (
                 <tr key={k}>
                   <td className={`${tdl} whitespace-nowrap`}>{k}</td>
+                  <td className="px-2 py-2 text-left text-xs text-neutral-400">{FIX[k] ?? '-'}</td>
                   <td className={td}>{n}</td>
                   <Money n={total(notDone.filter((p) => p.blocked.includes(k)), rates).krw} />
-                  <td className="px-3 py-2 text-left text-xs text-neutral-400">{FIX[k] ?? '-'}</td>
                   <td className={td}><Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-sky-300 hover:underline">행 보기 →</Link></td>
                 </tr>
               ))}
