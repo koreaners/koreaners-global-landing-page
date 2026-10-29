@@ -12,8 +12,8 @@ export const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocal
 export const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }
 export const CURS = Object.keys(CUR_NAME) as Currency[]
 
-export const td = 'whitespace-nowrap px-2 py-2 text-right tabular-nums'
-export const tdl = 'px-2 py-2 text-left'
+export const td = 'whitespace-nowrap px-1.5 2xl:px-2 py-2 text-right tabular-nums'
+export const tdl = 'px-1.5 2xl:px-2 py-2 text-left'
 
 export function Card({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -40,7 +40,7 @@ export function Table({ head, left = 1, sort, tall, children }: { head: string[]
               const on = k != null && sort!.cur.replace('-', '') === k
               const desc = on && sort!.cur.startsWith('-')
               return (
-                <th key={h} className={`break-keep px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
+                <th key={h} className={`break-keep px-1.5 2xl:px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
                   {k == null ? h : (
                     <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
                       {h}{on ? (desc ? ' ↓' : ' ↑') : ''}

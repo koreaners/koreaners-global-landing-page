@@ -466,7 +466,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
         {rows.map((x) => (
           <tr key={x.c.id} className={x.c.id === sel ? 'bg-sky-950/40' : (x.margin ?? 0) < 0 ? 'bg-red-950/50' : ''}>
             <td className={tdl}>
-              <span className="flex max-w-[13rem] items-center gap-1">
+              <span className="flex max-w-[11rem] items-center gap-1 2xl:max-w-[13rem]">
                 {x.c.source === 'sheet'
                   ? <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
                   : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="min-w-0 truncate text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
