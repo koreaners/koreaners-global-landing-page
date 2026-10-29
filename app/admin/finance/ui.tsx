@@ -119,7 +119,7 @@ export function Tile({ label, value, full, delta, note, spark, side, hint }: { l
 export function Panel({ id, title, sub, action, children }: { id?: string; title: string; sub: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section id={id} className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">{title}</h2>
           <p className="mt-0.5 text-xs text-neutral-500">{sub}</p>

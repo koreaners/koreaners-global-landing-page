@@ -85,24 +85,31 @@ export function TrendChart({ data, series, unit, goal }: { data: TrendPoint[]; s
   const lastOf = (s: TrendSeries) => !s.stack || series.filter((x) => x.stack === s.stack).at(-1) === s
   return (
     <div className="space-y-3">
-      {series.length > 1 && (
+      {(series.length > 1 || goal != null) && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-400">
-          {series.map((s) => (
+          {series.length > 1 && series.map((s) => (
             <span key={s.key} className="inline-flex items-center gap-1.5">
               <i className={`block ${s.kind === 'bar' ? 'h-2.5 w-2.5 rounded-sm' : 'h-0.5 w-3'}`} style={{ background: s.color }} />
               {s.name}
             </span>
           ))}
+          {/* 목표 값은 선 위 글자 대신 범례에(선 위에 두면 데이터 점과 겹침, QA 261029) */}
+          {goal != null && (
+            <span className="inline-flex items-center gap-1.5">
+              <i className="block w-3 border-t border-dashed border-[#737373]" />
+              목표 {fmt(goal)}
+            </span>
+          )}
         </div>
       )}
       <div className="h-56 w-full text-xs">
         <ResponsiveContainer>
           <ComposedChart data={data} barGap={2} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="#262626" />
-            <XAxis dataKey="label" interval={0} tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
+            <XAxis dataKey="label" interval="preserveStartEnd" minTickGap={4} tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
             <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: '#8a8a8a' }} tickFormatter={fmt} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} />
             {goal != null && (
-              <ReferenceLine y={goal} stroke="#737373" strokeDasharray="4 4" label={{ value: `목표 ${fmt(goal)}`, position: 'insideTopRight', fill: '#a3a3a3', fontSize: 11 }} />
+              <ReferenceLine y={goal} stroke="#737373" strokeDasharray="4 4" />
             )}
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.04)' }}

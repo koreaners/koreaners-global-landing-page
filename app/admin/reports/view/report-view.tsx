@@ -112,8 +112,8 @@ function FunnelCard({ x, mtdMonth, weeks }: { x: FunnelRow; mtdMonth: string; we
         <div className={`h-1.5 overflow-hidden rounded-full bg-neutral-800 ${x.rate === null ? 'invisible' : ''}`}>
           <i className={`block h-full rounded-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate ?? 0, 100)}%` }} />
         </div>
-        <span className="flex justify-between text-[13px] tabular-nums text-neutral-400">
-          <span>{x.target ? `목표 ${x.target}` : ' '}</span>
+        <span className="flex justify-between gap-2 whitespace-nowrap text-[13px] tabular-nums text-neutral-400">
+          <span className="truncate">{x.target ? `목표 ${x.target}` : ' '}</span>
           {x.rate !== null && <span className="text-neutral-200">달성 {x.rate}%</span>}
         </span>
         {weeks && (
@@ -285,7 +285,7 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
             <span className="text-xl font-semibold tabular-nums text-neutral-50">{r.voucher.value}</span>
             <span className="text-sm text-neutral-500">{r.voucher.sub}</span>
           </div>
-          <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
+          <div className="grid gap-6 2xl:grid-cols-[20rem_1fr]">
             <div className="space-y-5">
               <div className="space-y-2">
                 <p className="text-sm text-neutral-400">진행 단계(계약 수)</p>

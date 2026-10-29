@@ -80,14 +80,14 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             노션 계약 DB, 지급내역 DB 기준{tab === 'summary' && labels.prev ? `, 비교 ${labels.prev}` : ''}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-        <span className="text-xs text-neutral-500" title="5분마다 자동으로도 다시 읽습니다">
+        <div className="flex flex-wrap items-center gap-2">
+        <span className="whitespace-nowrap text-xs text-neutral-500" title="5분마다 자동으로도 다시 읽습니다">
           {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신
         </span>
         <form action={refreshFinance}>
           <RefreshButton />
         </form>
-        <AutoForm className="flex items-center gap-2 text-sm" action="/admin/finance">
+        <AutoForm className="flex flex-wrap items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
           {/* 기준, 기간을 바꿔도 보던 크리에이터, 계약 상세와 검색, 정렬은 그대로 */}
           {(['sel', 'f', 's', 'o'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
@@ -326,7 +326,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
             <div className="space-y-1 border-t border-neutral-800 pt-3">
               <p className="text-xs text-neutral-500">예정일이 가장 오래 지난 회차</p>
               {late.map((o, i) => (
-                <Link key={`${o.c.id}-${i}`} href={q({ tab: 'contracts', sel: o.c.id })} className="grid grid-cols-[1fr_auto_6.5rem] gap-3 rounded px-1 py-1 text-sm hover:bg-neutral-800/40">
+                <Link key={`${o.c.id}-${i}`} href={q({ tab: 'contracts', sel: o.c.id })} className="grid grid-cols-[1fr_auto_6.5rem] items-baseline gap-3 rounded px-1 py-1 text-sm hover:bg-neutral-800/40">
                   <span className="truncate text-neutral-300" title={o.c.code}>{o.c.brand || o.c.code}</span>
                   <span className="text-xs tabular-nums text-neutral-500">{o.due}, {Math.round((Date.parse(today) - Date.parse(o.due!)) / 86_400_000)}일 지남</span>
                   <span className="text-right tabular-nums text-neutral-200">{won2(o.krw)}</span>
@@ -346,7 +346,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
             <div className="space-y-1 border-t border-neutral-800 pt-3">
               <p className="text-xs text-neutral-500">금액이 큰 보류 지급</p>
               {heldRows.map((x) => (
-                <div key={x.id} className="grid grid-cols-[1fr_auto_6.5rem] gap-3 px-1 py-1 text-sm">
+                <div key={x.id} className="grid grid-cols-[1fr_auto_6.5rem] items-baseline gap-3 px-1 py-1 text-sm">
                   <span className="truncate text-neutral-300">{x.name}</span>
                   <span className="max-w-56 truncate text-xs text-neutral-500" title={x.blocked.join(', ')}>{x.blocked.join(', ') || '사유 미기재'}</span>
                   <span className="text-right tabular-nums text-neutral-200">{won2(payoutKrw(x, rates) ?? 0)}</span>
@@ -860,7 +860,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
         </div>
       </div>
       <p className="text-xs text-neutral-500 sm:hidden">칸 금액 단위는 만원입니다.</p>
-      <section id={LIST} className={`scroll-mt-4 space-y-2 ${day ? 'min-h-[calc(100dvh-4rem)]' : ''}`}>
+      <section id={LIST} className="scroll-mt-4 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-100">
             {day ?? `${m}월 전체`} 안건별 입출금

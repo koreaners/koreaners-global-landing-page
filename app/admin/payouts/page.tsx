@@ -291,7 +291,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               const t = total(xs, rates)
               return (
                 <tr key={m ?? 'none'} className={m === cycle ? 'bg-sky-950/40' : ''}>
-                  <td className={tdl}>
+                  <td className={`${tdl} whitespace-nowrap ${m === cycle ? 'bg-[#10212b]!' : ''}`}>
                     <Link href={go({ v: 'rows', cy: m ?? 'none' })} className="text-sky-300 hover:underline">{m ? `${m} (${payday(m).slice(5)})` : '미정 (대기, 보류, 날짜 없음)'}</Link>
                     {m === cycle && <span className="ml-2 rounded bg-sky-900/60 px-1.5 text-xs text-sky-200">이번 회차</span>}
                   </td>
