@@ -32,7 +32,7 @@ export function Table({ head, left = 1, sort, tall, children }: { head: string[]
   const Box = tall ? FitBox : 'div'
   return (
     <Box className={`overflow-auto rounded-xl border border-neutral-800 bg-neutral-900 ${tall ? 'max-h-[calc(100dvh-16rem)]' : ''}`}>
-      <table className="w-full text-[13px] xl:text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:bg-neutral-900 [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-neutral-900">
+      <table className="w-full text-[13px] 2xl:text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:bg-neutral-900 [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-neutral-900">
         <thead className="sticky top-0 z-10 bg-neutral-900 text-xs text-neutral-500">
           <tr>
             {head.map((h, i) => {

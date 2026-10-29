@@ -82,7 +82,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     // 전역 css의 html, body overflow-x: hidden 때문에 sticky가 안 먹어, 화면 높이 껍데기 안에서 main만 스크롤
     <div className="flex h-dvh flex-col overflow-hidden bg-neutral-950 md:flex-row">
-      <aside className="z-50 flex shrink-0 flex-col gap-3 border-b border-neutral-800 bg-neutral-950 px-3 py-3 md:w-48 md:border-b-0 xl:w-56 md:border-r md:py-5">
+      <aside className="z-50 flex shrink-0 flex-col gap-3 border-b border-neutral-800 bg-neutral-950 px-3 py-3 md:w-48 md:border-b-0 2xl:w-56 md:border-r md:py-5">
         <Link href="/admin" className="px-3 text-sm font-semibold tracking-tight text-neutral-50">
           KOREANERS
         </Link>
@@ -90,7 +90,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
           <Nav onSignOut={handleSignOut} />
         </Suspense>
       </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 xl:px-8">
+      <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 2xl:px-8">
         <div className={`mx-auto ${pathname.startsWith('/admin/finance') || pathname.startsWith('/admin/payouts') || pathname.startsWith('/admin/reports/view') ? 'max-w-7xl' : 'max-w-5xl'}`}>{children}</div>
       </main>
     </div>
