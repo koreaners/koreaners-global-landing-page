@@ -885,7 +885,7 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
             ))}
           </ul>
           <div className="hidden sm:block">
-          <Table head={['날짜', '안건', '구분', '상태', '금액']} left={2} tall>
+          <Table head={['날짜', '안건', '구분', '상태', '금액']} left={2}>
             {rows.map((x, i) => (
               <tr key={i}>
                 <td className={`${tdl} whitespace-nowrap tabular-nums`}>
