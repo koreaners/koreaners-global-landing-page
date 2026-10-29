@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, contractDay, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -401,20 +401,34 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   )
 }
 
-function PayoutTable({ payouts, rates }: { payouts: Payout[]; rates: Rates }) {
+/** contracts를 넘기면 계약 코드(계약 탭 링크), 계약월, 브랜드 칸을 앞에 붙이고 계약월 최근순으로 정렬. 계약 상세에서는 이미 한 계약이라 넘기지 않음 */
+function PayoutTable({ payouts, rates, contracts, q }: { payouts: Payout[]; rates: Rates; contracts?: Map<string, Contract>; q?: (o: Partial<Search>) => string }) {
+  const con = (p: Payout) => (p.contractId ? contracts?.get(p.contractId) : undefined)
+  const ym = (p: Payout) => { const c = con(p); return (c && contractDay(c)?.slice(0, 7)) ?? null }
+  const rows = contracts ? [...payouts].sort((a, b) => (ym(b) ?? '').localeCompare(ym(a) ?? '') || (b.pid ?? 0) - (a.pid ?? 0)) : payouts
   return (
-    <Table head={['지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']} left={2}>
-      {payouts.map((p) => (
-        <tr key={p.id}>
-          <td className={tdl}>{p.pid ?? '-'}</td>
-          <td className={tdl}>{p.name}</td>
-          <td className={td}>{p.status}</td>
-          <td className={td}>{orig(p)}</td>
-          <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
-          <td className={td}>{p.sentDate ?? '-'}</td>
-          <td className={td}>{p.blocked.join(', ') || '-'}</td>
-        </tr>
-      ))}
+    <Table head={[...(contracts ? ['계약', '계약월', '브랜드'] : []), '지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']} left={contracts ? 3 : 2}>
+      {rows.map((p) => {
+        const c = con(p)
+        return (
+          <tr key={p.id}>
+            {contracts && (
+              <>
+                <td className={tdl}>{c ? (q ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{c.code}</Link> : c.code) : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
+                <td className={tdl}>{ym(p) ?? '-'}</td>
+                <td className={tdl}>{c ? c.brand || c.corp : '-'}</td>
+              </>
+            )}
+            <td className={tdl}>{p.pid ?? '-'}</td>
+            <td className={tdl}>{p.name}</td>
+            <td className={td}>{p.status}</td>
+            <td className={td}>{orig(p)}</td>
+            <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
+            <td className={td}>{p.sentDate ?? '-'}</td>
+            <td className={td}>{p.blocked.join(', ') || '-'}</td>
+          </tr>
+        )
+      })}
     </Table>
   )
 }
@@ -595,7 +609,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
               ))}
             </Table>
           )}
-          <PayoutTable payouts={picked.payouts} rates={rates} />
+          <PayoutTable payouts={picked.payouts} rates={rates} contracts={new Map(contracts.map((c) => [c.id, c]))} q={q} />
         </div>
       </div>
     )
