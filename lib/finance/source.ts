@@ -105,12 +105,15 @@ export function toPayout(page: Page): Payout {
     notContract: val(page, '계약 아님') === true,
     vat: (val(page, 'VAT') as string | null) ?? null,
     deduction: (val(page, '공제 유형') as string | null) ?? null,
+    creatorIds: (val(page, '크리에이터') as string[] | null) ?? [],
   }
 }
 
 export type FinanceData = {
   contracts: Contract[]
   payouts: Payout[]
+  ig: Record<string, string> // 크리에이터 리스트 페이지 id → 인스타 URL
+  igError: string | null
   fetchedAt: string
   sheet: { tab: string; added: number; codeless: number; dups: string[]; supplyFrom: string[] } | null
   sheetError: string | null
@@ -148,14 +151,25 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
     throw new Error('환경변수 없음: NOTION_TOKEN(또는 NOTION_FINANCE_TOKEN), NOTION_CONTRACT_DS_ID, NOTION_PAYOUT_DS_ID')
   }
   const notion = new Client({ auth: token })
-  const [c, p] = await Promise.all([
+  let igError: string | null = null
+  const [c, p, cr] = await Promise.all([
     queryAll(notion, contractDs).catch((e) => {
       throw new Error(`Contract DB 조회 실패: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`)
     }),
     queryAll(notion, payoutDs).catch((e) => {
       throw new Error(`지급내역 DB 조회 실패: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`)
     }),
+    // 인스타 핸들만 쓰므로 못 읽어도 나머지는 계속
+    queryAll(notion, env.NOTION_CREATOR_DS_ID ?? '2f601ca3-e480-80c0-82a3-000b7f67640d').catch((e) => {
+      igError = `크리에이터 리스트 조회 실패: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`
+      return [] as Page[]
+    }),
   ])
+  const ig: Record<string, string> = {}
+  for (const x of cr) {
+    const u = val(x, '인스타') as string | null
+    if (u) ig[x.id] = u
+  }
   const contracts = c.map(toContract)
   // Contract DB에 아직 없는 운영 대시보드 계약을 더함(코드 받기와 코드 대조 전 임시). 시트를 못 읽어도 노션만으로 계속
   let sheet: FinanceData['sheet'] = null
@@ -168,5 +182,5 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
   } catch (e) {
     sheetError = e instanceof Error ? e.message : String(e)
   }
-  return { contracts, payouts: p.map(toPayout), fetchedAt: new Date().toISOString(), sheet, sheetError }
+  return { contracts, payouts: p.map(toPayout), ig, igError, fetchedAt: new Date().toISOString(), sheet, sheetError }
 }

@@ -49,6 +49,7 @@ export type Payout = {
   notContract?: boolean // 계약 아님(캠페인 계약에 붙지 않는 지급, 용역비 등): 계약 연결 없는 지급에서만 뺌
   deduction?: string | null // 공제 유형: 사업소득 3.3%, 세금계산서, 해외 송금
   vat?: string | null // VAT: 포함, 별도(세금계산서 행. 별도면 지급액이 공급가라 부가세를 더해 보냄)
+  creatorIds?: string[] // 크리에이터 리스트(인플루언서 DB) 관계
 }
 
 // daily: 통화별 날짜 → 원화 환율(fx.ts 일별 기준환율). 없으면 모든 날짜에 오늘 환율

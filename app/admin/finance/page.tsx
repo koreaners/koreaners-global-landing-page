@@ -114,7 +114,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} />}
-      {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
+      {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
     </div>
@@ -525,8 +525,25 @@ function CreatorView({ payouts, contracts, today }: { payouts: Payout[]; contrac
   )
 }
 
-function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; all: Payout[]; contracts: Contract[]; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
+/** 인스타 URL을 @핸들 링크로. 여러 계정이면 모두 */
+function Insta({ urls }: { urls?: Set<string> }) {
+  if (!urls?.size) return <span className="text-neutral-600">-</span>
+  return (
+    <span className="inline-flex flex-wrap gap-x-2 text-sm font-normal">
+      {[...urls].map((u) => (
+        <a key={u} href={u} target="_blank" className="whitespace-nowrap text-neutral-400 hover:text-sky-300 hover:underline">
+          @{u.replace(/[?#].*$/, '').replace(/\/+$/, '').split('/').pop()}
+        </a>
+      ))}
+    </span>
+  )
+}
+
+function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; all: Payout[]; contracts: Contract[]; ig: Record<string, string>; igError: string | null; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
   const picked = model.creators.find((x) => x.name === sel)
+  // 지급 행의 크리에이터 관계로 이름별 인스타 URL(기간과 무관하게 전체 행)
+  const igs = new Map<string, Set<string>>()
+  for (const p of all) for (const id of p.creatorIds ?? []) if (ig[id]) igs.set(p.name, (igs.get(p.name) ?? new Set()).add(ig[id]))
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
   // 건당 평균: 매출, 마진은 매출 몫이 있는 계약 수로, 정산은 지급 행 수로 나눔
@@ -549,7 +566,7 @@ function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenu
         </div>
         <CreatorView payouts={all.filter((p) => p.name === picked.name)} contracts={contracts} today={today} />
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <h2 className="text-base font-semibold text-neutral-50">{picked.name}</h2>
+          <h2 className="text-base font-semibold text-neutral-50">{picked.name} <Insta urls={igs.get(picked.name)} /></h2>
           <p className="text-sm text-neutral-200">
             매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
           </p>
@@ -591,13 +608,14 @@ function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenu
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
       </div>
-      <Table head={['이름', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
-        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
+      <Table head={['이름', '인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
+        sort={{ keys: ['name', null, null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.name}>
             <td className={tdl}>
               <Link href={q({ sel: x.name })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
             </td>
+            <td className={tdl}><Insta urls={igs.get(x.name)} /></td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
             <Money n={x.revenue} />
             <td className={td}>{x.revenueCount}</td>
@@ -615,7 +633,7 @@ function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenu
         ))}
       </Table>
       <p className="text-xs text-neutral-500">
-        매출 몫은 계약 공급가를 지급액 비율로 나눈 값이고, 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. 마진은 매출 몫에서 그 몫이 있는 지급을 뺀 값입니다. 기간을 지급일(송금일, 없으면 요청일)로 고르고 계약 연결 없는 지급은 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
+        인스타는 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}. 매출 몫은 계약 공급가를 지급액 비율로 나눈 값이고, 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. 마진은 매출 몫에서 그 몫이 있는 지급을 뺀 값입니다. 기간을 지급일(송금일, 없으면 요청일)로 고르고 계약 연결 없는 지급은 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
       </p>
     </div>
   )
