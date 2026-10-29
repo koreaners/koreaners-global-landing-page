@@ -18,13 +18,13 @@ export default async function ReportsPage() {
   const reports = (files ?? []).flatMap((f) => {
     const k = parseReportKey(f.name)
     return k ? [{ ...k, name: f.name, updated: f.updated_at }] : []
-  }).sort((a, b) => b.end.localeCompare(a.end) || a.start.localeCompare(b.start)) // 키 이름순이면 10/19~ 가 10/1~10/31 마감보다 위로 온다. 끝이 같으면 긴 기간(월간 누적)이 위
+  })
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-xl font-semibold text-neutral-50">경영진 보고서</h1>
-        <p className="text-sm text-neutral-500">매주 월요일 07:00에 이번 달 1일부터 지난 일요일까지 누적 리포트가 올라옵니다. 달 첫 주에는 지난달 마감 리포트입니다.</p>
+        <p className="text-sm text-neutral-500">매주 월요일 07:00에 지난주(월~일) 주간 경영 리포트가 올라옵니다.</p>
       </div>
 
       {error && <p className="text-sm text-red-400">목록을 불러오지 못했습니다: {error.message}</p>}

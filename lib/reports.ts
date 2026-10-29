@@ -33,28 +33,24 @@ export type WeeklyReport = {
   funnel?: {
     month: string
     mtd: string
-    // 10/28 이후 회차부터(월간 누적): 색 기준과 비교 숫자 설명 한 줄. 없으면 옛 문장(지난달 마감 색, 이번 달 진행)
+    // 10/28 이후 회차부터: 색 기준과 비교 숫자 설명 한 줄. 없으면 옛 문장(지난달 마감 색, 이번 달 진행)
     head?: string
-    // define, imply 는 10/28 이후 회차부터(카드를 누르면 펼침)
-    rows: { group: string; label: string; value: string; target: string; mtd: string; note: string; rate: number | null; light: 'green' | 'yellow' | 'red' | null; define?: string; imply?: string }[]
+    // 10/29 이후 회차부터: 그 달 주차(월요일마다, 첫 월요일 앞은 1주). 있으면 줄의 mtd 는 지난달 같은 기간 비교(펼친 칸)
+    weeks?: { label: string; span: string }[]
+    // define, imply 는 10/28 이후 회차부터(카드를 누르면 펼침). week 는 이번 주차 값, weeks 는 주차별 값(weeks 와 같은 순서)
+    rows: { group: string; label: string; value: string; target: string; mtd: string; note: string; rate: number | null; light: 'green' | 'yellow' | 'red' | null; define?: string; imply?: string; week?: string; weeks?: string[] }[]
     lines: string[]
   }
 }
 
-// 키 weekly-report-YYMMDD-YYMMDD.json 에서 기간을 읽는다. 모양이 다른 키는 목록에 안 띄우고 열지도 않는다.
-// 제목은 brain-weekly report_title 과 같은 규칙: 이달 1일부터면 누적(말일까지면 마감), 아니면 옛 주간
+// 키 weekly-report-YYMMDD-YYMMDD.json 에서 기간을 읽는다. 모양이 다른 키는 목록에 안 띄우고 열지도 않는다
 const KEY = /^weekly-report-(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.json$/
 
 export function parseReportKey(name: string) {
   const m = KEY.exec(name)
   if (!m) return null
   const [, y1, m1, d1, y2, m2, d2] = m
-  const start = `20${y1}-${m1}-${d1}`
-  const end = `20${y2}-${m2}-${d2}`
-  const span = `${+m1}/${+d1}~${+m2}/${+d2}`
-  if (d1 !== '01' || y1 + m1 !== y2 + m2) return { start, end, title: `주간 경영 리포트 ${span}` }
-  const last = new Date(Date.UTC(2000 + +y2, +m2, 0)).getUTCDate() === +d2
-  return { start, end, title: `${+m2}월 ${last ? '마감' : '누적'} 경영 리포트 ${span}` }
+  return { start: `20${y1}-${m1}-${d1}`, end: `20${y2}-${m2}-${d2}`, title: `주간 경영 리포트 ${+m1}/${+d1}~${+m2}/${+d2}` }
 }
 
 // brain-weekly 가 신호등과 같은 계산으로 올리는 월별 추이(재무 탭 「퍼널 추이」). 배열은 months 와 같은 순서
@@ -71,4 +67,13 @@ export type FunnelTrend = {
   leads: Record<string, { n: number[]; won: number[]; ripe: boolean[] }> | null
   // 월간파이낸스 정본의 달별 값. % 단위는 비율(1 = 100%)
   health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[] }[] | null
+  // 10/29 이후: 리포트 주 끝에서 거슬러 월~일 13주. 송금은 그 주 일요일 시점 값, leads 는 Lead Status 읽기 실패면 null
+  weeks?: {
+    start: string[]
+    end: string[]
+    deals: { new: number[]; repeat: number[] }
+    ontime: { a: number[]; k: number[] }
+    remit: { a: number[]; k: number[] }
+    leads: Record<string, number[]> | null
+  }
 }

@@ -87,7 +87,7 @@ function Bullets({ title, items, className }: { title: string; items: string[]; 
 type FunnelRow = NonNullable<WeeklyReport['funnel']>['rows'][number]
 
 // 닫힌 카드는 칸마다 자리를 잡아 둬서 내용이 비거나 길어도 같은 줄 카드의 높이가 같다
-function FunnelCard({ x, mtdMonth }: { x: FunnelRow; mtdMonth: string }) {
+function FunnelCard({ x, mtdMonth, weeks }: { x: FunnelRow; mtdMonth: string; weeks?: { label: string }[] }) {
   const l = x.light ? LIGHT[x.light] : null
   const imply = sentences(x.imply)
   const define = sentences(x.define)
@@ -103,7 +103,11 @@ function FunnelCard({ x, mtdMonth }: { x: FunnelRow; mtdMonth: string }) {
         </span>
         <span className="flex items-baseline justify-between gap-2">
           <span className="text-2xl font-semibold tabular-nums text-neutral-50">{x.value}</span>
-          {x.mtd && <span className="shrink-0 text-xs tabular-nums text-neutral-500">{mtdMonth} {x.mtd}</span>}
+          {x.weeks ? (
+            x.week && <span className="shrink-0 text-xs tabular-nums text-neutral-400">이번 주 {x.week}</span>
+          ) : (
+            x.mtd && <span className="shrink-0 text-xs tabular-nums text-neutral-500">{mtdMonth} {x.mtd}</span>
+          )}
         </span>
         <div className={`h-1.5 overflow-hidden rounded-full bg-neutral-800 ${x.rate === null ? 'invisible' : ''}`}>
           <i className={`block h-full rounded-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate ?? 0, 100)}%` }} />
@@ -112,12 +116,18 @@ function FunnelCard({ x, mtdMonth }: { x: FunnelRow; mtdMonth: string }) {
           <span>{x.target ? `목표 ${x.target}` : ' '}</span>
           {x.rate !== null && <span className="text-neutral-200">달성 {x.rate}%</span>}
         </span>
+        {weeks && (
+          <span className="min-h-[2lh] text-xs leading-snug tabular-nums text-neutral-400">
+            {x.weeks?.map((v, i) => `${weeks[i]?.label ?? ''} ${v}`).join(' · ')}
+          </span>
+        )}
         <span className="line-clamp-2 min-h-[2lh] text-xs leading-snug text-neutral-500">{x.note}</span>
       </summary>
       {(imply.length > 0 || define.length > 0) && (
         <div className="space-y-3 border-t border-neutral-800 px-4 pb-4 pt-3 text-[13px] leading-relaxed">
           <Bullets title="함의" items={imply} className="text-neutral-200" />
           <Bullets title="정의" items={define} className="text-neutral-400" />
+          {weeks && x.mtd && <Bullets title="비교" items={[`${mtdMonth} ${x.mtd}`]} className="text-neutral-400" />}
         </div>
       )}
     </details>
@@ -133,12 +143,12 @@ function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
     if (last && last.reduce((a, y) => a + y.rows.length, 0) + x.rows.length <= 5) last.push(x)
     else lines.push([x])
   }
-  const mtdMonth = f.mtd.split(' ')[0]
+  const mtdMonth = f.weeks ? f.mtd : f.mtd.split(' ')[0] // 주차가 있으면 비교 칸 머리(「9월 같은 기간(9/1~9/25)」) 전체
   return (
     <section className={`${card} space-y-6 p-6`}>
       <div className="space-y-1">
         <H2>퍼널 신호등</H2>
-        <p className="text-sm text-neutral-500">{f.head ?? `색은 ${f.month} 마감 기준, 값 옆 작은 숫자는 ${f.mtd}`}. 카드를 누르면 함의와 정의가 펼쳐집니다</p>
+        <p className="text-sm text-neutral-500">{f.head ?? `색은 ${f.month} 마감 기준, 값 옆 작은 숫자는 ${f.mtd}`}. 카드를 누르면 함의와 정의{f.weeks ? `, ${f.mtd} 비교` : ''}가 펼쳐집니다</p>
       </div>
       {lines.map((line) => {
         const n = line.reduce((a, y) => a + y.rows.length, 0)
@@ -152,7 +162,7 @@ function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
                   className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(var(--n),minmax(0,1fr))]"
                   style={{ '--n': rows.length } as React.CSSProperties}
                 >
-                  {rows.map((x) => <FunnelCard key={x.label} x={x} mtdMonth={mtdMonth} />)}
+                  {rows.map((x) => <FunnelCard key={x.label} x={x} mtdMonth={mtdMonth} weeks={f.weeks} />)}
                 </div>
               </div>
             ))}
