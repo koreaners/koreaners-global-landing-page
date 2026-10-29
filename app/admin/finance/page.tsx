@@ -336,7 +336,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link><Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link></span>}>
+        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link>}>
           <div className="space-y-2.5">
             {model.payables.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
@@ -486,14 +486,14 @@ function creatorFlow(months: Model['creators'][number]['months']): FlowPoint[] {
 }
 
 /** 크리에이터가 볼 화면 미리보기: 브랜드, 지급액, 지급일, 지급 완료만(설계 261028-설계-크리에이터-정산포털). 기간 필터와 무관하게 이 이름의 전체 지급 행.
- * 지급일은 정산 마스터와 같은 규칙(payoutDue, 대기 보류는 미정). 공급가, 유니크코드, 막힌 사유는 보이지 않음 */
+ * 지급일은 payoutDue(대기 보류는 미정). 공급가, 유니크코드, 막힌 사유는 보이지 않음 */
 function CreatorView({ payouts, contracts, today }: { payouts: Payout[]; contracts: Contract[]; today: string }) {
   const byId = new Map(contracts.map((c) => [c.id, c]))
   const rows = payouts
     .map((p) => {
       const c = p.contractId ? byId.get(p.contractId) : undefined
       const done = p.status === '송금 완료'
-      // 계약 맵을 넘기지 않아 대기는 미정(정산 마스터와 같음). 송금일 없는 송금 완료는 요청일
+      // 계약 맵을 넘기지 않아 대기는 미정. 송금일 없는 송금 완료는 요청일
       const due = done ? (p.sentDate ?? p.reqDate) : payoutDue(p, new Map(), today)
       return { p, brand: c?.brand || '-', due, done }
     })
@@ -536,7 +536,6 @@ function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenu
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between gap-3">
           <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
-          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
         </div>
         <CreatorView payouts={all.filter((p) => p.name === picked.name)} contracts={contracts} today={today} />
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
@@ -581,7 +580,6 @@ function Creators({ model, rates, all, contracts, today, sel, q, f, s = '-revenu
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
-        <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
       </div>
       <Table head={['이름', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
         sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>

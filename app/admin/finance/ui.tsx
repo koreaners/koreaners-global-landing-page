@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Currency, Payout } from '@/lib/finance/model'
 
-// 재무 대시보드(/admin/finance)와 정산 마스터(/admin/payouts)가 함께 쓰는 표, 칸, 금액 글
+// 재무 대시보드(/admin/finance)의 표, 칸, 금액 글
 
 export const won = (n: number | null | undefined) => (n == null ? '-' : `${Math.round(n).toLocaleString('ko-KR')}원`)
 export const won2 = (n: number) => (Math.abs(n) >= 1e8 ? `${(n / 1e8).toFixed(2)}억원` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).toLocaleString('ko-KR')}만원` : won(n))
