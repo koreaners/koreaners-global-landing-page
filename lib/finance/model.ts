@@ -316,10 +316,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   let held = 0
   let settledEst = 0 // 현금 기준 정산 중 송금일이 없어 신청월로 센 몫
   for (const p of payouts) {
-    if (p.status !== DONE) {
-      payable += krw(p)
-      if (p.status === '보류') held += krw(p)
-    }
+    // 보류(중복 행, 반송, 안 나갈 수 있는 돈)는 미지급금에서 빼고 따로 셈(Leo 261029, 마진 원가와 같은 기준)
+    if (p.status === '보류') held += krw(p)
+    else if (p.status !== DONE) payable += krw(p)
     if (basis === 'cash') {
       // 원화 송금은 모인 기록이 없어 송금일이 빈 행이 있음: 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림(Leo 261011 A안)
       const d = p.status === DONE ? (p.sentDate ?? p.reqDate) : null
