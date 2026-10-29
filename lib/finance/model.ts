@@ -488,16 +488,16 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
 }
 
-const monthEnd = (d: string) => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10)
+export const monthEnd = (d: string) => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10)
 /** 토요일이면 금요일, 일요일이면 금요일로. 공휴일은 안 봄 */
-const weekdayBack = (d: string) => {
+export const weekdayBack = (d: string) => {
   const t = Date.parse(d)
   const w = new Date(t).getUTCDay()
   return w === 6 || w === 0 ? new Date(t - (w === 6 ? 1 : 2) * DAY).toISOString().slice(0, 10) : d
 }
 
 /** d에서 평일 n일 앞(정산 람다 handler.weekdays_before와 같은 규칙). 공휴일은 안 봄 */
-const weekdaysBefore = (d: string, n: number) => {
+export const weekdaysBefore = (d: string, n: number) => {
   let t = Date.parse(d)
   while (n) {
     t -= DAY

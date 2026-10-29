@@ -8,6 +8,7 @@ import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, payoutKrw, priorPeriod, type Basis, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
+import { Card, CUR_NAME, CURS, hit, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -24,9 +25,7 @@ const TABS = [
 ] as const
 type Tab = (typeof TABS)[number][0]
 
-const won = (n: number | null | undefined) => (n == null ? '-' : `${Math.round(n).toLocaleString('ko-KR')}원`)
 const pct = (r: number | null | undefined) => (r == null ? '-' : `${(r * 100).toFixed(1)}%`)
-const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '통화 미상'}`)
 
 type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string }
 
@@ -122,87 +121,6 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   )
 }
 
-function Card({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-xs text-neutral-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-neutral-50">{value}</p>
-      {note && <p className="mt-1 text-xs text-neutral-500">{note}</p>}
-    </div>
-  )
-}
-
-type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
-
-/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정 */
-function Table({ head, left = 1, sort, tall, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; children: React.ReactNode }) {
-  return (
-    <div className={`overflow-auto rounded-xl border border-neutral-800 ${tall ? 'max-h-[75vh]' : ''}`}>
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-neutral-900 text-xs text-neutral-500">
-          <tr>
-            {head.map((h, i) => {
-              const k = sort?.keys[i]
-              const on = k != null && sort!.cur.replace('-', '') === k
-              const desc = on && sort!.cur.startsWith('-')
-              return (
-                <th key={h} className={`whitespace-nowrap px-3 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
-                  {k == null ? h : (
-                    <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
-                      {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
-                    </Link>
-                  )}
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-neutral-800 text-neutral-200">{children}</tbody>
-      </table>
-    </div>
-  )
-}
-
-const td = 'whitespace-nowrap px-3 py-2 text-right tabular-nums'
-
-/** 정렬 키(앞에 -면 내림차순)로 행 정렬. 빈 값은 항상 끝 */
-function sortRows<T>(rows: T[], s: string, get: Record<string, (x: T) => string | number | null | undefined>) {
-  const f = get[s.replace('-', '')]
-  if (!f) return rows
-  const dir = s.startsWith('-') ? -1 : 1
-  return [...rows].sort((a, b) => {
-    const x = f(a)
-    const y = f(b)
-    if (x == null || x === '') return y == null || y === '' ? 0 : 1
-    if (y == null || y === '') return -1
-    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko')) * dir
-  })
-}
-
-/** 표 위 검색창: 같은 주소 쿼리를 유지한 채 f만 바꿈 */
-function SearchBox({ q, f, n, total, placeholder, anchor }: { q: (o: Partial<Search>) => string; f?: string; n: number; total: number; placeholder: string; anchor?: string }) {
-  const base = new URLSearchParams(q({ f: undefined, sel: undefined, d: undefined }).split('?')[1])
-  return (
-    <form action={`/admin/finance${anchor ? `#${anchor}` : ''}`} className="flex w-full items-center gap-2 text-sm sm:w-auto">
-      {[...base.entries()].filter(([k]) => k !== 'f').map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-      <input name="f" defaultValue={f} placeholder={placeholder} className="min-w-0 flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200 placeholder:text-neutral-600 sm:w-64 sm:flex-none" />
-      <button className="shrink-0 rounded-md bg-neutral-800 px-3 py-1 text-neutral-200 hover:bg-neutral-700">찾기</button>
-      {f && <Link href={q({ f: undefined, sel: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">지우기</Link>}
-      <span className="shrink-0 text-xs text-neutral-500">{f ? `${n}건 / 전체 ${total}건` : `${total}건`}</span>
-    </form>
-  )
-}
-
-const hit = (f: string | undefined, ...xs: (string | null | undefined)[]) => !f || xs.some((x) => x?.toLowerCase().includes(f.trim().toLowerCase()))
-
-/** 표 금액 칸: 만원, 억원으로 줄이고 원 단위는 마우스를 올리면 */
-function Money({ n }: { n: number | null | undefined }) {
-  return <td className={td} title={won(n)}>{n == null ? '-' : won2(n)}</td>
-}
-const tdl = 'px-3 py-2 text-left'
-
-const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }
-const CURS = Object.keys(CUR_NAME) as Currency[]
 /** 매출 통화별 나눔 글(원화 환산). 통화가 하나뿐이면 빈 글 */
 const curSplit = (o: ByCur) => {
   const xs = CURS.filter((k) => o[k])
@@ -212,7 +130,6 @@ const curSplit = (o: ByCur) => {
 const REV = '#3987e5' // 매출 쪽 계열(받을 돈 포함)
 const SET = '#d95926' // 정산 쪽 계열(줄 돈 포함)
 const ALERT = '#e66767'
-const won2 = (n: number) => (Math.abs(n) >= 1e8 ? `${(n / 1e8).toFixed(2)}억원` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).toLocaleString('ko-KR')}만원` : won(n))
 const ym = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`
 
 export type Labels = { cur: string; prev: string | null }
@@ -244,44 +161,6 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 
 const marginHint = (cb: boolean) =>
   `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(상태 무관)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
-
-function Tile({ label, value, full, delta, note, spark, side, hint }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode; side?: string; hint?: string }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <div className="flex h-6 items-start justify-between gap-2">
-        <p className="whitespace-nowrap text-xs text-neutral-400">
-          {label}
-          {hint && <span className="ml-1 cursor-help" title={hint} aria-label={hint}>ⓘ</span>}
-        </p>
-        {spark}
-      </div>
-      <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>
-        {value}
-        {side && <span className="ml-2 text-base font-medium text-neutral-300">{side}</span>}
-      </p>
-      <p className="mt-auto text-xs text-neutral-500">
-        {delta}
-        {delta ? ' ' : ''}
-        {note}
-      </p>
-    </div>
-  )
-}
-
-function Panel({ id, title, sub, action, children }: { id?: string; title: string; sub: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section id={id} className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-100">{title}</h2>
-          <p className="mt-0.5 text-xs text-neutral-500">{sub}</p>
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  )
-}
 
 /** 가로 막대 한 줄: 이름, 막대, 금액, 보조 글 */
 function BarRow({ label, value, max, color, aside, href }: { label: string; value: number; max: number; color: string; aside?: string; href?: string }) {
@@ -457,7 +336,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link>}>
+        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link><Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link></span>}>
           <div className="space-y-2.5">
             {model.payables.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
@@ -625,7 +504,10 @@ function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: M
   if (picked)
     return (
       <div className="space-y-4">
-        <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
+        <div className="flex flex-wrap justify-between gap-3">
+          <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
+          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
+        </div>
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}</h2>
           <p className="text-sm text-neutral-200">
@@ -666,7 +548,10 @@ function Creators({ model, rates, sel, q, f, s = '-revenue', basis }: { model: M
         <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, 건당 평균 ${per(tot.margin, tot.rn)}`} />
         <Card label={f ? '정산 합계 (검색 결과)' : '정산 합계'} value={won2(tot.paid)} note={`상태 무관 지급 ${tot.pn}행, 건당 평균 ${per(tot.paid, tot.pn)}`} />
       </div>
-      <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
+        <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
+      </div>
       <Table head={['이름', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
         sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
