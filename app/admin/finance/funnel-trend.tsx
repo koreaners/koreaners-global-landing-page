@@ -167,6 +167,7 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
           <div className="space-y-1">
             <h2 className="text-base font-semibold text-neutral-100">건전성</h2>
             <p className="text-xs text-neutral-500">월간파이낸스 정본(손으로 매달 갱신)의 달별 값. 정본이 아직 없는 달은 비움. 안건당 공헌이익은 정본의 입금 기준 안건</p>
+            <p className="text-xs text-neutral-500">공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 한 달 값보다 여러 달 흐름으로 판단</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {t.health.map((h) => (
