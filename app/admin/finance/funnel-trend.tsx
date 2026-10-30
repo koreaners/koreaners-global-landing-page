@@ -1,23 +1,33 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { REPORTS_BUCKET, TREND_KEY, type FunnelTrend } from '@/lib/reports'
 import { TrendChart, type TrendPoint } from './charts'
+import { Info } from './ui'
 
-// 재무 탭 「퍼널 추이」: brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
+// 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
 const C1 = '#3b82f6'
 const C2 = '#ea580c' // C1 과 다크 표면에서 dataviz 검증 통과(밝기, 색각 이상 구분)
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
-function Panel({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명
+function Panel({ title, note, info, href, children }: { title: string; note: string; info?: string; href?: string; children: React.ReactNode }) {
+  const card = (
+    <section className={`h-full space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5${href ? ' transition-colors group-hover/card:border-neutral-600' : ''}`}>
       <div className="space-y-1">
-        <h2 className="text-base font-semibold text-neutral-100">{title}</h2>
+        <h2 className="flex items-center gap-1.5 text-base font-semibold text-neutral-100">
+          {title}
+          {info && <Info text={info} />}
+          {href && <span className="ml-auto text-xs font-normal text-neutral-500 group-hover/card:text-neutral-200">자세히 →</span>}
+        </h2>
         <p className="text-xs leading-relaxed text-neutral-500">{note}</p>
       </div>
       {children}
     </section>
   )
+  return href ? <Link href={href} className="group/card block h-full">{card}</Link> : card
 }
+
+const CASH_TIMING = '공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)'
 
 export async function FunnelTrendTab() {
   const supabase = await createClient()
@@ -27,7 +37,7 @@ export async function FunnelTrendTab() {
     const j = data ? JSON.parse(await data.text()) : null
     if (j?.version === 1) t = j
   } catch {}
-  if (!t) return <p className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 text-sm text-neutral-400">퍼널 추이 파일이 아직 없습니다. 주간 잡(brain-weekly)이 한 번 돌면 생깁니다.</p>
+  if (!t) return <p className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 text-sm text-neutral-400">지표 모니터링 파일이 아직 없습니다. 주간 잡(brain-weekly)이 한 번 돌면 생깁니다.</p>
   return <FunnelTrendView t={t} />
 }
 
@@ -45,15 +55,15 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-neutral-50">퍼널 추이</h1>
+        <h1 className="text-xl font-semibold text-neutral-50">지표 모니터링</h1>
         <p className="text-xs text-neutral-500">
           경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 매주 월 07:00 갱신,{' '}
-          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}
+          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="안건 수" note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Panel title="안건 수" href="/admin/finance?tab=contracts" note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
           <TrendChart
             unit="건"
             goal={d.goal}
@@ -65,7 +75,7 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
           />
         </Panel>
 
-        <Panel title="입금, 송금" note="기한 내 입금률: 입금 예정일이 그 달인 회차 중 예정일까지 입금. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
+        <Panel title="입금, 송금" href="/admin/finance?tab=calendar" note="기한 내 입금률: 입금 예정일이 그 달인 회차 중 예정일까지 입금. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
           <TrendChart
             unit="%"
             goal={100}
@@ -101,36 +111,26 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
             </Panel>
           </>
         ) : (
-          <p className="text-sm text-neutral-500 lg:col-span-2">Lead Status 읽기 실패로 영업 추이가 없습니다.</p>
+          <p className="col-span-full text-sm text-neutral-500">Lead Status 읽기 실패로 영업 추이가 없습니다.</p>
+        )}
+        {t.health ? (
+          t.health.map((h) => (
+            <Panel key={h.label} title={h.label} note={`${h.low ? '낮을수록 좋음' : '높을수록 좋음'}. 월간파이낸스 정본${h.label === '안건당 공헌이익' ? ', 안건은 정본의 입금 기준' : ''}`} info={h.adj ? CASH_TIMING : undefined}>
+              <TrendChart
+                unit={h.unit}
+                goal={h.unit === '%' ? h.goal * 100 : h.goal}
+                series={[{ key: 'v', name: h.adj ? '그 달' : h.label, color: C1, kind: 'line' }, ...(h.adj ? [{ key: 'a', name: '3개월 합 보정', color: C2, kind: 'line' as const }] : [])]}
+                data={pts((i) => {
+                  const f = (x: number | null | undefined) => (x == null ? null : h.unit === '%' ? x * 100 : x)
+                  return { v: f(h.v[i]), a: f(h.adj?.[i]) }
+                })}
+              />
+            </Panel>
+          ))
+        ) : (
+          <p className="col-span-full text-sm text-neutral-500">월간파이낸스 정본 읽기 실패로 건전성 추이가 없습니다.</p>
         )}
       </div>
-
-      {t.health ? (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-neutral-100">건전성</h2>
-            <p className="text-xs text-neutral-500">월간파이낸스 정본(손으로 매달 갱신)의 달별 값. 정본이 아직 없는 달은 비움. 안건당 공헌이익은 정본의 입금 기준 안건</p>
-            <p className="text-xs text-neutral-500">공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {t.health.map((h) => (
-              <Panel key={h.label} title={h.label} note={h.low ? '낮을수록 좋음' : '높을수록 좋음'}>
-                <TrendChart
-                  unit={h.unit}
-                  goal={h.unit === '%' ? h.goal * 100 : h.goal}
-                  series={[{ key: 'v', name: h.adj ? '그 달' : h.label, color: C1, kind: 'line' }, ...(h.adj ? [{ key: 'a', name: '3개월 합 보정', color: C2, kind: 'line' as const }] : [])]}
-                  data={pts((i) => {
-                    const f = (x: number | null | undefined) => (x == null ? null : h.unit === '%' ? x * 100 : x)
-                    return { v: f(h.v[i]), a: f(h.adj?.[i]) }
-                  })}
-                />
-              </Panel>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm text-neutral-500">월간파이낸스 정본 읽기 실패로 건전성 추이가 없습니다.</p>
-      )}
     </div>
   )
 }

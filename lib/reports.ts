@@ -53,7 +53,7 @@ export function parseReportKey(name: string) {
   return { start: `20${y1}-${m1}-${d1}`, end: `20${y2}-${m2}-${d2}`, title: `주간 경영 리포트 ${+m1}/${+d1}~${+m2}/${+d2}` }
 }
 
-// brain-weekly 가 신호등과 같은 계산으로 올리는 월별 추이(재무 탭 「퍼널 추이」). 배열은 months 와 같은 순서
+// brain-weekly 가 신호등과 같은 계산으로 올리는 월별 추이(재무 탭 「지표 모니터링」). 배열은 months 와 같은 순서
 export const TREND_KEY = 'funnel-trend.json'
 export type FunnelTrend = {
   version: 1

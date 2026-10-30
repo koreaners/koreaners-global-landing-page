@@ -69,7 +69,7 @@ export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPo
   )
 }
 
-// 퍼널 추이: 한 축 차트. 막대는 stack 이 같으면 쌓고, 목표는 점선. 툴팁은 점에 `${key}_t` 글자가 있으면 그것을, title 이 있으면 머리에
+// 지표 모니터링: 한 축 차트. 막대는 stack 이 같으면 쌓고, 목표는 점선. 툴팁은 점에 `${key}_t` 글자가 있으면 그것을, title 이 있으면 머리에
 export type TrendSeries = { key: string; name: string; color: string; kind: 'bar' | 'line'; stack?: string }
 export type TrendPoint = { label: string; title?: string } & Record<string, string | number | null | undefined>
 

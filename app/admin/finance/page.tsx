@@ -21,7 +21,7 @@ const TABS = [
   ['creators', '크리에이터'],
   ['owners', '담당자'],
   ['basis', '기준'],
-  ['funnel', '퍼널 추이'],
+  ['funnel', '지표 모니터링'],
 ] as const
 type Tab = (typeof TABS)[number][0]
 

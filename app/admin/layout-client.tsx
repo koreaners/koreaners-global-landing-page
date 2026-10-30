@@ -14,7 +14,7 @@ const FINANCE = [
   ['creators', '크리에이터', Users],
   ['owners', '담당자', UserCog],
   ['basis', '기준', ListChecks],
-  ['funnel', '퍼널 추이', TrendingUp],
+  ['funnel', '지표 모니터링', TrendingUp],
 ] as const
 
 const item = (active: boolean) =>
