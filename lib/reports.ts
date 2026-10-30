@@ -66,7 +66,8 @@ export type FunnelTrend = {
   // 컨택월 코호트. ripe 가 false 인 달(말일이 60일 안 지남)은 수주율을 그리지 않는다
   leads: Record<string, { n: number[]; won: number[]; ripe: boolean[] }> | null
   // 월간파이낸스 정본의 달별 값. % 단위는 비율(1 = 100%)
-  health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[] }[] | null
+  // adj 는 그 달까지 3개월 합으로 낸 보정값(현금 기준 시차를 평평하게). 인당 매출에는 없다
+  health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[]; adj?: (number | null)[] }[] | null
   // 10/29 이후: 리포트 주 끝에서 거슬러 월~일 13주. 송금은 그 주 일요일 시점 값, leads 는 Lead Status 읽기 실패면 null
   weeks?: {
     start: string[]
