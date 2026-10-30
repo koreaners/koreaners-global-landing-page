@@ -8,7 +8,7 @@ import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, contractDay, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
-import { Card, CUR_NAME, CURS, hit, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
+import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -81,8 +81,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-        <span className="whitespace-nowrap text-xs text-neutral-500" title="5분마다 자동으로도 다시 읽습니다">
+        <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500">
           {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신
+          <Info text="5분마다 자동으로도 다시 읽습니다" align="right" />
         </span>
         <form action={refreshFinance}>
           <RefreshButton />
@@ -470,7 +471,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
                 {x.c.source === 'sheet'
                   ? <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
                   : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="min-w-0 truncate text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
-                {x.c.source === 'sheet' && <span className="shrink-0 rounded bg-neutral-800 px-1 text-[10px] text-neutral-400" title="노션 계약 DB에 없어 운영 대시보드 시트에서 읽은 계약">시트</span>}
+                {x.c.source === 'sheet' && <span className="inline-flex shrink-0 items-center gap-0.5"><span className="rounded bg-neutral-800 px-1 text-[10px] text-neutral-400">시트</span><Info text="노션 계약 DB에 없어 운영 대시보드 시트에서 읽은 계약" /></span>}
               </span>
             </td>
             <td className={tdl}>

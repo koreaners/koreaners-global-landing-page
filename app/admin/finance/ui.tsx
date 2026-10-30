@@ -25,9 +25,25 @@ export function Card({ label, value, note }: { label: string; value: string; not
   )
 }
 
+/** 설명 툴팁: 원 안 i 아이콘에 마우스를 올리거나(키보드, 모바일은 눌러서 포커스) 설명을 띄움. align은 말풍선이 붙는 쪽(오른쪽 정렬 칸은 right) */
+export function Info({ text, align = 'left' }: { text: string; align?: 'left' | 'right' }) {
+  return (
+    <span tabIndex={0} aria-label={text} className="group relative inline-flex shrink-0 cursor-help align-middle text-neutral-500 outline-none hover:text-neutral-200 focus:text-neutral-200">
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+        <circle cx="8" cy="8" r="6.5" />
+        <path d="M8 7.3v3.9" strokeLinecap="round" />
+        <circle cx="8" cy="4.9" r="0.7" fill="currentColor" stroke="none" />
+      </svg>
+      <span aria-hidden className={`pointer-events-none invisible absolute top-full z-30 mt-1.5 w-64 whitespace-normal break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
+        {text}
+      </span>
+    </span>
+  )
+}
+
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
 
-/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 마우스오버 설명(점선 밑줄) */
+/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 옆 ⓘ 설명(칸 이름은 정렬, 설명은 아이콘으로 나눔) */
 export function Table({ head, left = 1, sort, tall, tips, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; children: React.ReactNode }) {
   const Box = tall ? FitBox : 'div'
   return (
@@ -40,12 +56,15 @@ export function Table({ head, left = 1, sort, tall, tips, children }: { head: st
               const on = k != null && sort!.cur.replace('-', '') === k
               const desc = on && sort!.cur.startsWith('-')
               return (
-                <th key={h} title={tips?.[i]} className={`break-keep px-1.5 2xl:px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}${tips?.[i] ? ' cursor-help underline decoration-dotted underline-offset-4' : ''}`}>
-                  {k == null ? h : (
-                    <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
-                      {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
-                    </Link>
-                  )}
+                <th key={h} className={`break-keep px-1.5 2xl:px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
+                  <span className="inline-flex items-center gap-1">
+                    {k == null ? h : (
+                      <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
+                        {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
+                      </Link>
+                    )}
+                    {tips?.[i] && <Info text={tips[i]!} align={i < left ? 'left' : 'right'} />}
+                  </span>
                 </th>
               )
             })}

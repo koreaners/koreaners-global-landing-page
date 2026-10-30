@@ -5,7 +5,7 @@ import { addMonth, bundleDay, netPayoutKrw, payday, payoutDue, payoutKrw, type C
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
-import { hit, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
+import { hit, Info, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
 
 // 정산 마스터: 노션 지급내역 DB 전체 행을 회차, 크리에이터, 행 단위로 (관리자 전용, proxy가 exec를 막음)
 export const dynamic = 'force-dynamic'
@@ -199,8 +199,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
           <div className="text-xs text-neutral-500">크리에이터 송금을 회차마다 챙기는 화면입니다. 노션 지급내역 DB 전체 {all.length}행, 오늘 {today}</div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-500" title="5분마다 자동으로도 다시 읽습니다">
+          <span className="inline-flex items-center gap-1 text-xs text-neutral-500">
             {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신
+            <Info text="5분마다 자동으로도 다시 읽습니다" align="right" />
           </span>
           <form action={refreshFinance}>
             <RefreshButton />
