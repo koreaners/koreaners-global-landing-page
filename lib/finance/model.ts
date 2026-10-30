@@ -50,6 +50,7 @@ export type Payout = {
   deduction?: string | null // 공제 유형: 사업소득 3.3%, 세금계산서, 해외 송금
   vat?: string | null // VAT: 포함, 별도(세금계산서 행. 별도면 지급액이 공급가라 부가세를 더해 보냄)
   creatorIds?: string[] // 크리에이터 리스트(인플루언서 DB) 관계
+  price?: number | null // 매출 단가: 고객사가 이 크리에이터 몫으로 낸 공급가(부가세 제외, 계약 공급가 칸과 같은 통화). 크리에이터 매출 몫에 씀(Leo 261030)
 }
 
 // daily: 통화별 날짜 → 원화 환율(fx.ts 일별 기준환율). 없으면 모든 날짜에 오늘 환율
@@ -203,7 +204,8 @@ export type CreatorRow = {
   inFlight: number
   held: number
   payouts: Payout[]
-  shares: { c: Contract; share: number; paid: number }[]
+  estimated: number // 매출 몫 가운데 매출 단가 없이 지급 비율로 나눈 추정 몫(여러 명이 든 계약)
+  shares: { c: Contract; share: number; paid: number; estimated: boolean }[]
   months: { month: string; revenue: number; paid: number; keys: string[] }[] // 기준(basis)에 따른 달별, keys: 안건(계약, 계약 없으면 지급 행), 기준과 무관하게 계약 기준일의 달
 }
 
@@ -372,13 +374,31 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const sumSupply = margined.reduce((a, x) => a + (x.supply ?? 0), 0)
   const sumMargin = margined.reduce((a, x) => a + (x.margin ?? 0), 0)
 
-  // 크리에이터: 지급 기준일이 기간 안인 지급. 매출 몫은 계약 공급가 × (이 지급 / 그 계약 지급 합)
+  // 크리에이터 매출 몫: 매출 단가가 있는 지급은 그 값(계약 통화 → 원화는 공급가 환산 비율), 남은 공급가는 단가 없는 지급끼리 지급액 비율로.
+  // 지급 비율 배분은 한 계약의 참여자 전원에게 계약 마진율을 똑같이 매겨서, 여러 명이 든 계약이면 추정으로 표시(뉴믹스, Leo 261030)
+  const shareOf = new Map<string, { share: number; estimated: boolean }>()
+  for (const [cid, ps] of payByContract) {
+    const c = byId.get(cid)
+    const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
+    if (!c || supply == null) continue
+    const face = c.supplyKrw ?? c.supplyJpy ?? c.supplyUsd ?? 0
+    const toKrw = face ? supply / face : 0
+    const priced = ps.filter((p) => p.price != null && face)
+    const rest = ps.filter((p) => !(p.price != null && face))
+    const left = Math.max(0, supply - priced.reduce((a, p) => a + p.price! * toKrw, 0))
+    const total = rest.reduce((a, p) => a + krw(p), 0)
+    const estimated = priced.length > 0 || new Set(rest.map((p) => p.name)).size > 1
+    for (const p of priced) shareOf.set(p.id, { share: p.price! * toKrw, estimated: false })
+    for (const p of rest) shareOf.set(p.id, { share: total > 0 ? (left * krw(p)) / total : 0, estimated })
+  }
+
+  // 크리에이터: 지급 기준일이 기간 안인 지급
   const creators = new Map<string, CreatorRow>()
   for (const p of payouts) {
     const day = payoutDay(p, byId)
     if (!inPeriod(day, period)) continue
     const row: CreatorRow = creators.get(p.name) ?? {
-      name: p.name, currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0,
+      name: p.name, currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0, estimated: 0,
       done: 0, inFlight: 0, held: 0, payouts: [], shares: [], months: [],
     }
     const v = krw(p)
@@ -390,18 +410,19 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     else if (IN_FLIGHT.includes(p.status)) row.inFlight += v
     else row.held += v
     const c = p.contractId ? byId.get(p.contractId) : undefined
-    const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
-    const total = c ? (payByContract.get(c.id) ?? []).reduce((a, x) => a + krw(x), 0) : 0
-    const share = supply != null && total > 0 ? (supply * v) / total : 0
-    if (c && supply != null) {
+    const so = shareOf.get(p.id)
+    const share = so?.share ?? 0
+    if (c && so) {
       row.revenue += share
       row.linkedPaid += v
+      if (so.estimated) row.estimated += share
       const prev = row.shares.find((s) => s.c.id === c.id)
       if (prev) {
         prev.share += share
         prev.paid += v
+        prev.estimated ||= so.estimated
       } else {
-        row.shares.push({ c, share, paid: v })
+        row.shares.push({ c, share, paid: v, estimated: so.estimated })
         row.revenueCount += 1
       }
     }

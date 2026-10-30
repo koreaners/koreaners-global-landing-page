@@ -595,22 +595,23 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
                 {basis === 'contract'
                   ? '발생 기준: 매출 몫, 정산액 모두 계약 기준일의 달(계약 없는 지급은 송금일의 달)'
                   : '현금 기준: 매출 몫은 고객사가 입금한 회차의 달(선금, 잔금 나눔, 입금 전 몫은 빠짐), 정산액은 송금 완료 건의 송금일 달(없으면 송금 요청일)'}
-                . 안건 수는 두 기준 모두 계약 기준일의 달. 매출 몫은 계약 공급가를 이 크리에이터 지급 비율로 나눈 값
+                . 안건 수는 두 기준 모두 계약 기준일의 달. 매출 몫은 지급내역 「매출 단가」, 없으면 계약 공급가를 지급 비율로 나눈 값
               </p>
               <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>
           )}
           {picked.shares.length > 0 && (
-            <h3 className="pt-2 text-sm font-semibold text-neutral-100">계약별 매출 몫 <span className="ml-1 text-xs font-normal text-neutral-500">이 크리에이터가 들어간 계약, 계약 공급가를 지급 비율로 나눈 몫</span></h3>
+            <h3 className="pt-2 text-sm font-semibold text-neutral-100">계약별 매출 몫 <span className="ml-1 text-xs font-normal text-neutral-500">이 크리에이터가 들어간 계약. 매출 단가가 있으면 그 값, 없으면 계약 공급가를 지급 비율로 나눈 몫</span></h3>
           )}
           {picked.shares.length > 0 && (
-            <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
+            <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫', '근거']}>
               {picked.shares.map((s) => (
                 <tr key={s.c.id}>
                   <td className={tdl}><Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: s.c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{s.c.code}</Link></td>
                   <td className={td}>{s.c.brand || s.c.corp}</td>
                   <Money n={s.paid} />
                   <Money n={s.share} />
+                  <td className={s.estimated ? `${td} text-amber-400` : td}>{s.estimated ? '추정(지급 비율)' : '확정'}</td>
                 </tr>
               ))}
             </Table>
@@ -648,7 +649,10 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Money n={avgPaid(x)} />
             <Money n={margin(x)} />
             <Money n={avgMargin(x)} />
-            <td className={td}>{pct(rate(x))}</td>
+            <td className={td} title={x.estimated ? `매출 몫 가운데 ${won(x.estimated)}은 여러 명이 든 계약을 지급 비율로 나눈 추정(매출 단가 없음)` : undefined}>
+              {pct(rate(x))}
+              {x.estimated > 0 && <span className="block text-xs text-amber-400">추정 {pct(x.revenue ? x.estimated / x.revenue : null)}</span>}
+            </td>
             <Money n={x.done} />
             <Money n={x.inFlight} />
             <Money n={x.held} />
@@ -656,7 +660,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         ))}
       </Table>
       <p className="text-xs text-neutral-500">
-        인스타는 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}. 매출 몫은 계약 공급가를 지급액 비율로 나눈 값이고, 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. 마진은 매출 몫에서 그 몫이 있는 지급을 뺀 값입니다. 기간을 지급일(송금일, 없으면 요청일)로 고르고 계약 연결 없는 지급은 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
+        인스타는 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}. 매출 몫은 지급내역 「매출 단가」(고객사가 그 크리에이터 몫으로 낸 공급가)이고, 단가가 없으면 남은 공급가를 지급액 비율로 나눈 값입니다. 여러 명이 든 계약을 지급 비율로 나눈 몫은 참여자 전원이 계약 마진율을 똑같이 받아 「추정」으로 표시합니다. 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. 마진은 매출 몫에서 그 몫이 있는 지급을 뺀 값입니다. 기간을 지급일(송금일, 없으면 요청일)로 고르고 계약 연결 없는 지급은 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
       </p>
     </div>
   )
@@ -738,7 +742,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
             </ul>
           </li>
           <li>
-            크리에이터 탭: 매출 몫은 계약 공급가를 그 계약의 실제 지급 비율로 나눈 값입니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 개요의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
+            크리에이터 탭: 매출 몫은 지급내역 「매출 단가」(부가세 제외, 계약 공급가와 같은 통화)이고, 단가가 없는 지급은 남은 공급가를 지급 비율로 나눈 값입니다. 여러 명이 든 계약의 지급 비율 몫은 추정으로 표시합니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 개요의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
           </li>
           <li>
             {src.sheet
