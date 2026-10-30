@@ -49,8 +49,9 @@ function MarqueeRow({ clients, direction, duration }: { clients: string[]; direc
 }
 
 export function ClientShowcase() {
+  // 모바일 하단 여백 축소 — 바로 아래 CONTACT 섹션 상단 96px 와 겹쳐 빈 띠가 생김
   return (
-    <section className="bg-[var(--kn-dark)] py-16 md:py-20 overflow-hidden">
+    <section className="bg-[var(--kn-dark)] pt-16 pb-4 md:py-20 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 lg:px-24 mb-8">
         <SectionTag variant="dark">
           TRUSTED BY 185+ BRANDS

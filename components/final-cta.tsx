@@ -38,7 +38,8 @@ export function FinalCTA() {
                   suffix={stat.suffix(locale)}
                   className="block font-display font-bold text-3xl sm:text-6xl lg:text-8xl gradient-warm-text leading-none whitespace-nowrap"
                 />
-                <div className="text-sm text-[#78716C] mt-3 uppercase tracking-wider">
+                {/* 모바일은 12px·기본 자간 — 3칸 캡션이 모두 2줄 이내, JA 끝 글자 고아 줄 방지(balance) */}
+                <div className="text-xs sm:text-sm text-[#78716C] mt-3 uppercase tracking-normal sm:tracking-wider text-balance">
                   {t(stat.key)}
                 </div>
               </div>

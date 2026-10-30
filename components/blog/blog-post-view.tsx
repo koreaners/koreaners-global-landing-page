@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SectionTag } from "@/components/ui/section-tag";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { MarketingCTA } from "@/components/common/marketing-cta";
@@ -49,9 +50,9 @@ export function BlogPostView({ blogPost, thumbnailSrc }: BlogPostViewProps) {
         <article className="pt-32 sm:pt-40 pb-24 md:pb-32 lg:pb-40 px-6 lg:px-24 relative z-10">
           <div className="max-w-7xl mx-auto">
             <header className="mb-8 sm:mb-12">
-              {/* Section tag */}
-              <span className="text-xs uppercase tracking-[0.2em] text-white/60">BLOG</span>
-              <div className="w-12 h-0.5 bg-[#FF4500] mt-3 mb-8" />
+              {/* Section tag — 포트폴리오 상세와 같은 SectionTag */}
+              <SectionTag variant="dark">BLOG</SectionTag>
+              <div className="mt-6" />
 
               <Link href="/blog">
                 <Button

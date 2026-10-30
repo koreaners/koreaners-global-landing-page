@@ -289,13 +289,14 @@ export default function TripbridgeContent() {
           <p className="text-lg text-[#A8A29E] max-w-2xl mt-4 leading-relaxed break-keep">{c.heroDefinition}</p>
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-8">
-            <span className="text-xs text-[#A8A29E] mr-1">{c.brandsLabel}</span>
+            {/* 모바일은 라벨을 한 줄로 떼고, 브랜드명은 이름 단위로만 줄바꿈 */}
+            <span className="text-xs text-[#A8A29E] mr-1 basis-full sm:basis-auto">{c.brandsLabel}</span>
             {c.brands.map((brand) => (
-              <span key={brand} className="text-xs uppercase tracking-wider text-[#A8A29E]">
+              <span key={brand} className="text-xs uppercase tracking-wider text-[#A8A29E] whitespace-nowrap">
                 {brand}
               </span>
             ))}
-            <span className="text-xs text-[#A8A29E]">{c.brandsMore}</span>
+            <span className="text-xs text-[#A8A29E] whitespace-nowrap">{c.brandsMore}</span>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-6 mt-10">

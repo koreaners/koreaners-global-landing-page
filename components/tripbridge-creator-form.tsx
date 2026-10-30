@@ -337,30 +337,29 @@ export function TripbridgeCreatorForm({
         />
       </div>
 
+      {/* 체크박스+문구 전체가 label(탭 높이 44px), 약관은 옆 「보기」 버튼으로 */}
       <div className="flex items-center gap-3">
-        <input
-          type="checkbox"
-          id="tb-consent"
-          checked={consent}
-          onChange={(e) => setConsent(e.target.checked)}
-          className={BOX_CLASS}
-          aria-invalid={invalid === "consent" || undefined}
-        />
-        <label htmlFor="tb-consent" className="flex-1 min-h-[44px] flex items-center cursor-pointer">
-          <span className="text-sm text-[#A8A29E]">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                setPrivacyModalOpen(true);
-              }}
-              className="text-white underline hover:no-underline focus:outline-none"
-            >
-              {t("tbFormPrivacy")}
-            </button>{" "}
+        <label className="flex-1 min-h-[44px] flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            id="tb-consent"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            className={BOX_CLASS}
+            aria-invalid={invalid === "consent" || undefined}
+          />
+          <span className="text-sm text-white">
+            {t("tbFormPrivacy")}{" "}
             <span className="text-[#FF4500]">*</span>
           </span>
         </label>
+        <button
+          type="button"
+          onClick={() => setPrivacyModalOpen(true)}
+          className="shrink-0 min-h-[44px] px-2 text-sm text-[#A8A29E] underline hover:no-underline hover:text-white"
+        >
+          {t("formConsentView")}
+        </button>
       </div>
 
       <ConsentModal

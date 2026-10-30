@@ -47,7 +47,8 @@ export default function AboutContent() {
             <br />
             <span className="gradient-warm-text">{t('aboutHero2')}</span>
           </h1>
-          <p className="text-lg text-[#A8A29E] mt-6 max-w-2xl leading-relaxed">
+          {/* 모바일은 셰이더 노이즈 위에 글자가 얹혀 어두운 그림자로 대비 확보 */}
+          <p className="text-lg text-[#A8A29E] mt-6 max-w-2xl leading-relaxed max-sm:[text-shadow:0_0_6px_rgb(28_25_23),0_0_14px_rgb(28_25_23/0.9)]">
             {t('aboutHeroDesc')}
           </p>
         </div>
