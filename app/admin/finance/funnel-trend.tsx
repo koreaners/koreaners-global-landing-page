@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { REPORTS_BUCKET, TREND_KEY, type FunnelTrend } from '@/lib/reports'
+import { REPORTS_BUCKET, TREND_KEY, parseReportKey, type FunnelTrend, type WeeklyReport } from '@/lib/reports'
 import { TrendChart, type TrendPoint } from './charts'
 import { Info } from './ui'
 
@@ -9,16 +9,39 @@ const C1 = '#3b82f6'
 const C2 = '#ea580c' // C1 과 다크 표면에서 dataviz 검증 통과(밝기, 색각 이상 구분)
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
-// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명
-function Panel({ title, note, info, href, children }: { title: string; note: string; info?: string; href?: string; children: React.ReactNode }) {
+// 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
+type Row = NonNullable<WeeklyReport['funnel']>['rows'][number]
+const DOT = { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' } as const
+const EDGE = { green: 'border-emerald-500/50', yellow: 'border-amber-400/60', red: 'border-red-500/60' } as const
+const worst = (rs: Row[]) => (['red', 'yellow', 'green'] as const).find((c) => rs.some((r) => r.light === c))
+
+function Lights({ rows, title }: { rows: Row[]; title: string }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {rows.map((r) => (
+        <span key={r.label} className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-950 px-2 py-0.5 text-xs">
+          <i className={`block h-2 w-2 rounded-full ${r.light ? DOT[r.light] : 'bg-neutral-600'}`} />
+          {r.label !== title && <span className="text-neutral-400">{r.label.replace(/^(신규 리드|수주율): /, '')}</span>}
+          <span className="font-medium tabular-nums text-neutral-100">{r.value}</span>
+          {r.target && <span className="text-neutral-500">목표 {r.target}</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(테두리는 가장 나쁜 색)
+function Panel({ title, note, info, href, rows = [], children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; children: React.ReactNode }) {
+  const w = worst(rows)
   const card = (
-    <section className={`h-full space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5${href ? ' transition-colors group-hover/card:border-neutral-600' : ''}`}>
-      <div className="space-y-1">
+    <section className={`h-full space-y-4 rounded-xl border bg-neutral-900 p-5 ${w ? EDGE[w] : 'border-neutral-800'}${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ''}`}>
+      <div className="space-y-2">
         <h2 className="flex items-center gap-1.5 text-base font-semibold text-neutral-100">
           {title}
           {info && <Info text={info} />}
           {href && <span className="ml-auto text-xs font-normal text-neutral-500 group-hover/card:text-neutral-200">자세히 →</span>}
         </h2>
+        {rows.length > 0 && <Lights rows={rows} title={title} />}
         <p className="text-xs leading-relaxed text-neutral-500">{note}</p>
       </div>
       {children}
@@ -38,10 +61,21 @@ export async function FunnelTrendTab() {
     if (j?.version === 1) t = j
   } catch {}
   if (!t) return <p className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 text-sm text-neutral-400">지표 모니터링 파일이 아직 없습니다. 주간 잡(brain-weekly)이 한 번 돌면 생깁니다.</p>
-  return <FunnelTrendView t={t} />
+  // 신호등은 가장 최근 주간 보고서에서. 못 읽으면 신호등 없이 차트만
+  const { data: files } = await supabase.storage.from(REPORTS_BUCKET).list('', { sortBy: { column: 'name', order: 'desc' } })
+  const latest = (files ?? []).map((f) => f.name).filter((n) => parseReportKey(n)).sort().at(-1)
+  let rows: Row[] = []
+  if (latest) {
+    try {
+      const { data: r } = await supabase.storage.from(REPORTS_BUCKET).download(latest)
+      rows = r ? ((JSON.parse(await r.text()) as WeeklyReport).funnel?.rows ?? []) : []
+    } catch {}
+  }
+  return <FunnelTrendView t={t} rows={rows} period={latest ? parseReportKey(latest)!.title.replace('주간 경영 리포트 ', '') : null} />
 }
 
-export function FunnelTrendView({ t }: { t: FunnelTrend }) {
+export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTrend; rows?: Row[]; period?: string | null }) {
+  const pick = (...labels: string[]) => labels.flatMap((l) => rows.filter((r) => r.label === l))
   const cur = t.today.slice(0, 7)
   const upto = `${+t.today.slice(5, 7)}/${+t.today.slice(8)}`
   // 축은 짧게, 이번 달이 진행 중이라는 표시는 툴팁 머리에
@@ -58,12 +92,12 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
         <h1 className="text-xl font-semibold text-neutral-50">지표 모니터링</h1>
         <p className="text-xs text-neutral-500">
           경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 매주 월 07:00 갱신,{' '}
-          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움
+          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움{period ? `. 신호등은 최신 경영진 보고서(${period}) 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달` : ''}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Panel title="안건 수" href="/admin/finance?tab=contracts" note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
+        <Panel title="안건 수" href="/admin/finance?tab=contracts" rows={pick('안건 수')} note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
           <TrendChart
             unit="건"
             goal={d.goal}
@@ -75,7 +109,7 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
           />
         </Panel>
 
-        <Panel title="입금, 송금" href="/admin/finance?tab=calendar" note="기한 내 입금률: 입금 예정일이 그 달인 회차 중 예정일까지 입금. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
+        <Panel title="입금, 송금" href="/admin/finance?tab=calendar" rows={pick('기한 내 입금률', '송금 처리율')} note="기한 내 입금률: 입금 예정일이 그 달인 회차 중 예정일까지 입금. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
           <TrendChart
             unit="%"
             goal={100}
@@ -92,14 +126,14 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
 
         {leads ? (
           <>
-            <Panel title="신규 리드" note="Lead Status 최초 컨택일이 그 달인 고객사 수. 시트, 슬랙, 드라이브에서 처음 잡힌 곳(계약이 먼저인 곳)은 뺌">
+            <Panel title="신규 리드" rows={pick('신규 리드: 영업 메일', '신규 리드: 홈페이지 문의')} note="Lead Status 최초 컨택일이 그 달인 고객사 수. 시트, 슬랙, 드라이브에서 처음 잡힌 곳(계약이 먼저인 곳)은 뺌">
               <TrendChart
                 unit="곳"
                 series={leads.map(([ch], j) => ({ key: `l${j}`, name: ch, color: j ? C2 : C1, kind: 'bar' as const }))}
                 data={pts((i) => Object.fromEntries(leads.map(([, v], j) => [`l${j}`, v.n[i]])))}
               />
             </Panel>
-            <Panel title="수주율 (컨택월 코호트)" note="그 달에 처음 컨택한 고객사 중 지금까지 확정, 정산 단계이거나 계약이 연결된 곳. 말일이 60일 안 지난 달은 덜 익어 비우고, 오래된 달일수록 시간이 더 지나 높게 나옴">
+            <Panel title="수주율 (컨택월 코호트)" rows={pick('수주율: 영업 메일', '수주율: 홈페이지 문의')} note="그 달에 처음 컨택한 고객사 중 지금까지 확정, 정산 단계이거나 계약이 연결된 곳. 말일이 60일 안 지난 달은 덜 익어 비우고, 오래된 달일수록 시간이 더 지나 높게 나옴">
               <TrendChart
                 unit="%"
                 series={leads.map(([ch], j) => ({ key: `w${j}`, name: ch, color: j ? C2 : C1, kind: 'line' as const }))}
@@ -115,7 +149,7 @@ export function FunnelTrendView({ t }: { t: FunnelTrend }) {
         )}
         {t.health ? (
           t.health.map((h) => (
-            <Panel key={h.label} title={h.label} note={`${h.low ? '낮을수록 좋음' : '높을수록 좋음'}. 월간파이낸스 정본${h.label === '안건당 공헌이익' ? ', 안건은 정본의 입금 기준' : ''}`} info={h.adj ? CASH_TIMING : undefined}>
+            <Panel key={h.label} title={h.label} rows={pick(h.label)} note={`${h.low ? '낮을수록 좋음' : '높을수록 좋음'}. 월간파이낸스 정본${h.label === '안건당 공헌이익' ? ', 안건은 정본의 입금 기준' : ''}`} info={h.adj ? CASH_TIMING : undefined}>
               <TrendChart
                 unit={h.unit}
                 goal={h.unit === '%' ? h.goal * 100 : h.goal}
