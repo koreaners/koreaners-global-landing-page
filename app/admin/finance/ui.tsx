@@ -27,8 +27,8 @@ export function Card({ label, value, note }: { label: string; value: string; not
 
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
 
-/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값) */
-export function Table({ head, left = 1, sort, tall, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; children: React.ReactNode }) {
+/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 마우스오버 설명(점선 밑줄) */
+export function Table({ head, left = 1, sort, tall, tips, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; children: React.ReactNode }) {
   const Box = tall ? FitBox : 'div'
   return (
     <Box className={`overflow-auto rounded-xl border border-neutral-800 bg-neutral-900 ${tall ? 'sm:max-h-[calc(100dvh-16rem)]' : ''}`}>
@@ -40,7 +40,7 @@ export function Table({ head, left = 1, sort, tall, children }: { head: string[]
               const on = k != null && sort!.cur.replace('-', '') === k
               const desc = on && sort!.cur.startsWith('-')
               return (
-                <th key={h} className={`break-keep px-1.5 2xl:px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
+                <th key={h} title={tips?.[i]} className={`break-keep px-1.5 2xl:px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}${tips?.[i] ? ' cursor-help underline decoration-dotted underline-offset-4' : ''}`}>
                   {k == null ? h : (
                     <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
                       {h}{on ? (desc ? ' ↓' : ' ↑') : ''}

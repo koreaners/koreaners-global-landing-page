@@ -556,6 +556,25 @@ function Insta({ urls }: { urls?: Set<string> }) {
   )
 }
 
+// 크리에이터 표 머리글 설명. 기간은 buildModel의 payoutDay 기준이라 발생, 현금 전환이 표 숫자를 바꾸지 않음
+const CREATOR_PERIOD = '기간은 지급 기준일(송금일, 없으면 요청일, 없으면 계약일)로 고르며 발생, 현금 전환과 무관합니다.'
+const CREATOR_TIPS = [
+  '지급내역의 크리에이터 이름. 누르면 이 사람만 보는 화면',
+  '이 사람 지급 행에 쓰인 통화. 금액은 모두 원화 환산',
+  `고객사가 이 사람 몫으로 낸 공급가. 지급내역 「매출 단가」, 없으면 계약 공급가를 지급액 비율로 나눈 값. 계약 연결 없는 지급은 0. ${CREATOR_PERIOD}`,
+  '매출 몫이 있는 계약 수',
+  '매출 몫 ÷ 매출 건수',
+  `이 사람 지급 행 금액 합. 상태 무관(송금 완료, 진행 중, 보류 모두). ${CREATOR_PERIOD}`,
+  '지급 행 수(한 계약에 행이 여러 개면 여러 건)',
+  '정산 합계 ÷ 정산 건수',
+  `매출 몫 − 그 매출 몫과 연결된 지급(상태 무관). 계약 연결 없는 지급은 빠짐. 기간이 전체면 누적, 기간을 고르면 그 기간 지급분만. ${CREATOR_PERIOD}`,
+  '마진 ÷ 매출 건수',
+  '마진 ÷ 매출 몫. 아래 노란 「추정 n%」는 마진율이 아니라, 매출 몫 가운데 여러 명이 든 계약을 지급 비율로 나눈 추정분의 비중',
+  '상태가 송금 완료인 지급 합',
+  '상태가 송금 가능, 모인 접수, 원화 이체 대기인 지급 합',
+  '그 밖의 상태(보류 등)인 지급 합',
+]
+
 function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; all: Payout[]; contracts: Contract[]; ig: Record<string, string>; igError: string | null; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
   const picked = model.creators.find((x) => x.name === sel)
   // 지급 행의 크리에이터 관계로 이름별 인스타 URL(기간과 무관하게 전체 행)
@@ -632,7 +651,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
         <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
       </div>
-      <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall
+      <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall tips={CREATOR_TIPS}
         sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.name}>
