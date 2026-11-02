@@ -62,6 +62,9 @@ export type Rates = { JPY: number; USD: number; CNY: number; at: string; source:
 export type Period = { year: number | null; month: number | null; upto?: number | null }
 
 const DONE = '송금 완료'
+// 마진율이 이 이상이면 원가 지급이 덜 붙었을 수 있음(뒤 회차 크리에이터 송금 신청 전인 계약, 261102)
+// ponytail: 고정 문턱, 계약별 예상 원가 칸이 생기면 그것과 대조
+export const HIGH_MARGIN = 0.7
 const IN_FLIGHT = ['송금 가능', '모인 접수', '원화 이체 대기']
 
 export function rateOf(c: Currency | null, r: Rates): number | null {
@@ -232,6 +235,7 @@ export type Gaps = {
   fxNoBilled: number // 원화 청구액 없는 외화 송금 완료
   noRate: number // 통화나 금액이 없어 환산 못 한 지급
   overPriced: number // 매출 단가 합이 공급가를 넘어 단가 비율로 줄인 계약
+  highMargin: number // 고른 기간 계약 중 마진율이 HIGH_MARGIN 이상(원가 지급이 덜 붙었을 수 있음)
   dead: { count: number; krw: number } // 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 보류(수입 계약 연결분)
 }
 
@@ -518,6 +522,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     fxNoBilled: payouts.filter((p) => p.status === DONE && p.currency && p.currency !== 'KRW' && p.krwBilled == null).length,
     noRate: payouts.filter((p) => payoutKrw(p, r) == null).length,
     overPriced,
+    highMargin: rows.filter((x) => x.rate != null && x.rate >= HIGH_MARGIN).length,
     dead: { count: deadPs.length, krw: deadPs.reduce((a, p) => a + krw(p), 0) },
   }
 

@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, contractDay, creatorKey, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, HIGH_MARGIN, contractDay, creatorKey, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -488,6 +488,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; r
             <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{x.c.source !== 'sheet' && x.supply != null && !x.payouts.length ? '지급 연결 없음' : pct(x.rate)}</span>
+              {x.rate != null && x.rate >= HIGH_MARGIN && <span className="block text-xs text-amber-400">원가 지급 덜 붙음?</span>}
             </td>
             <td className={td}>{x.c.link ? <a href={x.c.link} target="_blank" className="text-sky-300 hover:underline">열기</a> : '-'}</td>
           </tr>
@@ -668,7 +669,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Money n={avgPaid(x)} />
             <Money n={margin(x)} />
             <Money n={avgMargin(x)} />
-            <td className={td}>{pct(rate(x))}</td>
+            <td className={td}>{pct(rate(x))}{(rate(x) ?? 0) >= HIGH_MARGIN && <span className="block text-xs text-amber-400">원가 지급 덜 붙음?</span>}</td>
             <Money n={x.done} />
             <Money n={x.inFlight} />
             <Money n={x.held} />
@@ -732,6 +733,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],
     ['통화나 지급액이 없어 환산하지 못한 지급', `${g.noRate}행`],
     ['매출 단가 합이 공급가를 넘는 계약(크리에이터 매출 몫을 단가 비율로 줄임)', `${g.overPriced}건`],
+    [`마진율 ${HIGH_MARGIN * 100}% 이상 계약(고른 기간, 원가 지급이 덜 붙었을 수 있음)`, `${g.highMargin}건`],
     ['비고 맨 윗줄에 「보류 해제 금지」 등이 적혀 마진, 매출 몫에서 뺀 보류(중복, 반송 종결)', `${g.dead.count}행, ${won(g.dead.krw)}`],
   ]
   return (
