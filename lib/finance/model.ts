@@ -102,9 +102,11 @@ export function contractCurrency(c: Contract): Currency {
 
 export type ByCur = Partial<Record<Currency, number>>
 
-/** 지급 원화 환산. 모인 원화 청구액이 있으면 그 값, 없으면 지급액 × 환율 */
+/** 지급 원화 환산(공급가). 모인 원화 청구액이 있으면 그 값, 없으면 지급액 × 환율.
+ * 원화 세금계산서 VAT 포함 행은 지급액에 부가세가 들어 있어 1.1로 나눔(부가세는 매입세액 공제로 돌려받아 원가 아님, Leo 261102) */
 export function payoutKrw(p: Payout, r: Rates): number | null {
   if (p.krwBilled != null) return p.krwBilled
+  if (vatIncluded(p)) return Math.round(p.amount! / 1.1)
   const rate = rateOf(p.currency, r)
   return p.amount != null && rate != null ? p.amount * rate : null
 }
@@ -115,8 +117,11 @@ export function payoutKrw(p: Payout, r: Rates): number | null {
 export function netPayoutKrw(p: Payout, r: Rates): number | null {
   if (p.deduction === '사업소득 3.3%' && p.currency === 'KRW' && p.amount != null) return p.amount - Math.round(p.amount * 0.033)
   if (p.deduction === '세금계산서' && p.vat === '별도' && p.currency === 'KRW' && p.amount != null) return p.amount + Math.round(p.amount * 0.1)
+  if (vatIncluded(p)) return p.amount
   return payoutKrw(p, r)
 }
+
+const vatIncluded = (p: Payout) => p.deduction === '세금계산서' && p.vat === '포함' && p.currency === 'KRW' && p.amount != null
 
 /** 금액 글에서 첫 금액(1,000 이상)을 읽음. 「판매수수료 15%」 같은 비율은 금액이 아니므로 null */
 export function parseAmount(text: string): number | null {
