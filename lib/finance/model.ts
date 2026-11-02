@@ -222,6 +222,7 @@ export type Gaps = {
   doneNoDate: { count: number; krw: number } // 송금일, 송금 요청일이 모두 없는 송금 완료(정산에서 빠짐)
   fxNoBilled: number // 원화 청구액 없는 외화 송금 완료
   noRate: number // 통화나 금액이 없어 환산 못 한 지급
+  overPriced: number // 매출 단가 합이 공급가를 넘어 단가 비율로 줄인 계약
 }
 
 export type Model = {
@@ -376,19 +377,25 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 
   // 크리에이터 매출 몫: 매출 단가가 있는 지급은 그 값(계약 통화 → 원화는 공급가 환산 비율), 남은 공급가는 단가 없는 지급끼리 지급액 비율로.
   // 지급 비율 배분은 한 계약의 참여자 전원에게 계약 마진율을 똑같이 매겨서, 여러 명이 든 계약이면 추정으로 표시(뉴믹스, Leo 261030)
+  // 보류 지급은 계약 마진 원가와 같이 빼서 몫을 받지 않음(크리에이터 마진 합 = 계약 마진). 매출 단가 합이 공급가를 넘으면 단가 비율로 줄여 공급가에 맞추고 점검에 셈
   const shareOf = new Map<string, { share: number; estimated: boolean }>()
-  for (const [cid, ps] of payByContract) {
+  let overPriced = 0
+  for (const [cid, all] of payByContract) {
     const c = byId.get(cid)
     const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
     if (!c || supply == null) continue
+    const ps = all.filter((p) => p.status !== '보류')
     const face = c.supplyKrw ?? c.supplyJpy ?? c.supplyUsd ?? 0
     const toKrw = face ? supply / face : 0
     const priced = ps.filter((p) => p.price != null && face)
     const rest = ps.filter((p) => !(p.price != null && face))
-    const left = Math.max(0, supply - priced.reduce((a, p) => a + p.price! * toKrw, 0))
+    const pricedSum = priced.reduce((a, p) => a + p.price! * toKrw, 0)
+    const scale = pricedSum > supply ? supply / pricedSum : 1
+    if (scale < 1) overPriced += 1
+    const left = Math.max(0, supply - pricedSum * scale)
     const total = rest.reduce((a, p) => a + krw(p), 0)
     const estimated = priced.length > 0 || new Set(rest.map((p) => p.name)).size > 1
-    for (const p of priced) shareOf.set(p.id, { share: p.price! * toKrw, estimated: false })
+    for (const p of priced) shareOf.set(p.id, { share: p.price! * toKrw * scale, estimated: false })
     for (const p of rest) shareOf.set(p.id, { share: total > 0 ? (left * krw(p)) / total : 0, estimated })
   }
 
@@ -480,6 +487,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     doneNoDate: { count: doneNoDate.length, krw: doneNoDate.reduce((a, p) => a + krw(p), 0) },
     fxNoBilled: payouts.filter((p) => p.status === DONE && p.currency && p.currency !== 'KRW' && p.krwBilled == null).length,
     noRate: payouts.filter((p) => payoutKrw(p, r) == null).length,
+    overPriced,
   }
 
   open.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
