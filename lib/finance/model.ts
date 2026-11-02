@@ -50,6 +50,7 @@ export type Payout = {
   deduction?: string | null // 공제 유형: 사업소득 3.3%, 세금계산서, 해외 송금
   vat?: string | null // VAT: 포함, 별도(세금계산서 행. 별도면 지급액이 공급가라 부가세를 더해 보냄)
   creatorIds?: string[] // 크리에이터 리스트(인플루언서 DB) 관계
+  note?: string // 비고. 보류 가운데 나가지 않을 행(중복, 반송 종결)을 가림
   price?: number | null // 매출 단가: 고객사가 이 크리에이터 몫으로 낸 공급가(부가세 제외, 계약 공급가 칸과 같은 통화). 크리에이터 매출 몫에 씀(Leo 261030)
 }
 
@@ -223,6 +224,7 @@ export type Gaps = {
   fxNoBilled: number // 원화 청구액 없는 외화 송금 완료
   noRate: number // 통화나 금액이 없어 환산 못 한 지급
   overPriced: number // 매출 단가 합이 공급가를 넘어 단가 비율로 줄인 계약
+  dead: { count: number; krw: number } // 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 보류(수입 계약 연결분)
 }
 
 export type Model = {
@@ -263,6 +265,14 @@ export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null
 
 // cash: 매출은 입금된 달, 정산은 송금한 달. contract: 둘 다 계약 기준일의 달(공급가 전액, 그 계약에 연결된 지급 전체)
 export type Basis = 'cash' | 'contract'
+
+// 나가지 않을 보류: 비고 맨 윗줄(최신 판단)에 해제 금지 표시(중복 행, 반송 종결, 지급 아님). 마진 원가와 크리에이터 매출 몫에서 뺌(Leo 261102)
+// 아랫줄은 옛 기록이라 보지 않고(#983), 「확인 전」 조건부 해제 금지는 이미 나갔을 수 있는 돈이라 원가에 둠(#955)
+const DEAD = /보류 해제 금지|다시 보내지 말 것|지급 아님/
+export const isDead = (p: Payout) => {
+  const top = (p.note ?? '').split('\n')[0]
+  return p.status === '보류' && DEAD.test(top) && !top.includes('확인 전')
+}
 
 export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash'): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
@@ -343,8 +353,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const supply = realizedSupplyKrw(c, r, today)
       const recs = recognitions(c, today)
       const ps = payByContract.get(c.id) ?? []
-      // 보류도 원가: 보류 대부분이 수금 미완료, 서류, 계좌 대기로 결국 나갈 돈(Leo 261102, 261028 보류 제외 기준을 바꿈)
-      const costPs = ps
+      // 보류도 원가(11/30로 밀림, 단건 송금 대기 등 결국 나갈 돈). 비고에 해제 금지가 적힌 보류(중복, 반송 종결)만 뺌(Leo 261102)
+      const costPs = ps.filter((p) => !isDead(p))
       const cost = costPs.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supplyKrw(c, r, x.date)! * x.share, 0)
       // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
@@ -377,13 +387,14 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 
   // 크리에이터 매출 몫: 매출 단가가 있는 지급은 그 값(계약 통화 → 원화는 공급가 환산 비율), 남은 공급가는 단가 없는 지급끼리 지급액 비율로.
   // 지급 비율 배분은 한 계약의 참여자 전원에게 계약 마진율을 똑같이 매겨서, 여러 명이 든 계약이면 추정으로 표시(뉴믹스, Leo 261030)
-  // 보류 지급도 몫을 받고 원가에 듦(계약 마진과 같은 기준이라 크리에이터 마진 합 = 계약 마진). 매출 단가 합이 공급가를 넘으면 단가 비율로 줄여 공급가에 맞추고 점검에 셈
+  // 보류 지급도 몫을 받고 원가에 듦, 나가지 않을 보류(isDead)는 둘 다 빠짐(계약 마진과 같은 기준이라 크리에이터 마진 합 = 계약 마진). 매출 단가 합이 공급가를 넘으면 단가 비율로 줄여 공급가에 맞추고 점검에 셈
   const shareOf = new Map<string, { share: number; estimated: boolean }>()
   let overPriced = 0
-  for (const [cid, ps] of payByContract) {
+  for (const [cid, all] of payByContract) {
     const c = byId.get(cid)
     const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
     if (!c || supply == null) continue
+    const ps = all.filter((p) => !isDead(p))
     const face = c.supplyKrw ?? c.supplyJpy ?? c.supplyUsd ?? 0
     const toKrw = face ? supply / face : 0
     const priced = ps.filter((p) => p.price != null && face)
@@ -475,6 +486,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const unlinked = payouts.filter((p) => !p.contractId && !p.notContract)
   const doneByReq = payouts.filter((p) => p.status === DONE && !p.sentDate && p.reqDate)
   const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate && !p.reqDate)
+  const deadPs = payouts.filter((p) => p.contractId && isDead(p))
   const gaps: Gaps = {
     unsigned,
     noDeposit: revenueContracts.filter((c) => !c.preDate && !c.postDate && !isFree(c)).length,
@@ -487,6 +499,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     fxNoBilled: payouts.filter((p) => p.status === DONE && p.currency && p.currency !== 'KRW' && p.krwBilled == null).length,
     noRate: payouts.filter((p) => payoutKrw(p, r) == null).length,
     overPriced,
+    dead: { count: deadPs.length, krw: deadPs.reduce((a, p) => a + krw(p), 0) },
   }
 
   open.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
