@@ -319,7 +319,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   let held = 0
   let settledEst = 0 // 현금 기준 정산 중 송금일이 없어 신청월로 센 몫
   for (const p of payouts) {
-    // 보류(중복 행, 반송, 안 나갈 수 있는 돈)는 미지급금에서 빼고 따로 셈(Leo 261029, 마진 원가와 같은 기준)
+    // 보류는 미지급금에서 빼고 따로 셈(Leo 261029). 마진 원가에는 들어감(Leo 261102)
     if (p.status === '보류') held += krw(p)
     else if (p.status !== DONE) payable += krw(p)
     if (basis === 'cash') {
@@ -343,8 +343,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const supply = realizedSupplyKrw(c, r, today)
       const recs = recognitions(c, today)
       const ps = payByContract.get(c.id) ?? []
-      // 보류(중복 행, 반송, 안 나갈 수 있는 돈)는 원가에서 뺌. 대기, 모인 접수는 곧 나갈 돈이라 원가에 둠(Leo 261028)
-      const costPs = ps.filter((p) => p.status !== '보류')
+      // 보류도 원가: 보류 대부분이 수금 미완료, 서류, 계좌 대기로 결국 나갈 돈(Leo 261102, 261028 보류 제외 기준을 바꿈)
+      const costPs = ps
       const cost = costPs.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supplyKrw(c, r, x.date)! * x.share, 0)
       // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
@@ -377,14 +377,13 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
 
   // 크리에이터 매출 몫: 매출 단가가 있는 지급은 그 값(계약 통화 → 원화는 공급가 환산 비율), 남은 공급가는 단가 없는 지급끼리 지급액 비율로.
   // 지급 비율 배분은 한 계약의 참여자 전원에게 계약 마진율을 똑같이 매겨서, 여러 명이 든 계약이면 추정으로 표시(뉴믹스, Leo 261030)
-  // 보류 지급은 계약 마진 원가와 같이 빼서 몫을 받지 않음(크리에이터 마진 합 = 계약 마진). 매출 단가 합이 공급가를 넘으면 단가 비율로 줄여 공급가에 맞추고 점검에 셈
+  // 보류 지급도 몫을 받고 원가에 듦(계약 마진과 같은 기준이라 크리에이터 마진 합 = 계약 마진). 매출 단가 합이 공급가를 넘으면 단가 비율로 줄여 공급가에 맞추고 점검에 셈
   const shareOf = new Map<string, { share: number; estimated: boolean }>()
   let overPriced = 0
-  for (const [cid, all] of payByContract) {
+  for (const [cid, ps] of payByContract) {
     const c = byId.get(cid)
     const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
     if (!c || supply == null) continue
-    const ps = all.filter((p) => p.status !== '보류')
     const face = c.supplyKrw ?? c.supplyJpy ?? c.supplyUsd ?? 0
     const toKrw = face ? supply / face : 0
     const priced = ps.filter((p) => p.price != null && face)
