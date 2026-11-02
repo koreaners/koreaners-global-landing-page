@@ -171,7 +171,10 @@ async function notifySlack(scriptName, status, detail = '') {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ channel: userId, text: msg }),
+      // Leo 알림은 #assistant-bot, 실패만 Leo 태그(261102)
+      body: JSON.stringify(userId === 'U0A7ZHM3WAH'
+        ? { channel: 'C0C31NFB4H1', text: status === 'success' ? msg : `<@U0A7ZHM3WAH> ${msg}` }
+        : { channel: userId, text: msg }),
     })
   } catch {}
 }
