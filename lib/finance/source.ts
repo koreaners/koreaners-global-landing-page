@@ -106,6 +106,7 @@ export function toPayout(page: Page): Payout {
     vat: (val(page, 'VAT') as string | null) ?? null,
     deduction: (val(page, '공제 유형') as string | null) ?? null,
     creatorIds: (val(page, '크리에이터') as string[] | null) ?? [],
+    payeeId: first(page, '수취인'),
     price: num(page, '매출 단가'),
     note: str(page, '비고'),
   }

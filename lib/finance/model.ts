@@ -38,6 +38,7 @@ export type Payout = {
   id: string
   pid: number | null // 지급 ID
   name: string // 제목(영문이름)
+  payeeId?: string | null // 수취인 관계(계좌). 크리에이터 묶기 기준: 이름이 바뀌어도 같은 사람(Leo 261102 UEDA FUKA = OKANO FUKA)
   status: string // 대기, 송금 가능, 모인 접수, 원화 이체 대기, 송금 완료, 보류
   currency: Currency | null
   amount: number | null // 지급액(원래 통화)
@@ -194,7 +195,9 @@ export type ContractRow = {
 }
 
 export type CreatorRow = {
-  name: string
+  name: string // 같은 수취인 지급 가운데 가장 최근 이름
+  key: string // 수취인 id, 없으면 이름
+  aliases: string[] // 같은 수취인의 다른 이름
   currencies: Currency[]
   revenue: number // 계약 공급가 가운데 지급 비율로 나눈 몫
   revenueCount: number
@@ -258,6 +261,9 @@ export function agingBuckets(open: OpenItem[], today: string): Bucket[] {
 }
 
 /** 지급 기준일: 송금일, 없으면 송금 요청일, 없으면 연결 계약 기준일 */
+/** 크리에이터 묶기 키: 수취인(계좌)이 같으면 이름이 달라도 한 사람 */
+export const creatorKey = (p: Payout) => p.payeeId || p.name
+
 export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null {
   const c = p.contractId ? byId.get(p.contractId) : undefined
   return p.sentDate ?? p.reqDate ?? (c ? contractDay(c) : null)
@@ -410,12 +416,19 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
 
   // 크리에이터: 지급 기준일이 기간 안인 지급
+  // 크리에이터: 수취인으로 묶고 이름은 가장 최근 지급의 이름(기간과 무관하게 전체 지급 기준)
+  const latest = new Map<string, Payout>()
+  for (const p of payouts) {
+    const k = creatorKey(p), o = latest.get(k)
+    if (!o || (p.sentDate ?? p.reqDate ?? '') + String(p.pid ?? 0).padStart(6, '0') > (o.sentDate ?? o.reqDate ?? '') + String(o.pid ?? 0).padStart(6, '0')) latest.set(k, p)
+  }
   const creators = new Map<string, CreatorRow>()
   for (const p of payouts) {
     const day = payoutDay(p, byId)
     if (!inPeriod(day, period)) continue
-    const row: CreatorRow = creators.get(p.name) ?? {
-      name: p.name, currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0, estimated: 0,
+    const k = creatorKey(p)
+    const row: CreatorRow = creators.get(k) ?? {
+      name: latest.get(k)!.name, key: k, aliases: [], currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0, estimated: 0,
       done: 0, inFlight: 0, held: 0, payouts: [], shares: [], months: [],
     }
     const v = krw(p)
@@ -462,7 +475,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       if (p.status === DONE) put(p.sentDate ?? p.reqDate, 0, v)
       if (c && share) for (const rec of recognitions(c, today)) if (rec.date) put(rec.date, share * rec.share, 0)
     }
-    creators.set(p.name, row)
+    if (p.name !== row.name && !row.aliases.includes(p.name)) row.aliases.push(p.name)
+    creators.set(k, row)
   }
   for (const c of creators.values()) c.months.sort((a, b) => b.month.localeCompare(a.month))
 

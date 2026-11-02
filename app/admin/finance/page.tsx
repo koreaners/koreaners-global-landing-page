@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, contractDay, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, contractDay, creatorKey, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -580,7 +580,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
   const picked = model.creators.find((x) => x.name === sel)
   // 지급 행의 크리에이터 관계로 이름별 인스타 URL(기간과 무관하게 전체 행)
   const igs = new Map<string, Set<string>>()
-  for (const p of all) for (const id of p.creatorIds ?? []) if (ig[id]) igs.set(p.name, (igs.get(p.name) ?? new Set()).add(ig[id]))
+  for (const p of all) for (const id of p.creatorIds ?? []) if (ig[id]) igs.set(creatorKey(p), (igs.get(creatorKey(p)) ?? new Set()).add(ig[id]))
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
   // 건당 평균: 매출, 마진은 매출 몫이 있는 계약 수로, 정산은 지급 행 수로 나눔
@@ -602,9 +602,9 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
           <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
           <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
         </div>
-        <CreatorView payouts={all.filter((p) => p.name === picked.name)} contracts={contracts} today={today} />
+        <CreatorView payouts={all.filter((p) => creatorKey(p) === picked.key)} contracts={contracts} today={today} />
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <h2 className="text-base font-semibold text-neutral-50">{picked.name} <Insta urls={igs.get(picked.name)} /></h2>
+          <h2 className="text-base font-semibold text-neutral-50">{picked.name}{picked.aliases.length > 0 && <span className="ml-2 text-xs font-normal text-neutral-500">다른 이름 {picked.aliases.join(', ')}</span>} <Insta urls={igs.get(picked.key)} /></h2>
           <p className="text-sm text-neutral-200">
             매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
           </p>
@@ -657,7 +657,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
           <tr key={x.name}>
             <td className={tdl}>
               <Link href={q({ sel: x.name })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
-              {igs.get(x.name)?.size ? <span className="block max-w-[11rem] truncate text-xs"><Insta urls={igs.get(x.name)} /></span> : null}
+              {igs.get(x.key)?.size ? <span className="block max-w-[11rem] truncate text-xs"><Insta urls={igs.get(x.key)} /></span> : null}
             </td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
             <Money n={x.revenue} />
