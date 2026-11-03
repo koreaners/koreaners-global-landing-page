@@ -92,6 +92,7 @@ export default function Navigation() {
 
   const effectiveLocale = mounted || forced ? locale : 'ko'
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(effectiveLocale, key)
+  const creatorApplyLabel = effectiveLocale === 'ja' ? 'クリエイター応募' : '크리에이터 지원'
 
   return (
     <nav
@@ -113,6 +114,9 @@ export default function Navigation() {
           
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-6 flex-shrink-0">
+            <Link href="/creator#apply" className="text-xs font-bold text-white/60 hover:text-white whitespace-nowrap transition-colors">
+              {creatorApplyLabel}
+            </Link>
             <div className="flex items-center gap-1 border border-white/20 bg-card/50 p-0.5">
               <button
                 type="button"
@@ -316,6 +320,13 @@ export default function Navigation() {
                       }}
                     >
                       {t('contact')}
+                    </Link>
+                    <Link
+                      href="/creator#apply"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="mt-4 py-3 text-center text-sm font-bold text-white/60 hover:text-white transition-colors"
+                    >
+                      {creatorApplyLabel} →
                     </Link>
                   </nav>
                   

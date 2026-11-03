@@ -220,6 +220,17 @@ function CreatorContent() {
     }
   };
 
+  // 헤더 「크리에이터 지원」 링크(/creator#apply)로 들어오면 지원 모달을 바로 연다
+  // ponytail: /creator 안에서 같은 링크를 누르면 Next 라우터가 hashchange를 안 쏴서 안 열림, 히어로 「합류하기」 버튼이 대신함
+  useEffect(() => {
+    const openIfApply = () => {
+      if (window.location.hash === "#apply") setApplyModalOpen(true);
+    };
+    openIfApply();
+    window.addEventListener("hashchange", openIfApply);
+    return () => window.removeEventListener("hashchange", openIfApply);
+  }, []);
+
   const handleSelectTrack = (trackType: "exclusive" | "partner") => {
     setFormData({ ...formData, track_type: trackType });
     setApplyModalOpen(true);
