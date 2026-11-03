@@ -27,7 +27,7 @@ type Tab = (typeof TABS)[number][0]
 
 const pct = (r: number | null | undefined) => (r == null ? '-' : `${(r * 100).toFixed(1)}%`)
 
-type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string; o?: string } // o: 안건 탭을 담당자 한 명으로 거름
+type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string; o?: string; k?: string; st?: string } // o: 안건 탭을 담당자 한 명으로 거름, k/st: 캘린더 표 구분(in/out)과 상태(kind.state) 필터
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams
@@ -65,7 +65,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const years = [...new Set(data.contracts.map((c) => c.contractDate?.slice(0, 4)).filter(Boolean) as string[])].sort().reverse()
   const q = (over: Partial<Search>) => {
     const s = new URLSearchParams()
-    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s, o: sp.o } // 탭을 옮기면 검색어, 정렬은 버림
+    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s, o: sp.o, k: sp.k, st: sp.st } // 탭을 옮기면 검색어, 정렬, 필터는 버림
     const merged = { tab, y: year == null ? 'all' : String(year), m: month ? String(month) : undefined, b: basis === 'contract' ? basis : undefined, ...keep, ...over }
     for (const [k, v] of Object.entries(merged)) if (v) s.set(k, v)
     return `/admin/finance?${s}`
@@ -113,7 +113,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </div>
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
-      {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} />}
+      {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
@@ -825,7 +825,7 @@ function CalSub({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
 const man = (n: number) => (n >= 1e8 ? `${(n / 1e8).toFixed(1)}억` : n < 1e4 ? '<1' : Math.round(n / 1e4).toLocaleString('ko-KR'))
 
 /** 자금 캘린더: 날짜별 들어오고 나가는 돈, 아래 표는 그 달 안건별 입출금 전체(날짜를 누르면 그날만, 안건명 검색) */
-function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: string; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string }) {
+function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { items: CalItem[]; ym: string; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; k?: string; st?: string }) {
   const [y, m] = cur.split('-').map(Number)
   const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay() // 일요일 0
   const days = new Date(Date.UTC(y, m, 0)).getUTCDate()
@@ -836,7 +836,18 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
   const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1]
   const [ny, nm] = m === 12 ? [y + 1, 1] : [y, m + 1]
   const day = sel?.startsWith(cur) ? sel : undefined
-  const rows = (day ? (byDay.get(day) ?? []) : [...items].sort((a, b) => a.date.localeCompare(b.date))).filter((x) => hit(f, x.title, x.code, x.sub))
+  const pool = (day ? (byDay.get(day) ?? []) : items).filter((x) => hit(f, x.title, x.code, x.sub))
+  const sk = (x: CalItem) => `${x.kind}.${x.state}`
+  const byKind = pool.filter((x) => !k || x.kind === k)
+  const rows = sortRows(byKind.filter((x) => !st || sk(x) === st), s, {
+    date: (x) => x.date, title: (x) => x.title, kind: (x) => x.kind, state: (x) => CAL_STATE[x.kind][x.state], krw: (x) => x.krw,
+  })
+  const here = (o: Partial<Search>) => `${q({ y: String(y), m: String(m), d: day, ...o })}#${LIST}`
+  // 합계는 보이는 행(검색, 필터 적용) 기준. 입금과 출금은 따로 더함
+  const tot = (kind: CalItem['kind']) => { const xs = rows.filter((x) => x.kind === kind); return { n: xs.length, krw: xs.reduce((a, x) => a + x.krw, 0) } }
+  const [tin, tout] = [tot('in'), tot('out')]
+  const chip = (on: boolean) => `rounded-full border px-2 py-0.5 ${on ? 'border-neutral-400 text-neutral-100' : 'border-neutral-800 text-neutral-400 hover:text-neutral-200'}`
+  const states = [...new Map(byKind.map((x) => [sk(x), x])).values()]
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -892,6 +903,18 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
           </h3>
           <SearchBox q={q} f={f} n={rows.length} total={day ? (byDay.get(day) ?? []).length : items.length} placeholder="안건, 크리에이터" anchor={LIST} />
         </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          {([[undefined, '전체'], ['in', '입금'], ['out', '출금']] as const).map(([v, l]) => (
+            <Link key={l} href={here({ k: v, st: undefined })} className={chip(k === v)}>{l}</Link>
+          ))}
+          <span className="mx-1 text-neutral-700">|</span>
+          <Link href={here({ st: undefined })} className={chip(!st)}>상태 전체</Link>
+          {states.map((x) => (
+            <Link key={sk(x)} href={here({ st: st === sk(x) ? undefined : sk(x) })} className={chip(st === sk(x))} style={{ color: CAL_COLOR[x.kind][x.state] }}>
+              {CAL_STATE[x.kind][x.state]} {byKind.filter((r) => sk(r) === sk(x)).length}
+            </Link>
+          ))}
+        </div>
         {rows.length ? (<>
           <ul className="divide-y divide-neutral-800 rounded-xl border border-neutral-800 sm:hidden">
             {rows.map((x, i) => (
@@ -907,9 +930,22 @@ function Calendar({ items, ym: cur, today, sel, q, f }: { items: CalItem[]; ym: 
                 </div>
               </li>
             ))}
+            <li className="flex justify-between gap-3 px-3 py-2.5 text-sm text-neutral-100">
+              <span>합계 {rows.length}건</span>
+              <span className="text-right tabular-nums">{tin.n > 0 && <span className="block">입금 {tin.n}건 +{won(tin.krw)}</span>}{tout.n > 0 && <span className="block">출금 {tout.n}건 −{won(tout.krw)}</span>}</span>
+            </li>
           </ul>
           <div className="hidden sm:block">
-          <Table head={['날짜', '안건', '구분', '상태', '금액']} left={2}>
+          <Table head={['날짜', '안건', '구분', '상태', '금액']} left={2}
+            sort={{ keys: ['date', 'title', 'kind', 'state', 'krw'], cur: s, href: (v) => here({ s: v }) }}
+            foot={
+              <tr>
+                <td className={tdl} colSpan={2}>합계 {rows.length}건</td>
+                <td className={td}>{tin.n > 0 && <span className="block">입금 {tin.n}건</span>}{tout.n > 0 && <span className="block">출금 {tout.n}건</span>}</td>
+                <td className={td} />
+                <td className={`${td} tabular-nums`}>{tin.n > 0 && <span className="block">{won(tin.krw)}</span>}{tout.n > 0 && <span className="block">{won(tout.krw)}</span>}</td>
+              </tr>
+            }>
             {rows.map((x, i) => (
               <tr key={i}>
                 <td className={`${tdl} whitespace-nowrap tabular-nums`}>

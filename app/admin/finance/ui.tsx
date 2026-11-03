@@ -43,8 +43,8 @@ export function Info({ text, align = 'left' }: { text: string; align?: 'left' | 
 
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
 
-/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 옆 ⓘ 설명(칸 이름은 정렬, 설명은 아이콘으로 나눔) */
-export function Table({ head, left = 1, sort, tall, tips, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; children: React.ReactNode }) {
+/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 옆 ⓘ 설명(칸 이름은 정렬, 설명은 아이콘으로 나눔), foot은 표 아래 합계 줄 */
+export function Table({ head, left = 1, sort, tall, tips, foot, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; foot?: React.ReactNode; children: React.ReactNode }) {
   const Box = tall ? FitBox : 'div'
   return (
     <Box className={`overflow-auto rounded-xl border border-neutral-800 bg-neutral-900 ${tall ? 'sm:max-h-[calc(100dvh-16rem)]' : ''}`}>
@@ -71,6 +71,7 @@ export function Table({ head, left = 1, sort, tall, tips, children }: { head: st
           </tr>
         </thead>
         <tbody className="divide-y divide-neutral-800 text-neutral-200">{children}</tbody>
+        {foot && <tfoot className="border-t border-neutral-700 font-medium text-neutral-100">{foot}</tfoot>}
       </table>
     </Box>
   )
