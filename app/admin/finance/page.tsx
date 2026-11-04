@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, HIGH_MARGIN, contractDay, creatorKey, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, contractDay, creatorKey, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -758,6 +758,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
               <li>출금 날짜: 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일이고 정기 묶음(송금일 3영업일 전에 만듦)이면 그 달 송금일(마지막 평일), 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일. 말일이 주말이면 그 전 금요일, 공휴일은 따지지 않음)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다.</li>
               <li>색 구분: 출금 예정은 송금 가능(고객사 입금 완료, 주황)과 대기(고객사 입금 전, 노랑)를 나눠 보여 줍니다. 계약 비고에 「정산일 임의」가 있는 계약(정산일을 몰라 임의로 넣은 날, 수출바우처는 계약월 +2달 말일)은 그 입금 예정과 그 날짜를 따르는 대기 출금을 보라로 따로 보여 주고, 날이 지나도 지남으로 보지 않습니다. 봇 광고주 계약이 서명 전(코드 없음)이면 그 정산일에 청록으로 따로 보여 주고 입금 예정 합계에서 뺍니다. 대기 지급 가운데 연결 계약 입금이 끝났는데 서류나 계좌로 막힌 행은 이번 달 말일(주말이면 그 전 금요일)에 분홍 「서류·계좌 대기」로 둡니다.</li>
               <li>빠지는 것: 달력에 잡히는 대기는 수입 계약에 입금 안 된 회차가 있는 행뿐입니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 입금 약속일 칸은 아직 없습니다.</li>
+              <li>잔고: 칸 아래 줄은 월초 잔액을 0으로 두고 그날까지 입금에서 출금을 뺀 누적입니다(통장 잔액 아님, 달마다 0에서 다시 시작). 입금은 입금됨, 입금 예정, 정산일 임의를, 출금은 달력에 잡힌 전부를 넣고, 예정일 지남(입금, 출금 모두)과 서명 전 계약은 넣지 않습니다. 검색과 필터와 관계없이 그 달 전체로 셉니다.</li>
               <li>출금 금액: 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 외화는 모인 원화 청구액이나 환율 환산, 세금계산서 행은 VAT 별도면 부가세를 더하고, VAT 칸이 비면 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다.</li>
             </ul>
           </li>
@@ -831,6 +832,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
   const days = new Date(Date.UTC(y, m, 0)).getUTCDate()
   const byDay = new Map<string, CalItem[]>()
   for (const x of items) byDay.set(x.date, [...(byDay.get(x.date) ?? []), x])
+  const bal = dailyBalance(items, cur) // 검색, 필터와 무관하게 그 달 전체
   const sum = (xs: CalItem[], kind: CalItem['kind'], states: CalItem['state'][]) => xs.filter((x) => x.kind === kind && states.includes(x.state)).reduce((a, x) => a + x.krw, 0)
   const go = (yy: number, mm: number, d?: string) => q({ y: String(yy), m: String(mm), d })
   const [py, pm] = m === 1 ? [y - 1, 12] : [y, m - 1]
@@ -882,6 +884,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
           {Array.from({ length: days }, (_, i) => {
             const date = `${cur}-${String(i + 1).padStart(2, '0')}`
             const xs = byDay.get(date) ?? []
+            const b = bal[i]
             return (
               <Link key={date} href={date === day ? go(y, m) : `${go(y, m, date)}#${LIST}`} className={`min-h-16 space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-32 sm:space-y-1.5 sm:p-2.5 sm:text-sm hover:bg-neutral-800/70 ${date === sel ? 'rounded-xl ring-2 ring-inset ring-sky-500' : ''}`}>
                 <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
@@ -889,12 +892,15 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
                   const k = sum(xs, kind, states)
                   return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? (xs.some((x) => x.kind === 'out' && x.state === 'due') ? (xs.some((x) => x.kind === 'out' && x.state === 'flight') ? ' 송금 진행 중, 가능' : ' 송금 가능') : ' 송금 진행 중') : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
                 })}
+                <span className="mt-1 block border-t border-neutral-700 pt-1 tabular-nums leading-snug" style={{ color: b < 0 ? ALERT : '#d4d4d4' }} title={`잔고(월초 0 기준) ${won(b)}`}>
+                  {b < 0 ? '−' : ''}<span className="sm:hidden">{b === 0 ? '0' : man(Math.abs(b))}</span><span className="hidden sm:inline">{b === 0 ? '0원' : won2(Math.abs(b))} 잔고</span>
+                </span>
               </Link>
             )
           })}
         </div>
       </div>
-      <p className="text-xs text-neutral-500 sm:hidden">칸 금액 단위는 만원입니다.</p>
+      <p className="text-xs text-neutral-500 sm:hidden">칸 금액 단위는 만원이고, 줄 아래 숫자는 잔고입니다.</p>
       <section id={LIST} className="scroll-mt-4 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-100">
@@ -967,7 +973,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         )}
       </section>
       <p className="text-xs text-neutral-500">
-        입금은 부가세 포함 입금 예상액, 출금은 실지급액입니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
+        입금은 부가세 포함 입금 예상액, 출금은 실지급액입니다. 칸 아래 잔고는 월초 잔액을 0으로 두고 그날까지 입금에서 출금을 뺀 누적이며(통장 잔액 아님), 예정일 지남과 서명 전 계약은 넣지 않습니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
       </p>
     </div>
   )

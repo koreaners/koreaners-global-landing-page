@@ -634,3 +634,11 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || b.krw - a.krw)
 }
+
+/** 자금 캘린더 잔고: 월초 0에서 그날까지 입금 − 출금 누적(통장 잔액 아님). 예정일 지남과 서명 전 계약은 넣지 않음. [i]가 i+1일 */
+export function dailyBalance(items: CalItem[], ym: string): number[] {
+  const net: number[] = Array(new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).getUTCDate()).fill(0)
+  for (const x of items) if (x.date.startsWith(ym) && x.state !== 'late' && x.state !== 'unsigned') net[+x.date.slice(8) - 1] += x.kind === 'in' ? x.krw : -x.krw
+  let b = 0
+  return net.map((n) => (b += n))
+}
