@@ -861,8 +861,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         <div className="space-y-1 text-xs">
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">입금</span><Legend items={[['입금', GOOD], ['입금 예정', DUE], ['서명 전 계약', UNSIGNED]]} /></div>
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">출금</span><Legend items={[['출금', REV], ['예정(고객사 입금 완료)', SET], ['예정(고객사 입금 전)', WAIT], ['서류, 계좌 대기', DOCS]]} /></div>
-          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">공통</span><Legend items={[['예정일 지남', ALERT], ['정산일 임의', GUESS]]} /></div>
-          <p className="text-neutral-400">칸 아래 잔고: 월초 0원에서 그날까지 입금 − 출금 누적(통장 잔액 아님). 예정일 지남, 정산일 임의, 서명 전 계약은 뺌</p>
+          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">공통</span><Legend items={[['예정일 지남', ALERT], ['정산일 임의', GUESS]]} /><span className="inline-flex items-center gap-1 text-neutral-300"><span aria-hidden className="inline-block h-px w-3 bg-neutral-500" />잔고<Info align="right" text="날짜 칸 아래 줄. 월초 0원에서 그날까지 입금 − 출금 누적입니다(통장 잔액 아님). 예정일 지남, 정산일 임의, 서명 전 계약은 빼고 셉니다." /></span></div>
           <p className="text-neutral-500">날짜를 누르면 아래에 그날 안건이 나옵니다</p>
         </div>
       </div>
