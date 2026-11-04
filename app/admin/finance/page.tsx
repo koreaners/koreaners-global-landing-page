@@ -862,6 +862,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">입금</span><Legend items={[['입금', GOOD], ['입금 예정', DUE], ['서명 전 계약', UNSIGNED]]} /></div>
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">출금</span><Legend items={[['출금', REV], ['예정(고객사 입금 완료)', SET], ['예정(고객사 입금 전)', WAIT], ['서류, 계좌 대기', DOCS]]} /></div>
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">공통</span><Legend items={[['예정일 지남', ALERT], ['정산일 임의', GUESS]]} /></div>
+          <p className="text-neutral-400">칸 아래 잔고: 월초 0원에서 그날까지 입금 − 출금 누적(통장 잔액 아님). 예정일 지남, 정산일 임의, 서명 전 계약은 뺌</p>
           <p className="text-neutral-500">날짜를 누르면 아래에 그날 안건이 나옵니다</p>
         </div>
       </div>
@@ -973,7 +974,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         )}
       </section>
       <p className="text-xs text-neutral-500">
-        입금은 부가세 포함 입금 예상액, 출금은 실지급액입니다. 칸 아래 잔고는 월초 잔액을 0으로 두고 그날까지 입금에서 출금을 뺀 누적이며(통장 잔액 아님), 예정일 지남, 정산일 임의, 서명 전 계약은 넣지 않습니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
+        입금은 부가세 포함 입금 예상액, 출금은 실지급액입니다. 날짜를 정하는 규칙은 <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>에 있습니다.
       </p>
     </div>
   )
