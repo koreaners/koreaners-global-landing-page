@@ -886,13 +886,13 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
             const xs = byDay.get(date) ?? []
             const b = bal[i]
             return (
-              <Link key={date} href={date === day ? go(y, m) : `${go(y, m, date)}#${LIST}`} className={`min-h-16 space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-32 sm:space-y-1.5 sm:p-2.5 sm:text-sm hover:bg-neutral-800/70 ${date === sel ? 'rounded-xl ring-2 ring-inset ring-sky-500' : ''}`}>
-                <span className={`inline-block ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
+              <Link key={date} href={date === day ? go(y, m) : `${go(y, m, date)}#${LIST}`} className={`flex min-h-16 flex-col space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-32 sm:space-y-1.5 sm:p-2.5 sm:text-sm hover:bg-neutral-800/70 ${date === sel ? 'rounded-xl ring-2 ring-inset ring-sky-500' : ''}`}>
+                <span className={`self-start ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
                   return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? (xs.some((x) => x.kind === 'out' && x.state === 'due') ? (xs.some((x) => x.kind === 'out' && x.state === 'flight') ? ' 송금 진행 중, 가능' : ' 송금 가능') : ' 송금 진행 중') : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
                 })}
-                <span className="mt-1 block border-t border-neutral-700 pt-1 tabular-nums leading-snug" style={{ color: b < 0 ? ALERT : '#d4d4d4' }} title={`잔고(월초 0 기준) ${won(b)}`}>
+                <span className="mt-auto block border-t border-neutral-700 pt-1 tabular-nums leading-snug" style={{ color: b < 0 ? ALERT : '#d4d4d4' }} title={`잔고(월초 0 기준) ${won(b)}`}>
                   {b < 0 ? '−' : ''}<span className="sm:hidden">{b === 0 ? '0' : man(Math.abs(b))}</span><span className="hidden sm:inline">{b === 0 ? '0원' : won2(Math.abs(b))} 잔고</span>
                 </span>
               </Link>
