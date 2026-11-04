@@ -26,7 +26,7 @@ export function Card({ label, value, note }: { label: string; value: string; not
 }
 
 /** 설명 툴팁: 원 안 i 아이콘에 마우스를 올리거나(키보드, 모바일은 눌러서 포커스) 설명을 띄움. align은 말풍선이 붙는 쪽(오른쪽 정렬 칸은 right) */
-export function Info({ text, align = 'left' }: { text: string; align?: 'left' | 'right' }) {
+export function Info({ text, align = 'left', up }: { text: string; align?: 'left' | 'right'; up?: boolean }) {
   return (
     <span tabIndex={0} aria-label={text} className="group relative inline-flex shrink-0 cursor-help align-middle text-neutral-500 outline-none hover:text-neutral-200 focus:text-neutral-200">
       <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
@@ -34,7 +34,7 @@ export function Info({ text, align = 'left' }: { text: string; align?: 'left' | 
         <path d="M8 7.3v3.9" strokeLinecap="round" />
         <circle cx="8" cy="4.9" r="0.7" fill="currentColor" stroke="none" />
       </svg>
-      <span aria-hidden className={`pointer-events-none invisible absolute top-full z-30 mt-1.5 w-64 whitespace-normal break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
+      <span aria-hidden className={`pointer-events-none invisible absolute z-30 w-64 ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} whitespace-normal break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
         {text}
       </span>
     </span>
