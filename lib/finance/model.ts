@@ -189,18 +189,32 @@ export function partialPaid(links: BankLink[]): Map<string, number> {
 }
 
 const PARTS = ['선금', '잔금', '']
+const sumPaid = (paid: Map<string, number>, page: string, parts: string[], kinds: string[]) =>
+  parts.reduce((a, p) => a + kinds.reduce((b, k) => b + (paid.get(`${page}:${p}:${k}`) ?? 0), 0), 0)
+// 은행 원장은 2025-01-02부터라 그 전 계약은 고객사 부가세 입금을 확인할 수 없음(Leo 261105): 부가세(고객사) 줄을 만들지 않음
+const VAT_LEDGER_START = '2025-01-01'
+
+/** 수출바우처 고객사 부가세: 부가세 칸(없으면 원화 공급가 10%)과 원장 부가세 입금 합. 바우처가 아니거나 원장 시작 전 계약은 null */
+export function clientVat(c: Contract, paid: Map<string, number>): { vat: number; got: number } | null {
+  if (!c.voucher) return null
+  const d = contractDay(c)
+  if (d && d < VAT_LEDGER_START) return null
+  const vat = c.vatKrw ?? (contractCurrency(c) === 'KRW' && c.supplyKrw != null ? Math.round(c.supplyKrw * 0.1) : 0)
+  return { vat, got: sumPaid(paid, c.id, PARTS, ['부가세']) }
+}
 export type Inflow = { date: string | null; due: string | null; krw: number; label?: string; noTotal?: boolean }
 
 /** 계약에서 들어올(들어온) 현금, 부가세 포함(Leo 261105). 회차 금액은 합계 칸 × 몫(엔화 합계는 오늘 환율), 합계가 비면 공급가(영세율, 해외).
  * 입금 전 회차는 은행 원장 일부 입금(공급가, 부가세)을 뺀 남은 금액, 입금일 있는 회차는 다 받은 것으로 봄. 한 회차 계약은 원장 회차 이름과 무관하게 뺌.
- * 수출바우처는 기관이 공급가만 내므로 회차는 공급가 × 몫(일부 입금은 공급가만 뺌), 고객사가 따로 내는 부가세는 한 줄
- * 「부가세(고객사)」: 부가세 칸(없으면 원화 공급가 10%) − 원장 부가세 입금, 예정일은 가장 이른 입금 전 회차 정산일. 0원 이하는 뺌 */
+ * 수출바우처는 기관이 공급가만 내므로 회차는 공급가 × 몫(일부 입금은 공급가만 뺌). 고객사가 따로 내는 부가세 「부가세(고객사)」(clientVat)는
+ * 이미 입금됐거나 정산일이 오늘 이전인 회차 몫만큼 지금 받을 돈(예정일: 지난 입금 전 회차 정산일, 없으면 마지막 입금 회차 입금일),
+ * 나머지 몫은 다음 회차 정산일에 받을 돈. 원장 부가세 입금은 지금 몫에서 먼저 빼고 남으면 나머지 몫에서. 0원 이하는 뺌 */
 export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
   const s = supplyKrw(c, r)
   const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
   const base = c.voucher ? s : (total ?? s)
   if (base == null) return []
-  const got = (parts: string[], kinds: string[]) => parts.reduce((a, p) => a + kinds.reduce((b, k) => b + (paid.get(`${c.id}:${p}:${k}`) ?? 0), 0), 0)
+  const got = (parts: string[], kinds: string[]) => sumPaid(paid, c.id, parts, kinds)
   const kinds = c.voucher ? ['공급가'] : ['공급가', '부가세']
   const recs = recognitions(c, today)
   const out: Inflow[] = recs.map((x) => ({
@@ -209,10 +223,16 @@ export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, 
     krw: base * x.share - (x.date ? 0 : got(recs.length === 1 ? PARTS : [x.part], kinds)),
     noTotal: !c.voucher && total == null,
   }))
-  if (c.voucher) {
-    const vat = c.vatKrw ?? (contractCurrency(c) === 'KRW' && c.supplyKrw != null ? Math.round(c.supplyKrw * 0.1) : 0)
-    const due = recs.filter((x) => !x.date).map((x) => x.due).filter((d): d is string => !!d).sort()[0] ?? null
-    out.push({ date: null, due, krw: vat - got(PARTS, ['부가세']), label: '부가세(고객사)' })
+  const cv = clientVat(c, paid)
+  if (cv && cv.got <= cv.vat) {
+    const early = (xs: (string | null)[]) => xs.filter((d): d is string => !!d).sort()[0] ?? null
+    const unpaid = recs.filter((x) => !x.date)
+    const nowShare = recs.filter((x) => x.date || (x.due && x.due <= today)).reduce((a, x) => a + x.share, 0)
+    const now = cv.vat * nowShare - cv.got
+    const later = cv.vat * (1 - nowShare) + Math.min(0, now)
+    const lastPaid = recs.map((x) => x.date).filter((d): d is string => !!d).sort().pop() ?? null
+    out.push({ date: null, due: early(unpaid.filter((x) => x.due && x.due <= today).map((x) => x.due)) ?? lastPaid, krw: now, label: '부가세(고객사)' })
+    out.push({ date: null, due: early(unpaid.filter((x) => !x.due || x.due > today).map((x) => x.due)), krw: later, label: '부가세(고객사)' })
   }
   return out.filter((x) => x.krw > 0)
 }
@@ -292,6 +312,7 @@ export type Gaps = {
   highMargin: number // 고른 기간 계약 중 마진율이 HIGH_MARGIN 이상(원가 지급이 덜 붙었을 수 있음)
   dead: { count: number; krw: number } // 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 보류(수입 계약 연결분)
   bankAmbiguous: number // 은행 원장에서 여러 계약 후보라 사람 판정이 필요한 연결(받을 돈에서 빼지 않음)
+  bankOverpaidVat: number // 원장 부가세 입금이 계약 부가세보다 많은 수출바우처 계약(부가세 더 들어옴, 받을 돈 줄 없음)
 }
 
 export type Model = {
@@ -582,6 +603,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     highMargin: rows.filter((x) => x.rate != null && x.rate >= HIGH_MARGIN).length,
     dead: { count: deadPs.length, krw: deadPs.reduce((a, p) => a + krw(p), 0) },
     bankAmbiguous: links.filter((l) => l.ambiguous).length,
+    bankOverpaidVat: revenueContracts.filter((c) => { const v = clientVat(c, paid); return !!v && v.got > v.vat }).length,
   }
 
   open.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))

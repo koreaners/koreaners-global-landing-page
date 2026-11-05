@@ -318,12 +318,13 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           </Panel>
         </div>
 
-        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
+        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.filter((o) => !o.label).length}건 + 고객사 부가세 ${model.receivables.open.filter((o) => o.label).length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
           <div className="space-y-2.5">
             {buckets.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={bMax} color={b.alert ? ALERT : REV} aside={`${b.count}건`} />
             ))}
           </div>
+          {model.gaps.bankOverpaidVat > 0 && <p className="text-xs text-amber-200/90">수출바우처 {model.gaps.bankOverpaidVat}건은 고객사 부가세 더 들어옴(은행 원장 부가세 입금이 계약 부가세보다 많음)</p>}
           {model.gaps.bankAmbiguous > 0 && <p className="text-xs text-amber-200/90">은행 입금 연결 {model.gaps.bankAmbiguous}건은 여러 계약 후보라 사람 판정 필요(매출채권에서 빼지 않음)</p>}
           {late.length > 0 && (
             <div className="space-y-1 border-t border-neutral-800 pt-3">
@@ -745,7 +746,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
         <ul className="list-disc space-y-1 pl-5 text-neutral-400">
           <li>매출: 수입 계약 공급가(부가세 제외)를 입금된 달에 셉니다. 선금+잔금 계약은 금액 비율로 나눕니다. P- 지출 계약은 빠집니다.</li>
           <li>정산: 지급내역 「송금 완료」 행의 지급액(원천징수 전)을 송금일의 달에 셉니다. 송금일이 없는 행(모인을 거치지 않는 원화 송금)은 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림합니다.</li>
-          <li>매출채권, 미지급금: 기간과 관계없는 현재 잔액이고 부가세 포함입니다. 매출채권은 입금 전 회차의 합계(합계 칸이 비면 공급가)에서 은행 원장에 일부 입금(공급가, 부가세)으로 붙은 금액을 뺀 남은 금액이고, 수출바우처는 기관이 낼 공급가와 고객사가 따로 낼 부가세(부가세 칸, 없으면 공급가 10%)를 나눠 셉니다. 미지급금은 세금계산서 VAT 포함은 지급액, VAT 별도는 부가세를 더한 금액, 사업소득은 원천세 공제 전 금액입니다. 미지급금은 송금 완료도 보류도 아닌 지급입니다. 보류는 따로 보이고, 마진에서는 원가에 들어갑니다. 비고 맨 윗줄(최신 판단)에 「보류 해제 금지」, 「다시 보내지 말 것」, 「지급 아님」이 적힌 보류(중복, 반송 종결)는 원가와 크리에이터 매출 몫에서 빠집니다. 「확인 전」 조건이 붙은 해제 금지는 이미 나갔을 수 있어 원가에 둡니다.</li>
+          <li>매출채권, 미지급금: 기간과 관계없는 현재 잔액이고 부가세 포함입니다. 매출채권은 입금 전 회차의 합계(합계 칸이 비면 공급가)에서 은행 원장에 일부 입금(공급가, 부가세)으로 붙은 금액을 뺀 남은 금액이고, 수출바우처는 기관이 낼 공급가와 고객사가 따로 낼 부가세(부가세 칸, 없으면 공급가 10%)를 나눠 셉니다. 고객사 부가세는 입금됐거나 정산일이 지난 회차 몫만 지금 받을 돈이고 나머지는 다음 회차 정산일에 두며, 은행 원장이 시작된 2025-01-02 전 계약은 셈하지 않습니다. 미지급금은 세금계산서 VAT 포함은 지급액, VAT 별도는 부가세를 더한 금액, 사업소득은 원천세 공제 전 금액입니다. 미지급금은 송금 완료도 보류도 아닌 지급입니다. 보류는 따로 보이고, 마진에서는 원가에 들어갑니다. 비고 맨 윗줄(최신 판단)에 「보류 해제 금지」, 「다시 보내지 말 것」, 「지급 아님」이 적힌 보류(중복, 반송 종결)는 원가와 크리에이터 매출 몫에서 빠집니다. 「확인 전」 조건이 붙은 해제 금지는 이미 나갔을 수 있어 원가에 둡니다.</li>
           <li>마진: {marginHint(basis === 'contract')} 계약일자가 없으면 시작일, 첫 입금일로 기간을 고릅니다.</li>
           <li>
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 외화 계약 공급가는 입금된 몫을 입금일 환율(유럽중앙은행 기준환율), 입금 전 몫과 매출채권을 지금 환율로 셉니다(발생 기준 매출은 계약 기준일 환율). 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
