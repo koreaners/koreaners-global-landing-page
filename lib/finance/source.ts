@@ -1,8 +1,9 @@
 // 노션 Contract DB, 지급내역 DB 전체 조회와 정리. next 에 기대지 않아 점검 스크립트도 그대로 쓴다.
 import { Client } from '@notionhq/client'
 import { google } from 'googleapis'
-import type { Contract, Currency, Payout } from './model'
+import type { BankLink, Contract, Currency, Payout } from './model'
 import { sheetContracts } from './sheet'
+import { createAdminClient } from '../supabase/admin'
 
 type Prop = { type: string; [k: string]: unknown }
 type Page = { id: string; properties: Record<string, Prop> }
@@ -74,6 +75,8 @@ export function toContract(page: Page): Contract {
     currency: CURRENCIES.includes(str(page, '통화')) ? (str(page, '통화') as Currency) : null,
     totalKrw: num(page, '합계(원)'),
     totalJpy: num(page, '합계(엔)'),
+    vatKrw: num(page, '부가세(원)'),
+    voucher: (val(page, '수출바우처') as string | null) ?? null,
     preText: str(page, '선금 금액'),
     postText: str(page, '잔금 금액'),
     preDate: day(page, '선금 입금일'),
@@ -120,6 +123,8 @@ export type FinanceData = {
   fetchedAt: string
   sheet: { tab: string; added: number; codeless: number; dups: string[]; supplyFrom: string[] } | null
   sheetError: string | null
+  bankLinks: BankLink[] // 은행 원장 입금 줄의 계약 연결(일부 입금 차감, 바우처 고객사 부가세)
+  bankError: string | null
 }
 
 /** 운영 대시보드(MKT Ops Master)에서 숫자가 가장 큰 Dashboard 탭 전체 값 */
@@ -144,6 +149,19 @@ async function readDashboard(env: Record<string, string | undefined>): Promise<{
   if (!tab) throw new Error('Dashboard 탭 없음')
   const res = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `'${tab}'!A:AZ`, valueRenderOption: 'FORMATTED_VALUE' })
   return { tab, values: (res.data.values ?? []) as string[][] }
+}
+
+/** 은행 원장(Supabase bank_transactions, RLS로 service_role만 읽음) 입금 줄 가운데 계약 연결이 있는 줄의 links를 펼침.
+ * 일부 입금(kind 공급가, 부가세)과 사람 판정 필요(ambiguous)만 model이 쓰고, 나머지 확정 줄은 노션 입금일로 이미 반영됨 */
+async function readBankLinks(): Promise<BankLink[]> {
+  const sb = createAdminClient()
+  const out: BankLink[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('bank_transactions').select('id, links').eq('direction', '입금').contains('links', JSON.stringify([{ db: 'contract' }])).order('id').range(from, from + 999)
+    if (error) throw new Error(`은행 원장 조회 실패: ${error.message}`)
+    for (const row of data ?? []) for (const l of (row.links ?? []) as BankLink[]) if (l?.db === 'contract' && l.page) out.push(l)
+    if ((data ?? []).length < 1000) return out
+  }
 }
 
 export async function loadFinance(env: Record<string, string | undefined>): Promise<FinanceData> {
@@ -185,5 +203,13 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
   } catch (e) {
     sheetError = e instanceof Error ? e.message : String(e)
   }
-  return { contracts, payouts: p.map(toPayout), ig, igError, fetchedAt: new Date().toISOString(), sheet, sheetError }
+  // 원장을 못 읽어도 노션만으로 계속(일부 입금 차감 없이 회차 전액을 받을 돈으로)
+  let bankLinks: BankLink[] = []
+  let bankError: string | null = null
+  try {
+    bankLinks = await readBankLinks()
+  } catch (e) {
+    bankError = e instanceof Error ? e.message : String(e)
+  }
+  return { contracts, payouts: p.map(toPayout), ig, igError, fetchedAt: new Date().toISOString(), sheet, sheetError, bankLinks, bankError }
 }

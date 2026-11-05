@@ -17,6 +17,8 @@ export type Contract = {
   supplyJpy: number | null // 공급가(엔)
   totalKrw?: number | null // 합계(원), 부가세 포함 실제 입금액
   totalJpy?: number | null // 합계(엔)
+  vatKrw?: number | null // 부가세(원)
+  voucher?: string | null // 수출바우처(중진공, KOTRA): 기관이 공급가만 내고 고객사가 부가세를 따로 냄
   preText: string // 선금 금액(글)
   postText: string // 잔금 금액(글)
   preDate: string | null // 선금 입금일
@@ -54,6 +56,10 @@ export type Payout = {
   note?: string // 비고. 보류 가운데 나가지 않을 행(중복, 반송 종결)을 가림
   price?: number | null // 매출 단가: 고객사가 이 크리에이터 몫으로 낸 공급가(부가세 제외, 계약 공급가 칸과 같은 통화). 크리에이터 매출 몫에 씀(Leo 261030)
 }
+
+// 은행 원장 bank_transactions.links 한 항목(계약 연결, 정산 람다가 씀). kind 공급가, 부가세는 회차 일부 입금이고
+// kind 전액이나 없음은 노션 입금일로 이미 반영된 줄. ambiguous는 한 줄이 여러 계약 후보라 사람 판정 전(빼지 않음)
+export type BankLink = { db: string; code?: string; page: string; part?: string; kind?: string; amount?: number | null; ambiguous?: boolean }
 
 // daily: 통화별 날짜 → 원화 환율(fx.ts 일별 기준환율). 없으면 모든 날짜에 오늘 환율
 export type Rates = { JPY: number; USD: number; CNY: number; at: string; source: string; daily?: Partial<Record<'JPY' | 'USD' | 'CNY', Record<string, number>>> }
@@ -114,6 +120,14 @@ export function payoutKrw(p: Payout, r: Rates): number | null {
   return p.amount != null && rate != null ? p.amount * rate : null
 }
 
+/** 줄 돈(미지급금, 부가세 포함 현금 의무, Leo 261105): 원화 세금계산서 VAT 포함은 지급액, VAT 별도는 지급액 + 부가세 10%(원 단위 반올림),
+ * 나머지는 원화 환산 그대로(3.3% 원천세도 세무서로 나가는 돈이라 공제 전). 마진, 정산은 payoutKrw(공급가) */
+export function grossPayoutKrw(p: Payout, r: Rates): number | null {
+  if (vatIncluded(p)) return p.amount
+  if (p.deduction === '세금계산서' && p.vat === '별도' && p.currency === 'KRW' && p.amount != null) return p.amount + Math.round(p.amount * 0.1)
+  return payoutKrw(p, r)
+}
+
 /** 실제로 통장에서 나가는 금액(정산 설계 4절 실지급액): 원화 사업소득 3.3% 행은 공제액(지급액 × 0.033, 원 단위 반올림)을 뺌,
  * 원화 세금계산서 VAT 별도 행은 부가세(10%, 원 단위 반올림)를 더함(정산 람다 rules.net_pay와 같음), 나머지는 원화 환산 그대로.
  * 정산과 마진은 지급액(공급가)으로 셈: 부가세는 매입세액 공제로 돌려받아 비용이 아님 */
@@ -135,7 +149,7 @@ export function parseAmount(text: string): number | null {
   return null
 }
 
-export type Recognition = { date: string | null; due: string | null; share: number; estimated: boolean }
+export type Recognition = { date: string | null; due: string | null; share: number; estimated: boolean; part: '선금' | '잔금' } // part: 은행 원장 links 회차 이름(정산 람다 installments와 같음)
 
 /** 공급가를 입금 회차로 나눔. 날짜가 null 인 몫은 아직 받지 않은 돈, due 는 그 회차의 입금 예정일.
  * today 를 주면 오늘 뒤의 입금일은 아직 받지 않은 돈으로 보고 그 날을 예정일로 씀(입금일 칸에 예정일을 적는 경우, Leo 261012) */
@@ -155,12 +169,52 @@ function split(c: Contract): Recognition[] {
     const known = pre != null && post != null && pre + post > 0
     const preShare = known ? pre / (pre + post) : 0.5
     return [
-      { date: c.preDate, due: c.preDue, share: preShare, estimated: !known },
-      { date: c.postDate, due: c.postDue, share: 1 - preShare, estimated: !known },
+      { date: c.preDate, due: c.preDue, share: preShare, estimated: !known, part: '선금' },
+      { date: c.postDate, due: c.postDue, share: 1 - preShare, estimated: !known, part: '잔금' },
     ]
   }
-  if (c.method === '선금 100%') return [{ date: c.preDate ?? c.postDate, due: c.preDue ?? c.postDue, share: 1, estimated: false }]
-  return [{ date: c.postDate ?? c.preDate, due: c.postDue ?? c.preDue, share: 1, estimated: false }]
+  if (c.method === '선금 100%') return [{ date: c.preDate ?? c.postDate, due: c.preDue ?? c.postDue, share: 1, estimated: false, part: '선금' }]
+  return [{ date: c.postDate ?? c.preDate, due: c.postDue ?? c.preDue, share: 1, estimated: false, part: '잔금' }]
+}
+
+/** 은행 원장 일부 입금 합: 「계약 page:회차:kind」 → 원. 사람 판정 필요(ambiguous), 금액 없는 항목, kind 전액이나 없음은 뺌 */
+export function partialPaid(links: BankLink[]): Map<string, number> {
+  const m = new Map<string, number>()
+  for (const l of links) {
+    if (l.ambiguous || l.amount == null || (l.kind !== '공급가' && l.kind !== '부가세')) continue
+    const k = `${l.page}:${l.part ?? ''}:${l.kind}`
+    m.set(k, (m.get(k) ?? 0) + l.amount)
+  }
+  return m
+}
+
+const PARTS = ['선금', '잔금', '']
+export type Inflow = { date: string | null; due: string | null; krw: number; label?: string; noTotal?: boolean }
+
+/** 계약에서 들어올(들어온) 현금, 부가세 포함(Leo 261105). 회차 금액은 합계 칸 × 몫(엔화 합계는 오늘 환율), 합계가 비면 공급가(영세율, 해외).
+ * 입금 전 회차는 은행 원장 일부 입금(공급가, 부가세)을 뺀 남은 금액, 입금일 있는 회차는 다 받은 것으로 봄. 한 회차 계약은 원장 회차 이름과 무관하게 뺌.
+ * 수출바우처는 기관이 공급가만 내므로 회차는 공급가 × 몫(일부 입금은 공급가만 뺌), 고객사가 따로 내는 부가세는 한 줄
+ * 「부가세(고객사)」: 부가세 칸(없으면 원화 공급가 10%) − 원장 부가세 입금, 예정일은 가장 이른 입금 전 회차 정산일. 0원 이하는 뺌 */
+export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
+  const s = supplyKrw(c, r)
+  const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
+  const base = c.voucher ? s : (total ?? s)
+  if (base == null) return []
+  const got = (parts: string[], kinds: string[]) => parts.reduce((a, p) => a + kinds.reduce((b, k) => b + (paid.get(`${c.id}:${p}:${k}`) ?? 0), 0), 0)
+  const kinds = c.voucher ? ['공급가'] : ['공급가', '부가세']
+  const recs = recognitions(c, today)
+  const out: Inflow[] = recs.map((x) => ({
+    date: x.date,
+    due: x.due,
+    krw: base * x.share - (x.date ? 0 : got(recs.length === 1 ? PARTS : [x.part], kinds)),
+    noTotal: !c.voucher && total == null,
+  }))
+  if (c.voucher) {
+    const vat = c.vatKrw ?? (contractCurrency(c) === 'KRW' && c.supplyKrw != null ? Math.round(c.supplyKrw * 0.1) : 0)
+    const due = recs.filter((x) => !x.date).map((x) => x.due).filter((d): d is string => !!d).sort()[0] ?? null
+    out.push({ date: null, due, krw: vat - got(PARTS, ['부가세']), label: '부가세(고객사)' })
+  }
+  return out.filter((x) => x.krw > 0)
 }
 
 /** 계약 기준일: 계약일자, 없으면 시작일, 없으면 첫 입금일 */
@@ -185,7 +239,7 @@ export function priorPeriod(p: Period, today: string): Period | null {
 }
 
 export type Bucket = { label: string; count: number; krw: number; alert: boolean }
-export type OpenItem = { c: Contract; due: string | null; krw: number }
+export type OpenItem = { c: Contract; due: string | null; krw: number; label?: string } // label: 수출바우처 「부가세(고객사)」 줄
 
 export type ContractRow = {
   c: Contract
@@ -237,6 +291,7 @@ export type Gaps = {
   overPriced: number // 매출 단가 합이 공급가를 넘어 단가 비율로 줄인 계약
   highMargin: number // 고른 기간 계약 중 마진율이 HIGH_MARGIN 이상(원가 지급이 덜 붙었을 수 있음)
   dead: { count: number; krw: number } // 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 보류(수입 계약 연결분)
+  bankAmbiguous: number // 은행 원장에서 여러 계약 후보라 사람 판정이 필요한 연결(받을 돈에서 빼지 않음)
 }
 
 export type Model = {
@@ -246,8 +301,8 @@ export type Model = {
   creators: CreatorRow[]
   owners: OwnerRow[]
   gaps: Gaps
-  receivables: { buckets: Bucket[]; open: OpenItem[] } // 받을 돈 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
-  payables: Bucket[] // 줄 돈 상태 묶음
+  receivables: { buckets: Bucket[]; open: OpenItem[] } // 받을 돈(부가세 포함, 일부 입금 뺀 남은 금액) 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
+  payables: Bucket[] // 줄 돈 상태 묶음(부가세 포함, grossPayoutKrw)
 }
 
 const DAY = 86_400_000
@@ -289,13 +344,15 @@ export const isDead = (p: Payout) => {
   return p.status === '보류' && DEAD.test(top) && !top.includes('확인 전')
 }
 
-export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash'): Model {
+export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = []): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
   contracts = contracts.filter((c) => c.code)
   const revenueContracts = contracts.filter((c) => !c.isExpense && !c.excluded)
   const byId = new Map(contracts.map((c) => [c.id, c]))
   const krw = (p: Payout) => payoutKrw(p, r) ?? 0
+  const gross = (p: Payout) => grossPayoutKrw(p, r) ?? 0
+  const paid = partialPaid(links)
 
   const payByContract = new Map<string, Payout[]>()
   for (const p of payouts) {
@@ -305,7 +362,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     payByContract.set(p.contractId, list)
   }
 
-  // 매출, 정산(기준에 따라 입금/송금된 달 또는 계약 기준일의 달)과 받을 돈, 줄 돈(현재 잔액)
+  // 매출, 정산(기준에 따라 입금/송금된 달 또는 계약 기준일의 달, 공급가)과 받을 돈, 줄 돈(현재 잔액, 부가세 포함)
   const totals = { revenue: 0, settled: 0 }
   const revenueByCur: ByCur = {}
   let receivable = 0
@@ -330,11 +387,11 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const s = supplyKrw(c, r)
     if (s == null) continue
     const cur = contractCurrency(c)
-    for (const rec of recognitions(c, today)) {
-      if (!rec.date) {
-        receivable += s * rec.share
-        open.push({ c, due: rec.due, krw: s * rec.share })
-      } else if (basis === 'cash') count(rec.date, 'revenue', supplyKrw(c, r, rec.date)! * rec.share, cur)
+    for (const rec of recognitions(c, today)) if (rec.date && basis === 'cash') count(rec.date, 'revenue', supplyKrw(c, r, rec.date)! * rec.share, cur)
+    for (const x of inflows(c, r, today, paid)) {
+      if (x.date) continue
+      receivable += x.krw
+      open.push({ c, due: x.due, krw: x.krw, label: x.label })
     }
     const d = contractDay(c)
     if (basis === 'contract' && d) count(d, 'revenue', supplyKrw(c, r, d)!, cur)
@@ -345,8 +402,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   let settledEst = 0 // 현금 기준 정산 중 송금일이 없어 신청월로 센 몫
   for (const p of payouts) {
     // 보류는 미지급금에서 빼고 따로 셈(Leo 261029). 마진 원가에는 들어감(Leo 261102)
-    if (p.status === '보류') held += krw(p)
-    else if (p.status !== DONE) payable += krw(p)
+    if (p.status === '보류') held += gross(p)
+    else if (p.status !== DONE) payable += gross(p)
     if (basis === 'cash') {
       // 원화 송금은 모인 기록이 없어 송금일이 빈 행이 있음: 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림(Leo 261011 A안)
       const d = p.status === DONE ? (p.sentDate ?? p.reqDate) : null
@@ -524,6 +581,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     overPriced,
     highMargin: rows.filter((x) => x.rate != null && x.rate >= HIGH_MARGIN).length,
     dead: { count: deadPs.length, krw: deadPs.reduce((a, p) => a + krw(p), 0) },
+    bankAmbiguous: links.filter((l) => l.ambiguous).length,
   }
 
   open.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
@@ -537,7 +595,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const payables = groups
     .map(([label, hit, alert]) => {
       const xs = pending.filter((p) => hit(p.status))
-      return { label, alert, count: xs.length, krw: xs.reduce((a, p) => a + krw(p), 0) }
+      return { label, alert, count: xs.length, krw: xs.reduce((a, p) => a + gross(p), 0) }
     })
     .filter((b) => b.count > 0 || b.label !== '기타 상태')
 
@@ -606,22 +664,20 @@ export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string)
 export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'wait' | 'late' | 'guess' | 'unsigned' | 'docs'; date: string; krw: number; title: string; sub: string; code: string | null; contractId: string | null }
 
 /** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
- * 들어옴은 실제 입금액(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음). 합계가 비면 공급가로 대신하고 표시
- * 나감은 실지급액(3.3% 공제 뒤, 세금계산서 VAT 별도는 부가세 더함). VAT 칸이 빈 세금계산서 행은 그대로 두고 표시 */
-export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates, ym: string, today: string): CalItem[] {
+ * 들어옴은 inflows(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음, 입금 전 회차는 은행 원장 일부 입금을 뺀 남은 금액, 수출바우처는 기관 공급가와 고객사 부가세 줄).
+ * 합계가 비면 공급가로 대신하고 표시. 나감은 실지급액(3.3% 공제 뒤, 세금계산서 VAT 별도는 부가세 더함). VAT 칸이 빈 세금계산서 행은 그대로 두고 표시 */
+export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates, ym: string, today: string, links: BankLink[] = []): CalItem[] {
   const signed = contracts.filter((c) => c.code)
   const byId = new Map(signed.map((c) => [c.id, c]))
   const out: CalItem[] = []
+  const paid = partialPaid(links)
   for (const c of contracts) {
     if (!c.code && !c.unsigned) continue
     if (c.isExpense || c.excluded) continue
-    const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
-    const amt = total ?? supplyKrw(c, r)
-    if (amt == null) continue
-    for (const rec of recognitions(c, today)) {
-      const date = rec.date ?? rec.due
+    for (const x of inflows(c, r, today, paid)) {
+      const date = x.date ?? x.due
       if (!date?.startsWith(ym)) continue
-      out.push({ kind: 'in', state: rec.date ? 'done' : c.unsigned ? 'unsigned' : c.dueGuess ? 'guess' : date < today ? 'late' : 'due', date, krw: amt * rec.share, title: c.brand || c.corp || c.code, sub: total == null ? '합계 없음(공급가)' : '', code: c.code, contractId: c.id })
+      out.push({ kind: 'in', state: x.date ? 'done' : c.unsigned ? 'unsigned' : c.dueGuess ? 'guess' : date < today ? 'late' : 'due', date, krw: x.krw, title: c.brand || c.corp || c.code, sub: x.label ?? (x.noTotal ? '합계 없음(공급가)' : ''), code: c.code, contractId: c.id })
     }
   }
   for (const p of payouts) {

@@ -5,7 +5,7 @@ import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, contractDay, creatorKey, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, contractDay, creatorKey, grossPayoutKrw, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -54,10 +54,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
   const period = { year, month }
-  const model = buildModel(data.contracts, data.payouts, rates, period, today, basis)
+  const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks)
   const pp = priorPeriod(period, today)
-  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis) : null
-  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis) : null
+  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis, data.bankLinks) : null
+  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis, data.bankLinks) : null
   const span = (p: { year: number | null; month: number | null; upto?: number | null }) =>
     p.year == null ? '전체 기간' : p.month ? `${p.year}년 ${p.month}월` : p.upto ? `${p.year}년 1~${p.upto}월` : `${p.year}년`
   const labels = { cur: span(period), prev: pp ? span(pp) : null }
@@ -113,7 +113,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </div>
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
-      {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
+      {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today, data.bankLinks)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
@@ -193,7 +193,7 @@ function Legend({ items }: { items: [string, string][] }) {
   )
 }
 
-type Src = Pick<FinanceData, 'sheet' | 'sheetError'>
+type Src = Pick<FinanceData, 'sheet' | 'sheetError' | 'bankError'>
 
 function Overview({ model, prior, all, labels, year, month, today, rates, q, basis, src }: {
   model: Model; prior: Model | null; all: Model; labels: Labels; year: number | null; month: number | null; today: string; rates: Rates; q: (o: Partial<Search>) => string; basis: Basis; src: Src
@@ -235,7 +235,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   const heldRows = all.creators
     .flatMap((c) => c.payouts)
     .filter((x) => x.status === '보류')
-    .sort((a, b) => (payoutKrw(b, rates) ?? 0) - (payoutKrw(a, rates) ?? 0))
+    .sort((a, b) => (grossPayoutKrw(b, rates) ?? 0) - (grossPayoutKrw(a, rates) ?? 0))
     .slice(0, 5)
   // [제목, 건수, 금액, 이동, 강조]
   const todo: [string, string, number, string, boolean][] = []
@@ -262,6 +262,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         {src.sheet
           ? <>노션 계약 DB에 아직 안 올라온 계약 <span className="text-neutral-200">{src.sheet.added}건</span>은 운영 대시보드 시트에서 읽어 함께 셉니다(같은 계약인지 확인 중 {src.sheet.dups.length}건, 계약 코드가 없는 행 {src.sheet.codeless}건).</>
           : <span className="text-[#e66767]">운영 대시보드 시트를 읽지 못해 노션 계약 DB 계약만 집계합니다: {src.sheetError ?? '원인 미상'}</span>}
+        {src.bankError && <span className="text-[#e66767]"> 은행 원장을 읽지 못해 일부 입금을 빼지 않은 회차 전액을 매출채권으로 셉니다: {src.bankError}</span>}
         {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
         <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
       </p>
@@ -288,8 +289,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={`${vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={marginHint(cb)} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
-        <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} note={`예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
-        <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} note={`보류 ${won2(s.held)} 별도, 기간과 무관`} />
+        <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint="입금 전 회차의 합계(부가세 포함)에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다. 수출바우처는 기관 공급가와 고객사 부가세를 따로 셉니다." note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
+        <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint="세금계산서 VAT 포함은 지급액, VAT 별도는 부가세 10%를 더한 금액, 사업소득은 원천세 공제 전 금액입니다." note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -317,18 +318,19 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           </Panel>
         </div>
 
-        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
+        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
           <div className="space-y-2.5">
             {buckets.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={bMax} color={b.alert ? ALERT : REV} aside={`${b.count}건`} />
             ))}
           </div>
+          {model.gaps.bankAmbiguous > 0 && <p className="text-xs text-amber-200/90">은행 입금 연결 {model.gaps.bankAmbiguous}건은 여러 계약 후보라 사람 판정 필요(매출채권에서 빼지 않음)</p>}
           {late.length > 0 && (
             <div className="space-y-1 border-t border-neutral-800 pt-3">
               <p className="text-xs text-neutral-500">예정일이 가장 오래 지난 회차</p>
               {late.map((o, i) => (
                 <Link key={`${o.c.id}-${i}`} href={q({ tab: 'contracts', sel: o.c.id })} className="grid grid-cols-[1fr_auto_6.5rem] items-baseline gap-3 rounded px-1 py-1 text-sm hover:bg-neutral-800/40">
-                  <span className="truncate text-neutral-300" title={o.c.code}>{o.c.brand || o.c.code}</span>
+                  <span className="truncate text-neutral-300" title={o.c.code}>{o.c.brand || o.c.code}{o.label ? ` ${o.label}` : ''}</span>
                   <span className="text-xs tabular-nums text-neutral-500">{o.due}, {Math.round((Date.parse(today) - Date.parse(o.due!)) / 86_400_000)}일 지남</span>
                   <span className="text-right tabular-nums text-neutral-200">{won2(o.krw)}</span>
                 </Link>
@@ -337,7 +339,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link><Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link></span>}>
+        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 부가세 포함(세금계산서 VAT 별도는 10% 더함), 원천세 공제 전, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link><Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link></span>}>
           <div className="space-y-2.5">
             {model.payables.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
@@ -350,7 +352,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
                 <div key={x.id} className="grid grid-cols-[1fr_auto_6.5rem] items-baseline gap-3 px-1 py-1 text-sm">
                   <span className="truncate text-neutral-300">{x.name}</span>
                   <span className="max-w-56 truncate text-xs text-neutral-500" title={x.blocked.join(', ')}>{x.blocked.join(', ') || '사유 미기재'}</span>
-                  <span className="text-right tabular-nums text-neutral-200">{won2(payoutKrw(x, rates) ?? 0)}</span>
+                  <span className="text-right tabular-nums text-neutral-200">{won2(grossPayoutKrw(x, rates) ?? 0)}</span>
                 </div>
               ))}
             </div>
@@ -743,7 +745,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
         <ul className="list-disc space-y-1 pl-5 text-neutral-400">
           <li>매출: 수입 계약 공급가(부가세 제외)를 입금된 달에 셉니다. 선금+잔금 계약은 금액 비율로 나눕니다. P- 지출 계약은 빠집니다.</li>
           <li>정산: 지급내역 「송금 완료」 행의 지급액(원천징수 전)을 송금일의 달에 셉니다. 송금일이 없는 행(모인을 거치지 않는 원화 송금)은 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림합니다.</li>
-          <li>매출채권, 미지급금: 기간과 관계없는 현재 잔액입니다. 미지급금은 송금 완료도 보류도 아닌 지급입니다. 보류는 따로 보이고, 마진에서는 원가에 들어갑니다. 비고 맨 윗줄(최신 판단)에 「보류 해제 금지」, 「다시 보내지 말 것」, 「지급 아님」이 적힌 보류(중복, 반송 종결)는 원가와 크리에이터 매출 몫에서 빠집니다. 「확인 전」 조건이 붙은 해제 금지는 이미 나갔을 수 있어 원가에 둡니다.</li>
+          <li>매출채권, 미지급금: 기간과 관계없는 현재 잔액이고 부가세 포함입니다. 매출채권은 입금 전 회차의 합계(합계 칸이 비면 공급가)에서 은행 원장에 일부 입금(공급가, 부가세)으로 붙은 금액을 뺀 남은 금액이고, 수출바우처는 기관이 낼 공급가와 고객사가 따로 낼 부가세(부가세 칸, 없으면 공급가 10%)를 나눠 셉니다. 미지급금은 세금계산서 VAT 포함은 지급액, VAT 별도는 부가세를 더한 금액, 사업소득은 원천세 공제 전 금액입니다. 미지급금은 송금 완료도 보류도 아닌 지급입니다. 보류는 따로 보이고, 마진에서는 원가에 들어갑니다. 비고 맨 윗줄(최신 판단)에 「보류 해제 금지」, 「다시 보내지 말 것」, 「지급 아님」이 적힌 보류(중복, 반송 종결)는 원가와 크리에이터 매출 몫에서 빠집니다. 「확인 전」 조건이 붙은 해제 금지는 이미 나갔을 수 있어 원가에 둡니다.</li>
           <li>마진: {marginHint(basis === 'contract')} 계약일자가 없으면 시작일, 첫 입금일로 기간을 고릅니다.</li>
           <li>
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 외화 계약 공급가는 입금된 몫을 입금일 환율(유럽중앙은행 기준환율), 입금 전 몫과 매출채권을 지금 환율로 셉니다(발생 기준 매출은 계약 기준일 환율). 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
@@ -754,7 +756,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
           <li>
             자금 캘린더
             <ul className="mt-1 list-[circle] space-y-1 pl-5">
-              <li>입금: 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 둡니다.</li>
+              <li>입금: 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 은행 원장 일부 입금을 뺀 남은 금액으로 둡니다. 수출바우처는 기관 입금을 공급가로, 고객사 부가세를 따로 「부가세(고객사)」로 둡니다.</li>
               <li>출금 날짜: 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일이고 정기 묶음(송금일 3영업일 전에 만듦)이면 그 달 송금일(마지막 평일), 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일. 말일이 주말이면 그 전 금요일, 공휴일은 따지지 않음)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다.</li>
               <li>색 구분: 출금 예정은 송금 가능(고객사 입금 완료, 주황)과 대기(고객사 입금 전, 노랑)를 나눠 보여 줍니다. 계약 비고에 「정산일 임의」가 있는 계약(정산일을 몰라 임의로 넣은 날, 수출바우처는 계약월 +2달 말일)은 그 입금 예정과 그 날짜를 따르는 대기 출금을 보라로 따로 보여 주고, 날이 지나도 지남으로 보지 않습니다. 봇 광고주 계약이 서명 전(코드 없음)이면 그 정산일에 청록으로 따로 보여 주고 입금 예정 합계에서 뺍니다. 대기 지급 가운데 연결 계약 입금이 끝났는데 서류나 계좌로 막힌 행은 이번 달 말일(주말이면 그 전 금요일)에 분홍 「서류·계좌 대기」로 둡니다.</li>
               <li>빠지는 것: 달력에 잡히는 대기는 수입 계약에 입금 안 된 회차가 있는 행뿐입니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 입금 약속일 칸은 아직 없습니다.</li>

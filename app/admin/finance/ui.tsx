@@ -119,7 +119,7 @@ export function Tile({ label, value, full, delta, note, spark, side, hint }: { l
       <div className="flex h-6 items-start justify-between gap-2">
         <p className="whitespace-nowrap text-xs text-neutral-400">
           {label}
-          {hint && <span className="ml-1 cursor-help" title={hint} aria-label={hint}>ⓘ</span>}
+          {hint && <span className="ml-1"><Info text={hint} align="right" /></span>}
         </p>
         {spark}
       </div>
