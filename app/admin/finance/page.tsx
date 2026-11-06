@@ -759,7 +759,7 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
             <ul className="mt-1 list-[circle] space-y-1 pl-5">
               <li>입금: 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 은행 원장 일부 입금을 뺀 남은 금액으로 둡니다. 수출바우처는 기관 입금을 공급가로, 고객사 부가세를 따로 「부가세(고객사)」로 둡니다.</li>
               <li>출금 날짜: 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일이고 정기 묶음(송금일 3영업일 전에 만듦)이면 그 달 송금일(마지막 평일), 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일이 든 달 말일이고 말일 이틀 전보다 늦으면 다음 달 말일. 말일이 주말이면 그 전 금요일, 공휴일은 따지지 않음)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다.</li>
-              <li>색 구분: 출금 예정은 송금 가능(고객사 입금 완료, 주황)과 대기(고객사 입금 전, 노랑)를 나눠 보여 줍니다. 계약 비고에 「정산일 임의」가 있는 계약(정산일을 몰라 임의로 넣은 날, 수출바우처는 계약월 +2달 말일)은 그 입금 예정과 그 날짜를 따르는 대기 출금을 보라로 따로 보여 주고, 날이 지나도 지남으로 보지 않습니다. 봇 광고주 계약이 서명 전(코드 없음)이면 그 정산일에 청록으로 따로 보여 주고 입금 예정 합계에서 뺍니다. 대기 지급 가운데 연결 계약 입금이 끝났는데 서류나 계좌로 막힌 행은 이번 달 말일(주말이면 그 전 금요일)에 분홍 「서류·계좌 대기」로 둡니다.</li>
+              <li>색 구분: 달력의 출금 예정은 송금 가능, 송금 진행 중, 대기(고객사 입금 전), 서류·계좌 대기를 한 줄(주황)로 합쳐 보여 주고, 이 구분은 아래 안건별 목록의 상태 칸에만 둡니다. 계약 비고에 「정산일 임의」가 있는 계약(정산일을 몰라 임의로 넣은 날, 수출바우처는 계약월 +2달 말일)은 그 입금 예정과 그 날짜를 따르는 대기 출금을 보라로 따로 보여 주고, 날이 지나도 지남으로 보지 않습니다. 봇 광고주 계약이 서명 전(코드 없음)이면 그 정산일에 청록으로 따로 보여 주고 입금 예정 합계에서 뺍니다. 대기 지급 가운데 연결 계약 입금이 끝났는데 서류나 계좌로 막힌 행은 이번 달 말일(주말이면 그 전 금요일)에 「서류·계좌 대기」로 둡니다.</li>
               <li>빠지는 것: 달력에 잡히는 대기는 수입 계약에 입금 안 된 회차가 있는 행뿐입니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 입금 약속일 칸은 아직 없습니다.</li>
               <li>잔고: 칸 아래 줄은 월초 잔액을 0으로 두고 그날까지 입금에서 출금을 뺀 누적입니다(통장 잔액 아님, 달마다 0에서 다시 시작). 입금은 입금됨과 입금 예정을, 출금은 달력에 잡힌 것을 넣고, 예정일 지남과 정산일 임의(입금, 출금 모두), 서명 전 계약은 넣지 않습니다. 검색과 필터와 관계없이 그 달 전체로 셉니다.</li>
               <li>출금 금액: 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 외화는 모인 원화 청구액이나 환율 환산, 세금계산서 행은 VAT 별도면 부가세를 더하고, VAT 칸이 비면 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다.</li>
@@ -797,17 +797,16 @@ const CAL_STATE: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
 // 들어옴: 들어온 돈 초록, 예정 회색, 예정일 지났는데 안 들어온 돈 빨강 / 나감: 정산해서 나간 돈 파랑, 나갈 돈 주황, 예정일 지남 빨강
 const GOOD = '#3fae6a'
 const DUE = '#a3a3a3'
-const WAIT = '#e0b35a' // 고객사 입금 전이라 아직 못 보내는 출금 예정
 const GUESS = '#a78bfa' // 정산일을 몰라 임의로 넣은 날(계약 비고 「정산일 임의」)
 const UNSIGNED = '#5fb3b3' // 봇 광고주 계약 서명 전(코드 없음)
-const DOCS = '#e98bb7' // 고객사 입금은 끝났는데 서류, 계좌로 대기인 출금
 const CAL_COLOR: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
   in: { done: GOOD, flight: DUE, due: DUE, wait: DUE, late: ALERT, guess: GUESS, unsigned: UNSIGNED, docs: DUE },
-  out: { done: REV, flight: SET, due: SET, wait: WAIT, late: ALERT, guess: GUESS, unsigned: DUE, docs: DOCS },
+  // 출금 예정은 송금 준비 상태(입금 전, 서류·계좌 대기 등)를 색으로 나누지 않음, 구분은 목록 상태 칸에만(Leo 261107 「경영 가시성에 도움 안 됨」)
+  out: { done: REV, flight: SET, due: SET, wait: SET, late: ALERT, guess: GUESS, unsigned: DUE, docs: SET },
 }
 const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
   ['in', ['done'], '입금'], ['in', ['due'], '입금 예정'], ['in', ['late'], '입금 예정일 지남'], ['in', ['guess'], '입금 예정(정산일 임의)'], ['in', ['unsigned'], '입금 예정(서명 전)'],
-  ['out', ['done'], '출금'], ['out', ['flight', 'due'], '출금 예정(고객사 입금 완료)'], ['out', ['wait'], '출금 예정(고객사 입금 전)'], ['out', ['late'], '출금 예정일 지남'], ['out', ['guess'], '출금 예정(정산일 임의)'], ['out', ['docs'], '출금 예정(서류·계좌 대기)'],
+  ['out', ['done'], '출금'], ['out', ['flight', 'due', 'wait', 'docs'], '출금 예정'], ['out', ['late'], '출금 예정일 지남'], ['out', ['guess'], '출금 예정(정산일 임의)'],
 ]
 
 const LIST = 'cal-list'
@@ -863,7 +862,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">입금</span><Legend items={[['입금', GOOD], ['입금 예정', DUE], ['서명 전 계약', UNSIGNED]]} /></div>
-          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">출금</span><Legend items={[['출금', REV], ['예정(고객사 입금 완료)', SET], ['예정(고객사 입금 전)', WAIT], ['서류, 계좌 대기', DOCS]]} /></div>
+          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">출금</span><Legend items={[['출금', REV], ['출금 예정', SET]]} /></div>
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">공통</span><Legend items={[['예정일 지남', ALERT], ['정산일 임의', GUESS]]} /><span className="inline-flex items-center gap-1 text-neutral-300"><span aria-hidden className="inline-block h-px w-3 bg-neutral-500" />잔고<Info align="right" text="날짜 칸 아래 줄. 월초 0원에서 그날까지 입금 − 출금 누적입니다(통장 잔액 아님). 예정일 지남, 정산일 임의, 서명 전 계약은 빼고 셉니다." /></span></div>
           <p className="text-neutral-500">날짜를 누르면 아래에 그날 안건이 나옵니다</p>
         </div>
@@ -872,7 +871,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(노션 계약 DB 먼저, 없으면 시트, 은행 대조 전)" />
         <Card label="입금 예정" value={won2(sum(items, 'in', ['due', 'late', 'guess']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}, 정산일 임의 ${won2(sum(items, 'in', ['guess']))}, 서명 전 계약 ${won2(sum(items, 'in', ['unsigned']))}은 따로(합계 제외)`} />
         <Card label="출금" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
-        <Card label="출금 예정" value={won2(sum(items, 'out', ['flight', 'due', 'wait', 'late', 'guess', 'docs']))} note={`실지급액, 고객사 입금 완료 ${won2(sum(items, 'out', ['flight', 'due']))}, 고객사 입금 전 ${won2(sum(items, 'out', ['wait', 'guess']))}, 서류·계좌 대기 ${won2(sum(items, 'out', ['docs']))}, 보류 제외`} />
+        <Card label="출금 예정" value={won2(sum(items, 'out', ['flight', 'due', 'wait', 'late', 'guess', 'docs']))} note={`실지급액, 그중 예정일 지남 ${won2(sum(items, 'out', ['late']))}, 정산일 임의 ${won2(sum(items, 'out', ['guess']))}, 보류 제외`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-neutral-800">
         <div className="grid grid-cols-7 bg-neutral-900 text-center text-xs text-neutral-500">
@@ -894,7 +893,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
                 <span className={`self-start ${date === today ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                 {CAL_LINES.map(([kind, states, label]) => {
                   const k = sum(xs, kind, states)
-                  return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{kind === 'out' && states.includes('due') ? (xs.some((x) => x.kind === 'out' && x.state === 'due') ? (xs.some((x) => x.kind === 'out' && x.state === 'flight') ? ' 송금 진행 중, 가능' : ' 송금 가능') : ' 송금 진행 중') : states.includes('wait') ? ' 입금 전' : states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('docs') ? ' 서류 대기' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={ODD.includes(states[0]) && date < today} short /></span></span>
+                  return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={date < today && xs.some((x) => x.kind === kind && states.includes(x.state) && ODD.includes(x.state))} short /></span></span>
                 })}
                 <span className="mt-auto block border-t border-neutral-700 pt-1 tabular-nums leading-snug" style={{ color: b < 0 ? ALERT : '#d4d4d4' }} title={`잔고(월초 0 기준) ${won(b)}`}>
                   {b < 0 ? '−' : ''}<span className="sm:hidden">{b === 0 ? '0' : man(Math.abs(b))}</span><span className="hidden sm:inline">{b === 0 ? '0원' : won2(Math.abs(b))} 잔고{(gin > 0 || gout > 0) && <> <Info up align={(lead + i) % 7 >= 4 ? 'right' : 'left'} text={`정산일 임의는 잔고에 넣지 않았습니다.${gin > 0 ? ` 입금 +${won2(gin)}` : ''}${gout > 0 ? ` 출금 −${won2(gout)}` : ''}`} /></>}</span>
