@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { addMonth, bundleDay, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
+import { addMonth, bundleDay, CLOSED, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
@@ -83,7 +83,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const thisYm = today.slice(0, 7)
   const cycle = today <= payday(thisYm) ? thisYm : addMonth(thisYm, 1) // 이번 회차: 송금일이 오늘이거나 아직 오지 않은 가장 가까운 달
   const rolled = today >= bundleDay(thisYm) // 이번 달 묶음을 만든 뒤라 송금 가능은 다음 달 회차로
-  const all = data.payouts
+  const all = data.payouts.filter((p) => p.status !== CLOSED) // 종결(중복, 지급 아님)은 나가지 않을 행이라 정산 마스터에서 뺌
   const byId = new Map<string, Contract>(data.contracts.map((c) => [c.id, c]))
   const slots = new Map(all.map((p) => [p.id, slot(p, today)]))
   const view = sp.sel ? 'creator' : (sp.v ?? 'todo')

@@ -68,6 +68,7 @@ export type Rates = { JPY: number; USD: number; CNY: number; at: string; source:
 export type Period = { year: number | null; month: number | null; upto?: number | null }
 
 const DONE = '송금 완료'
+export const CLOSED = '종결' // 중복, 지급 아님 등 끝난 행(인혁 261106). 나가지 않을 돈이라 미지급금, 보류, 원가, 매출 몫에서 모두 뺌
 // 마진율이 이 이상이면 원가 지급이 덜 붙었을 수 있음(뒤 회차 크리에이터 송금 신청 전인 계약, 261102)
 // ponytail: 고정 문턱, 계약별 예상 원가 칸이 생기면 그것과 대조
 export const HIGH_MARGIN = 0.7
@@ -362,7 +363,7 @@ export type Basis = 'cash' | 'contract'
 const DEAD = /보류 해제 금지|다시 보내지 말 것|지급 아님/
 export const isDead = (p: Payout) => {
   const top = (p.note ?? '').split('\n')[0]
-  return p.status === '보류' && DEAD.test(top) && !top.includes('확인 전')
+  return p.status === CLOSED || (p.status === '보류' && DEAD.test(top) && !top.includes('확인 전'))
 }
 
 export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = []): Model {
@@ -424,7 +425,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   for (const p of payouts) {
     // 보류는 미지급금에서 빼고 따로 셈(Leo 261029). 마진 원가에는 들어감(Leo 261102)
     if (p.status === '보류') held += gross(p)
-    else if (p.status !== DONE) payable += gross(p)
+    else if (p.status !== DONE && p.status !== CLOSED) payable += gross(p)
     if (basis === 'cash') {
       // 원화 송금은 모인 기록이 없어 송금일이 빈 행이 있음: 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림(Leo 261011 A안)
       const d = p.status === DONE ? (p.sentDate ?? p.reqDate) : null
@@ -613,7 +614,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     ['보류', (s) => s === '보류', true],
     ['기타 상태', (s) => s !== '대기' && s !== '보류' && !IN_FLIGHT.includes(s), false],
   ]
-  const pending = payouts.filter((p) => p.status !== DONE)
+  const pending = payouts.filter((p) => p.status !== DONE && p.status !== CLOSED)
   const payables = groups
     .map(([label, hit, alert]) => {
       const xs = pending.filter((p) => hit(p.status))
