@@ -25,6 +25,34 @@ async function load(m: string): Promise<Att[]> {
   }
 }
 
+type SlackUser = { id: string; name?: string; real_name?: string; profile?: { display_name?: string; real_name?: string } }
+
+// 이름: 슬랙 표시 이름(슬랙 ID로 users.list, 1시간 캐시). 못 읽으면 회사 메일 앞부분, 그것도 없으면 slack id
+async function slackNames(): Promise<Record<string, string>> {
+  const token = process.env.SLACK_BOT_TOKEN
+  if (!token) return {}
+  try {
+    const res = await fetch('https://slack.com/api/users.list?limit=500', {
+      headers: { Authorization: `Bearer ${token}` },
+      next: { revalidate: 3600 },
+    })
+    const j = (await res.json()) as { ok: boolean; error?: string; members?: SlackUser[] }
+    if (!j.ok) {
+      console.error(`[attendance] users.list ${j.error}`)
+      return {}
+    }
+    const out: Record<string, string> = {}
+    for (const u of j.members ?? []) {
+      const n = u.profile?.display_name || u.profile?.real_name || u.real_name || u.name
+      if (n) out[u.id] = n
+    }
+    return out
+  } catch (e) {
+    console.error('[attendance] users.list failed', e)
+    return {}
+  }
+}
+
 // m: 달(YYYY-MM, 기본 이번 달), u: 사람(slack id)
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ m?: string; u?: string }> }) {
   const sp = await searchParams
@@ -40,9 +68,10 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       </div>
     )
   }
-  // 이름 칸이 없어 회사 메일 앞부분으로 보임(메일이 없는 줄은 slack id). 정정자(fix_by)도 같은 표로 찾음
+  // 정정자(fix_by)도 같은 표로 찾음
+  const slack = await slackNames()
   const names: Record<string, string> = {}
-  for (const r of rows) if (r.member_email || !names[r.slack_id]) names[r.slack_id] = r.member_email?.split('@')[0] || r.slack_id
-  if (sp.u) names[sp.u] ??= sp.u
+  for (const r of rows) names[r.slack_id] = slack[r.slack_id] || r.member_email?.split('@')[0] || names[r.slack_id] || r.slack_id
+  if (sp.u) names[sp.u] ??= slack[sp.u] || sp.u
   return <AttendanceView m={m} u={sp.u || undefined} rows={rows} names={names} />
 }
