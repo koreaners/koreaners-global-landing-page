@@ -304,7 +304,10 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                         {edit && (
                           <td className={td}>
                             {on ? (
-                              <button form={f} name="op" value="save" className="text-sky-300 hover:text-sky-100">확인</button>
+                              <span className="inline-flex gap-3">
+                                <button form={f} name="op" value="save" className="text-sky-300 hover:text-sky-100">확인</button>
+                                <Link href={link({ d: day }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">취소</Link>
+                              </span>
                             ) : (
                               <Link href={editLink(x.slack_id, x.workday, ROW)} className="text-neutral-400 hover:text-neutral-100">수정</Link>
                             )}
