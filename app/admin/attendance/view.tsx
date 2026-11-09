@@ -1,20 +1,25 @@
 import Link from 'next/link'
 import { AutoForm } from '../finance/auto-form'
 import { Info, Table, td, tdl } from '../finance/ui'
-import { addMonth, dayLabel, hm, kstDate, view, type Att } from './time'
+import { addMonth, dayLabel, hm, kstDate, view, type Absent, type Att } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
-const STATE_TIP = '누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다. 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
+const STATE_TIP = '미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전, 오늘은 뺌. 시간 연차는 출근하는 날이라 포함). 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다. 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
 
 const badge = 'rounded px-1.5 py-0.5 text-[11px]'
 
 /** 근무일 다음 날 새벽 시각은 (+1) */
 const time = (iso: string, day: string) => `${hm(iso)}${kstDate(iso) > day ? '(+1)' : ''}`
 
-export function AttendanceView({ m, u, rows, names }: { m: string; u?: string; rows: Att[]; names: Record<string, string> }) {
+export function AttendanceView({ m, u, rows, absents, names }: { m: string; u?: string; rows: Att[]; absents: Absent[] | null; names: Record<string, string> }) {
   // auto8: 봇이 빠진 평일을 8시간 근무로 채운 줄(인혁, 건우, 보람)
   const name = (id: string) => (id === 'auto8' ? '자동(8시간)' : names[id] ?? id)
   const shown = u ? rows.filter((r) => r.slack_id === u) : rows
+  const missed = (absents ?? []).filter((a) => !u || a.slack_id === u)
+  // 날짜별로 기록 줄 다음에 미출근 줄(이름순). sort 는 안정 정렬이라 기록 줄 순서(출근 시각)는 그대로
+  const lines: (Att | Absent)[] = [...shown, ...missed.sort((a, b) => name(a.slack_id).localeCompare(name(b.slack_id), 'ko'))].sort((a, b) =>
+    b.workday.localeCompare(a.workday),
+  )
   const people = Object.entries(names).sort((a, b) => a[1].localeCompare(b[1], 'ko'))
   const link = (ym: string) => `/admin/attendance?${new URLSearchParams({ m: ym, ...(u ? { u } : {}) })}`
   const fixTip = (r: Att) =>
@@ -45,15 +50,33 @@ export function AttendanceView({ m, u, rows, names }: { m: string; u?: string; r
             </select>
           </AutoForm>
           <Link href={link(addMonth(m, 1))} className="rounded-md bg-neutral-800 px-2 py-1 text-neutral-200 hover:bg-neutral-700">다음 달</Link>
-          <span className="text-xs text-neutral-500">{shown.length}건</span>
+          <span className="text-xs text-neutral-500">기록 {shown.length}건{absents && `, 미출근 ${missed.length}건`}</span>
         </div>
       </div>
 
-      {shown.length === 0 ? (
+      {!absents && <p className="text-sm text-amber-300/80">재직자 명단이나 휴가 기록을 읽지 못해 미출근은 표시하지 않았습니다.</p>}
+
+      {lines.length === 0 ? (
         <p className="text-sm text-neutral-500">이 기간 기록이 없습니다.</p>
       ) : (
         <Table head={['날짜', '이름', '출근', '퇴근', '근로시간(휴게 제외)', '탭 수', '상태']} left={2} tips={[undefined, undefined, undefined, undefined, WORK_TIP, undefined, STATE_TIP]}>
-          {shown.map((r) => {
+          {lines.map((r) => {
+            if (!('taps' in r))
+              return (
+                <tr key={`${r.slack_id}-${r.workday}-absent`}>
+                  <td className={`${tdl} whitespace-nowrap tabular-nums`}>{dayLabel(r.workday)}</td>
+                  <td className={tdl}>{name(r.slack_id)}</td>
+                  <td className={td}>
+                    <span className={`${badge} bg-red-950 text-red-300`}>미출근</span>
+                  </td>
+                  <td className={td}>—</td>
+                  <td className={td}>—</td>
+                  <td className={td}>0</td>
+                  <td className={td}>
+                    <span className={`${badge} bg-red-950 text-red-300`}>미출근</span>
+                  </td>
+                </tr>
+              )
             const v = view(r)
             return (
               <tr key={`${r.slack_id}-${r.workday}`}>
