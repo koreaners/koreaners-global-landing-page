@@ -1,6 +1,7 @@
 import { notion } from '@/lib/notion/client'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { absent, addMonth, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
+import { createClient } from '@/lib/supabase/server'
+import { absent, addMonth, editorOf, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
 import { AttendanceView } from './view'
 
 // 근태: Supabase hr_attendance(슬랙 출퇴근 봇이 씀, RLS로 service_role만 읽음) 조회 전용 (관리자 전용, proxy가 exec를 막음)
@@ -90,10 +91,12 @@ async function slackNames(): Promise<Record<string, string>> {
   }
 }
 
-// m: 달(YYYY-MM, 기본 이번 달), u: 사람(slack id)
-export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ m?: string; u?: string }> }) {
+type SP = { m?: string; u?: string; d?: string; e?: string; err?: string }
+// m: 달(YYYY-MM, 기본 이번 달), u: 사람(slack id), d: 고른 날(그날 목록), e: 고치는 줄(slack id:날짜), err: 정정 입력 오류
+export default async function AttendancePage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams
   const m = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.m ?? '') ? sp.m! : thisMonth()
+  const d = sp.d?.startsWith(m) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d) ? sp.d : undefined
   let rows: Att[]
   try {
     rows = await load(m)
@@ -106,7 +109,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     )
   }
   // 미출근은 명단이나 휴가를 못 읽으면 빼고(null) 표는 그대로 보여 줌
-  const [slack, absents] = await Promise.all([
+  const [slack, absents, user] = await Promise.all([
     slackNames(),
     Promise.all([roster(), leaves(m)]).then(
       ([ms, ls]) => ({ list: absent(ms, rows, ls, m), ms }),
@@ -115,6 +118,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
         return null
       },
     ),
+    createClient().then((c) => c.auth.getUser()).then((r) => r.data.user),
   ])
   // 정정자(fix_by)도 같은 표로 찾음
   const names: Record<string, string> = {}
@@ -122,5 +126,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   for (const p of absents?.ms ?? []) if (!SKIP.has(p.slack)) names[p.slack] ??= slack[p.slack] || p.name || p.slack
   if (sp.u) names[sp.u] ??= slack[sp.u] || sp.u
   const missed: Absent[] | null = absents?.list ?? null
-  return <AttendanceView m={m} u={sp.u || undefined} rows={rows} absents={missed} names={names} />
+  const emails = Object.fromEntries((absents?.ms ?? []).map((p) => [p.slack, p.email]))
+  const edit = editorOf(user?.email) ? { e: sp.e, err: sp.err, emails } : undefined
+  return <AttendanceView m={m} u={sp.u || undefined} d={d} rows={rows} absents={missed} names={names} edit={edit} />
 }

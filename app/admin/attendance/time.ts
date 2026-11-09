@@ -74,6 +74,32 @@ export function absent(members: Member[], rows: Att[], leaves: Leave[], m: strin
   return out.reverse()
 }
 
+/** 근태를 고칠 수 있는 어드민 계정(로그인 메일 → 정정자로 남길 슬랙 ID): 인혁, 건우(인혁 2026-11-09).
+ * proxy 가 건우님(exec)에게 근태 페이지만 열어 주고, 저장하는 서버 액션이 다시 확인합니다 */
+export const EDITORS: Record<string, string> = { 'leo@koreaners.com': 'U0A7ZHM3WAH', 'john.park@koreaners.com': 'U09JYMFS64Q' }
+export const editorOf = (email?: string | null) => (email && Object.hasOwn(EDITORS, email.toLowerCase()) ? EDITORS[email.toLowerCase()] : null)
+
+/** 달력 칸 상태. ok(초록): 판정하는 평일인데 미출근과 퇴근 누락이 없음, issue(빨강): 하나라도 있음, na: 판정 안 함
+ * (주말, 공휴일, ATT_FROM 전, 진행 중인 오늘과 미래). 명단을 못 읽었으면(abs null) 초록은 쓰지 않음 */
+export function dayState(day: string, rows: Att[], abs: Absent[] | null, now = Date.now()): 'ok' | 'issue' | 'na' {
+  if (day < ATT_FROM || day >= today(now) || new Date(`${day}T12:00:00Z`).getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) return 'na'
+  if (rows.some((r) => view(r).missing) || abs?.length) return 'issue'
+  return abs ? 'ok' : 'na'
+}
+
+/** 정정 입력(HH:MM 둘)을 근무일 기준 ISO 로. 하루가 05:00에 바뀌므로 05:00 전 시각은 다음 날. 퇴근이 출근보다 늦어야 함 */
+export function fixTimes(workday: string, first: string, last: string) {
+  const at = (t: string) => {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) throw new Error('시각은 HH:MM 으로 넣어 주십시오')
+    const d = new Date(`${workday}T12:00:00Z`)
+    if (t < '05:00') d.setUTCDate(d.getUTCDate() + 1)
+    return `${d.toISOString().slice(0, 10)}T${t}:00+09:00`
+  }
+  const [a, b] = [at(first), at(last)]
+  if (Date.parse(b) <= Date.parse(a)) throw new Error('퇴근이 출근보다 늦어야 합니다(05:00 전 시각은 다음 날로 봅니다)')
+  return { first: a, last: b }
+}
+
 /** 머문 분에서 휴게를 뺀 근로시간 글. lightsaber-slack nfc.py worked()와 같은 규칙:
  * 5시간 이상 1시간, 4시간 30분 이상 30분, 그 미만은 빼지 않음 */
 export function worked(stay: number) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/middleware'
+import { editorOf } from '@/app/admin/attendance/time'
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -74,8 +75,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/login?denied=1', request.url))
   }
 
-  // 역할 게이트: exec 는 /admin/reports, /admin/finance 만 접근(첫 화면은 재무 개요)
-  if (isExec && !pathname.startsWith('/admin/reports') && !pathname.startsWith('/admin/finance')) {
+  // 역할 게이트: exec 는 /admin/reports, /admin/finance 만 접근(첫 화면은 재무 개요). 근태 편집자(건우님)는 /admin/attendance 도
+  const attendance = pathname.startsWith('/admin/attendance') && !!editorOf(user.email)
+  if (isExec && !pathname.startsWith('/admin/reports') && !pathname.startsWith('/admin/finance') && !attendance) {
     return NextResponse.redirect(new URL('/admin/finance', request.url))
   }
 
