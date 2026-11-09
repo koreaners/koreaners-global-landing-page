@@ -91,8 +91,8 @@ async function slackNames(): Promise<Record<string, string>> {
   }
 }
 
-type SP = { m?: string; u?: string; d?: string; e?: string; err?: string }
-// m: 달(YYYY-MM, 기본 이번 달), u: 사람(slack id), d: 고른 날(그날 목록), e: 고치는 줄(slack id:날짜), err: 정정 입력 오류
+type SP = { m?: string; u?: string; d?: string; st?: string; e?: string; err?: string }
+// m: 달(YYYY-MM, 기본 이번 달), u: 사람(slack id), d: 고른 날(그날 목록), st: 상태 칩, e: 고치는 줄(slack id:날짜), err: 정정 입력 오류
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams
   const m0 = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.m ?? '') ? sp.m! : thisMonth()
@@ -129,5 +129,5 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const missed: Absent[] | null = absents?.list ?? null
   const emails = Object.fromEntries((absents?.ms ?? []).map((p) => [p.slack, p.email]))
   const edit = editorOf(user?.email) ? { e: sp.e, err: sp.err, emails } : undefined
-  return <AttendanceView m={m} u={sp.u || undefined} d={d} rows={rows} absents={missed} names={names} edit={edit} />
+  return <AttendanceView m={m} u={sp.u || undefined} d={d} st={sp.st || undefined} rows={rows} absents={missed} names={names} edit={edit} />
 }
