@@ -1,4 +1,4 @@
-import { Client } from '@notionhq/client'
+import { notion } from '@/lib/notion/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { absent, addMonth, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
 import { AttendanceView } from './view'
@@ -31,7 +31,6 @@ const MEMBER_DS = '73cb2d1b-4a7c-4e36-ba1d-bb5383d0f5b7'
 type Prop = { type: string; [k: string]: any }
 
 async function roster(): Promise<Member[]> {
-  const notion = new Client({ auth: process.env.NOTION_TOKEN })
   const text = (p?: Prop) => ((p?.[p.type] ?? []) as { plain_text: string }[]).map((t) => t.plain_text).join('').trim()
   const out: Member[] = []
   let cursor: string | undefined
