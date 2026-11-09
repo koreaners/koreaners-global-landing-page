@@ -68,12 +68,14 @@ export type FunnelTrend = {
   // 월간파이낸스 정본의 달별 값. % 단위는 비율(1 = 100%)
   // adj 는 그 달까지 3개월 합으로 낸 보정값(현금 기준 시차를 평평하게). 인당 매출에는 없다
   health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[]; adj?: (number | null)[] }[] | null
+  // 11/9 이후: 인건비를 뺀 고정비 대항목별 달별 금액(정본 「비용구성추이」 탭). 정본 읽기 실패면 null
+  fixed_items?: Record<string, (number | null)[]> | null
   // 10/29 이후: 리포트 주 끝에서 거슬러 월~일 13주. 송금은 그 주 일요일 시점 값, leads 는 Lead Status 읽기 실패면 null
   weeks?: {
     start: string[]
     end: string[]
     deals: { new: number[]; repeat: number[] }
-    ontime: { a: number[]; k: number[] }
+    ontime: { a: number[]; k: number[] } // 위 ontime 과 같은 단위(11/9 배포 뒤 공급가 금액)
     remit: { a: number[]; k: number[] }
     leads: Record<string, number[]> | null
   }

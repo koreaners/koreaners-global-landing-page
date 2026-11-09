@@ -7,6 +7,7 @@ import { Info, won2 } from './ui'
 // 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
 const C1 = '#3b82f6'
 const C2 = '#ea580c' // C1 과 다크 표면에서 dataviz 검증 통과(밝기, 색각 이상 구분)
+const C3 = '#a3a3a3' // 셋째 계열은 무채색(C1, C2 와 색상으로 겹치지 않게)
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
 // 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
@@ -204,6 +205,15 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           ))
         ) : (
           <p className="col-span-full text-sm text-neutral-500">월간파이낸스 정본 읽기 실패로 건전성 추이가 없습니다.</p>
+        )}
+        {t.fixed_items && (
+          <Panel title="기타 고정비 (대항목별)" rows={pick('기타 고정비')} note="인건비를 뺀 고정비 대항목. 월간파이낸스 정본 「비용구성추이」 탭 소계라, 신호등 값(정본 고정비 − 인건비)과 합계가 조금 다를 수 있음">
+            <TrendChart
+              unit="원"
+              series={Object.keys(t.fixed_items).map((k, j) => ({ key: `f${j}`, name: k, color: [C1, C2, C3][j % 3], kind: 'bar' as const, stack: 'f' }))}
+              data={pts((i) => Object.fromEntries(Object.values(t.fixed_items!).map((v, j) => [`f${j}`, v[i]])))}
+            />
+          </Panel>
         )}
       </div>
     </div>
