@@ -306,6 +306,11 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                             {on ? (
                               <span className="inline-flex gap-3">
                                 <button form={f} name="op" value="save" className="text-sky-300 hover:text-sky-100">확인</button>
+                                {target && (target.fix_by || target.taps === 0) && (
+                                  <button form={f} name="op" value="clear" formNoValidate className="text-neutral-400 hover:text-red-300">
+                                    {target.taps === 0 ? '줄 지우기' : '정정 지우기'}
+                                  </button>
+                                )}
                                 <Link href={link({ d: day }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">취소</Link>
                               </span>
                             ) : (
