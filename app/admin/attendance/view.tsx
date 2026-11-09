@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { AutoForm } from '../finance/auto-form'
 import { Card, Info, Table, td, tdl } from '../finance/ui'
 import { fixAttendance } from './actions'
@@ -8,6 +9,8 @@ const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 �
 const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
 const LIST = 'att-list'
 const EDIT = 'att-edit'
+const ROW = 'att-row'
+const inp = 'rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200'
 
 // 자금 캘린더와 같은 색(GOOD, ALERT)
 const GOOD = '#3fae6a'
@@ -91,7 +94,25 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
   const [es, ed] = edit?.e?.split(':') ?? []
   const target = es && ed ? (rows.find((r) => r.slack_id === es && r.workday === ed) ?? (absents?.some((a) => a.slack_id === es && a.workday === ed) ? null : undefined)) : undefined
   const tv = target ? view(target) : null
-  const editLink = (slack: string, wd: string) => link({ d: day, e: `${slack}:${wd}` }, `#${EDIT}`)
+  const editLink = (slack: string, wd: string, hash = EDIT) => link({ d: day, e: `${slack}:${wd}` }, `#${hash}`)
+  const editing = (x: Att | Absent) => edit && target !== undefined && x.slack_id === es && x.workday === ed
+  const firstDef = tv ? hm(tv.first) : '09:00'
+  const lastDef = tv && !tv.missing && !tv.open ? hm(tv.last) : '18:00'
+  // 모바일 패널과 표 안 입력이 함께 씀. f: 표 줄은 tr 이 form 을 감쌀 수 없어 form 속성으로 묶음
+  const hidden = edit && [['slack_id', es], ['workday', ed], ['email', edit.emails[es] ?? target?.member_email ?? ''], ['m', m], ['u', u ?? ''], ['d', day ?? '']].map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)
+  const memo = (f?: string) => <input form={f} type="text" name="note" maxLength={200} defaultValue={target?.fix_note ?? ''} placeholder="메모(예: 외근, 리더기 고장)" className={`${inp} w-full`} />
+  const buttons = (f?: string) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <button form={f} name="op" value="save" className="rounded-md border border-neutral-600 bg-neutral-800 px-3 py-1 text-neutral-100 hover:bg-neutral-700">저장</button>
+      {target && (target.fix_by || target.taps === 0) && (
+        <button form={f} name="op" value="clear" formNoValidate className="rounded-md border border-neutral-800 px-3 py-1 text-neutral-300 hover:bg-neutral-800">
+          {target.taps === 0 ? '줄 지우기' : '정정 지우기'}
+        </button>
+      )}
+      <Link href={link({ d: day }, `#${LIST}`)} className="px-2 text-neutral-400 hover:text-neutral-200">취소</Link>
+      <span className="text-xs text-neutral-500">퇴근이 05:00 전이면 다음 날입니다. {target?.taps === 0 ? '탭 기록이 없는 줄이라 지우면 미출근으로 돌아갑니다.' : '정정 지우기는 처음 탭 기록으로 되돌립니다.'}</span>
+    </div>
+  )
   const head = ['날짜', '이름', '출근', '퇴근', '근로시간(휴게 제외)', '탭 수', '상태', ...(edit ? [''] : [])]
   const tips = [undefined, undefined, undefined, undefined, WORK_TIP, undefined, STATE_TIP]
   const stCell = (x: Att | Absent) => {
@@ -211,40 +232,31 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
           </div>
 
           {edit && target !== undefined && (
-            <form id={EDIT} action={fixAttendance} className="scroll-mt-4 space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm">
-              <p className="font-medium text-neutral-100">
-                {name(es)} {dayLabel(ed)} 정정{' '}
-                <span className="font-normal text-neutral-400">{target ? `지금 출근 ${time(tv!.first, ed)}, 퇴근 ${tv!.missing ? '누락' : tv!.open ? '아직 없음' : time(tv!.last, ed)}` : '기록 없음(새 줄을 만듭니다)'}</span>
-              </p>
-              {edit.err && <p className="text-red-300">{edit.err}</p>}
-              {[['slack_id', es], ['workday', ed], ['email', edit.emails[es] ?? target?.member_email ?? ''], ['m', m], ['u', u ?? ''], ['d', day ?? '']].map(([k, v]) => (
-                <input key={k} type="hidden" name={k} value={v} />
-              ))}
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="space-y-1">
-                  <span className="block text-xs text-neutral-500">출근</span>
-                  <input type="time" name="first" required defaultValue={tv ? hm(tv.first) : '09:00'} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200" />
-                </label>
-                <label className="space-y-1">
-                  <span className="block text-xs text-neutral-500">퇴근(05:00 전은 다음 날)</span>
-                  <input type="time" name="last" required defaultValue={tv && !tv.missing && !tv.open ? hm(tv.last) : '18:00'} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200" />
-                </label>
-                <label className="min-w-48 flex-1 space-y-1">
-                  <span className="block text-xs text-neutral-500">메모</span>
-                  <input type="text" name="note" maxLength={200} defaultValue={target?.fix_note ?? ''} placeholder="예: 외근, 리더기 고장" className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200" />
-                </label>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button name="op" value="save" className="rounded-md border border-neutral-600 bg-neutral-800 px-3 py-1 text-neutral-100 hover:bg-neutral-700">저장</button>
-                {target && (target.fix_by || target.taps === 0) && (
-                  <button name="op" value="clear" formNoValidate className="rounded-md border border-neutral-800 px-3 py-1 text-neutral-300 hover:bg-neutral-800">
-                    {target.taps === 0 ? '줄 지우기' : '정정 지우기'}
-                  </button>
-                )}
-                <Link href={link({ d: day }, `#${LIST}`)} className="px-2 text-neutral-400 hover:text-neutral-200">취소</Link>
-                <span className="text-xs text-neutral-500">{target?.taps === 0 ? '탭 기록이 없는 줄이라 지우면 미출근으로 돌아갑니다.' : '정정 지우기는 처음 탭 기록으로 되돌립니다.'}</span>
-              </div>
-            </form>
+            <>
+              {/* 모바일: 카드 목록이라 위에 패널로 고침 */}
+              <form id={EDIT} action={fixAttendance} className="scroll-mt-4 space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm sm:hidden">
+                <p className="font-medium text-neutral-100">
+                  {name(es)} {dayLabel(ed)} 정정{' '}
+                  <span className="font-normal text-neutral-400">{target ? `지금 출근 ${time(tv!.first, ed)}, 퇴근 ${tv!.missing ? '누락' : tv!.open ? '아직 없음' : time(tv!.last, ed)}` : '기록 없음(새 줄을 만듭니다)'}</span>
+                </p>
+                {edit.err && <p className="text-red-300">{edit.err}</p>}
+                {hidden}
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="space-y-1">
+                    <span className="block text-xs text-neutral-500">출근</span>
+                    <input type="time" name="first" required defaultValue={firstDef} className={inp} />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="block text-xs text-neutral-500">퇴근</span>
+                    <input type="time" name="last" required defaultValue={lastDef} className={inp} />
+                  </label>
+                  <div className="min-w-48 flex-1">{memo()}</div>
+                </div>
+                {buttons()}
+              </form>
+              {/* 데스크톱: 표 줄의 출근, 퇴근 칸에 바로 입력. 입력칸은 form 속성으로 이 폼에 묶임 */}
+              <form id={`${ROW}-f`} action={fixAttendance} className="hidden">{hidden}</form>
+            </>
           )}
 
           {lines.length ? (
@@ -271,23 +283,36 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                 <Table head={head} left={2} tips={tips}>
                   {lines.map((x) => {
                     const v = 'taps' in x ? view(x) : null
+                    const on = editing(x)
+                    const f = `${ROW}-f`
                     return (
-                      <tr key={`${x.slack_id}-${x.workday}`}>
-                        <td className={`${tdl} whitespace-nowrap tabular-nums`}>
-                          <Link href={link({ d: x.workday }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">{dayLabel(x.workday)}</Link>
-                        </td>
-                        <td className={tdl}>{name(x.slack_id)}</td>
-                        <td className={td}>{v ? time(v.first, x.workday) : '—'}</td>
-                        <td className={td}>{v && !v.missing && !v.open ? time(v.last, x.workday) : '—'}</td>
-                        <td className={td}>{v?.worked ?? '—'}</td>
-                        <td className={td}>{'taps' in x ? x.taps : 0}</td>
-                        <td className={td}>{stCell(x)}</td>
-                        {edit && (
-                          <td className={td}>
-                            <Link href={editLink(x.slack_id, x.workday)} className="text-neutral-400 hover:text-neutral-100">수정</Link>
+                      <Fragment key={`${x.slack_id}-${x.workday}`}>
+                        <tr id={on ? ROW : undefined} className={on ? 'scroll-mt-16 bg-neutral-800/60' : undefined}>
+                          <td className={`${tdl} whitespace-nowrap tabular-nums`}>
+                            <Link href={link({ d: x.workday }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">{dayLabel(x.workday)}</Link>
                           </td>
+                          <td className={tdl}>{name(x.slack_id)}</td>
+                          <td className={td}>{on ? <input form={f} type="time" name="first" required autoFocus defaultValue={firstDef} aria-label="출근" className={inp} /> : v ? time(v.first, x.workday) : '—'}</td>
+                          <td className={td}>{on ? <input form={f} type="time" name="last" required defaultValue={lastDef} aria-label="퇴근" className={inp} /> : v && !v.missing && !v.open ? time(v.last, x.workday) : '—'}</td>
+                          <td className={td}>{v?.worked ?? '—'}</td>
+                          <td className={td}>{'taps' in x ? x.taps : 0}</td>
+                          <td className={td}>{stCell(x)}</td>
+                          {edit && (
+                            <td className={td}>
+                              {!on && <Link href={editLink(x.slack_id, x.workday, ROW)} className="text-neutral-400 hover:text-neutral-100">수정</Link>}
+                            </td>
+                          )}
+                        </tr>
+                        {on && (
+                          <tr className="bg-neutral-800/60">
+                            <td colSpan={head.length} className="space-y-2 px-2 pb-3 text-left">
+                              {edit?.err && <p className="text-red-300">{edit.err}</p>}
+                              {memo(f)}
+                              {buttons(f)}
+                            </td>
+                          </tr>
                         )}
-                      </tr>
+                      </Fragment>
                     )
                   })}
                 </Table>
