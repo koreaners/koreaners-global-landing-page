@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { Fragment } from 'react'
 import { AutoForm } from '../finance/auto-form'
 import { Card, Info, Table, td, tdl } from '../finance/ui'
 import { fixAttendance } from './actions'
@@ -98,14 +97,14 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
   const editing = (x: Att | Absent) => edit && target !== undefined && x.slack_id === es && x.workday === ed
   const firstDef = tv ? hm(tv.first) : '09:00'
   const lastDef = tv && !tv.missing && !tv.open ? hm(tv.last) : '18:00'
-  // 모바일 패널과 표 안 입력이 함께 씀. f: 표 줄은 tr 이 form 을 감쌀 수 없어 form 속성으로 묶음
+  // 모바일 패널과 표 줄 확인 폼이 함께 씀
   const hidden = edit && [['slack_id', es], ['workday', ed], ['email', edit.emails[es] ?? target?.member_email ?? ''], ['m', m], ['u', u ?? ''], ['d', day ?? '']].map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)
-  const memo = (f?: string) => <input form={f} type="text" name="note" maxLength={200} defaultValue={target?.fix_note ?? ''} placeholder="메모(예: 외근, 리더기 고장)" className={`${inp} w-full`} />
-  const buttons = (f?: string) => (
+  const memo = <input type="text" name="note" maxLength={200} defaultValue={target?.fix_note ?? ''} placeholder="메모(예: 외근, 리더기 고장)" className={`${inp} w-full`} />
+  const buttons = (
     <div className="flex flex-wrap items-center gap-2">
-      <button form={f} name="op" value="save" className="rounded-md border border-neutral-600 bg-neutral-800 px-3 py-1 text-neutral-100 hover:bg-neutral-700">저장</button>
+      <button name="op" value="save" className="rounded-md border border-neutral-600 bg-neutral-800 px-3 py-1 text-neutral-100 hover:bg-neutral-700">저장</button>
       {target && (target.fix_by || target.taps === 0) && (
-        <button form={f} name="op" value="clear" formNoValidate className="rounded-md border border-neutral-800 px-3 py-1 text-neutral-300 hover:bg-neutral-800">
+        <button name="op" value="clear" formNoValidate className="rounded-md border border-neutral-800 px-3 py-1 text-neutral-300 hover:bg-neutral-800">
           {target.taps === 0 ? '줄 지우기' : '정정 지우기'}
         </button>
       )}
@@ -250,12 +249,15 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                     <span className="block text-xs text-neutral-500">퇴근</span>
                     <input type="time" name="last" required defaultValue={lastDef} className={inp} />
                   </label>
-                  <div className="min-w-48 flex-1">{memo()}</div>
+                  <div className="min-w-48 flex-1">{memo}</div>
                 </div>
-                {buttons()}
+                {buttons}
               </form>
-              {/* 데스크톱: 표 줄의 출근, 퇴근 칸에 바로 입력. 입력칸은 form 속성으로 이 폼에 묶임 */}
-              <form id={`${ROW}-f`} action={fixAttendance} className="hidden">{hidden}</form>
+              {/* 데스크톱: 표 줄의 출근, 퇴근 칸이 입력칸으로 바뀌고 수정 자리가 확인. tr 은 form 을 감쌀 수 없어 입력칸은 form 속성으로 이 폼에 묶임. 메모는 있던 값 그대로 */}
+              <form id={`${ROW}-f`} action={fixAttendance} className="hidden">
+                {hidden}
+                <input type="hidden" name="note" value={target?.fix_note ?? ''} />
+              </form>
             </>
           )}
 
@@ -285,34 +287,30 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                     const v = 'taps' in x ? view(x) : null
                     const on = editing(x)
                     const f = `${ROW}-f`
+                    const tIn = (n: string, val: string, label: string) => (
+                      <input form={f} name={n} defaultValue={val} required autoFocus={n === 'first'} pattern="([01]\d|2[0-3]):[0-5]\d" title="HH:MM(24시간). 퇴근이 05:00 전이면 다음 날" inputMode="numeric" maxLength={5} aria-label={label} className="w-14 rounded border border-neutral-600 bg-neutral-950 px-1 py-0.5 text-right tabular-nums text-neutral-100" />
+                    )
                     return (
-                      <Fragment key={`${x.slack_id}-${x.workday}`}>
-                        <tr id={on ? ROW : undefined} className={on ? 'scroll-mt-16 bg-neutral-800/60' : undefined}>
-                          <td className={`${tdl} whitespace-nowrap tabular-nums`}>
-                            <Link href={link({ d: x.workday }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">{dayLabel(x.workday)}</Link>
+                      <tr key={`${x.slack_id}-${x.workday}`} id={on ? ROW : undefined} className={on ? 'scroll-mt-16 bg-neutral-800/60' : undefined}>
+                        <td className={`${tdl} whitespace-nowrap tabular-nums`}>
+                          <Link href={link({ d: x.workday }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">{dayLabel(x.workday)}</Link>
+                        </td>
+                        <td className={tdl}>{name(x.slack_id)}</td>
+                        <td className={td}>{on ? tIn('first', firstDef, '출근') : v ? time(v.first, x.workday) : '—'}</td>
+                        <td className={td}>{on ? tIn('last', lastDef, '퇴근') : v && !v.missing && !v.open ? time(v.last, x.workday) : '—'}</td>
+                        <td className={td}>{v?.worked ?? '—'}</td>
+                        <td className={td}>{'taps' in x ? x.taps : 0}</td>
+                        <td className={td}>{on && edit?.err ? <span className="text-red-300">{edit.err}</span> : stCell(x)}</td>
+                        {edit && (
+                          <td className={td}>
+                            {on ? (
+                              <button form={f} name="op" value="save" className="text-sky-300 hover:text-sky-100">확인</button>
+                            ) : (
+                              <Link href={editLink(x.slack_id, x.workday, ROW)} className="text-neutral-400 hover:text-neutral-100">수정</Link>
+                            )}
                           </td>
-                          <td className={tdl}>{name(x.slack_id)}</td>
-                          <td className={td}>{on ? <input form={f} type="time" name="first" required autoFocus defaultValue={firstDef} aria-label="출근" className={inp} /> : v ? time(v.first, x.workday) : '—'}</td>
-                          <td className={td}>{on ? <input form={f} type="time" name="last" required defaultValue={lastDef} aria-label="퇴근" className={inp} /> : v && !v.missing && !v.open ? time(v.last, x.workday) : '—'}</td>
-                          <td className={td}>{v?.worked ?? '—'}</td>
-                          <td className={td}>{'taps' in x ? x.taps : 0}</td>
-                          <td className={td}>{stCell(x)}</td>
-                          {edit && (
-                            <td className={td}>
-                              {!on && <Link href={editLink(x.slack_id, x.workday, ROW)} className="text-neutral-400 hover:text-neutral-100">수정</Link>}
-                            </td>
-                          )}
-                        </tr>
-                        {on && (
-                          <tr className="bg-neutral-800/60">
-                            <td colSpan={head.length} className="space-y-2 px-2 pb-3 text-left">
-                              {edit?.err && <p className="text-red-300">{edit.err}</p>}
-                              {memo(f)}
-                              {buttons(f)}
-                            </td>
-                          </tr>
                         )}
-                      </Fragment>
+                      </tr>
                     )
                   })}
                 </Table>
