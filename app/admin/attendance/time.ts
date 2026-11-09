@@ -53,17 +53,18 @@ export type Absent = { slack_id: string; workday: string }
 
 /** 근무일 기준 오늘 YYYY-MM-DD(하루 경계 KST 05:00) */
 export const today = (now = Date.now()) => new Date(now + KST - 5 * 3_600_000).toISOString().slice(0, 10)
+/** 그날이 끝났는지: 그날 자정(다음 날 00:00 KST)이 지났으면 끝(인혁 2026-11-09, 봇 누락 알림도 자정). 미출근, 퇴근 누락, 달력 색은 끝난 날만 판정 */
+export const ended = (day: string, now = Date.now()) => Date.parse(`${day}T00:00:00+09:00`) + 86_400_000 <= now
 
-/** 출근 기록이 아예 없는 날. m 달의 ATT_FROM 이후 평일(공휴일 제외) 중 진행 중인 근무일 전까지,
+/** 출근 기록이 아예 없는 날. m 달의 ATT_FROM 이후 평일(공휴일 제외) 중 자정이 지난 날,
  * 재직자(SKIP 제외)가 입사일 이후인데 기록도 휴가도 없는 날. 시간 연차는 출근하는 날이라 휴가로 치지 않음. 최근 날짜 먼저 */
 export function absent(members: Member[], rows: Att[], leaves: Leave[], m: string, now = Date.now()): Absent[] {
   const have = new Set(rows.map((r) => `${r.slack_id} ${r.workday}`))
   const off = leaves.filter((l) => l.type_code !== 'annual_hour')
-  const end = today(now)
   const out: Absent[] = []
   for (let d = new Date(`${m}-01T00:00:00Z`); d.toISOString().startsWith(m); d.setUTCDate(d.getUTCDate() + 1)) {
     const day = d.toISOString().slice(0, 10)
-    if (day < ATT_FROM || day >= end || d.getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) continue
+    if (day < ATT_FROM || !ended(day, now) || d.getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) continue
     for (const p of members) {
       if (SKIP.has(p.slack) || (p.joined && day < p.joined) || have.has(`${p.slack} ${day}`)) continue
       const email = p.email.toLowerCase()
@@ -80,10 +81,10 @@ export const EDITORS: Record<string, string> = { 'leo@koreaners.com': 'U0A7ZHM3W
 export const editorOf = (email?: string | null) => (email && Object.hasOwn(EDITORS, email.toLowerCase()) ? EDITORS[email.toLowerCase()] : null)
 
 /** 달력 칸 상태. ok(초록): 판정하는 평일인데 미출근과 퇴근 누락이 없음, issue(빨강): 하나라도 있음, na: 판정 안 함
- * (주말, 공휴일, ATT_FROM 전, 진행 중인 오늘과 미래). 명단을 못 읽었으면(abs null) 초록은 쓰지 않음 */
+ * (주말, 공휴일, ATT_FROM 전, 자정이 안 지난 오늘과 미래). 명단을 못 읽었으면(abs null) 초록은 쓰지 않음 */
 export function dayState(day: string, rows: Att[], abs: Absent[] | null, now = Date.now()): 'ok' | 'issue' | 'na' {
-  if (day < ATT_FROM || day >= today(now) || new Date(`${day}T12:00:00Z`).getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) return 'na'
-  if (rows.some((r) => view(r).missing) || abs?.length) return 'issue'
+  if (day < ATT_FROM || !ended(day, now) || new Date(`${day}T12:00:00Z`).getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) return 'na'
+  if (rows.some((r) => view(r, now).missing) || abs?.length) return 'issue'
   return abs ? 'ok' : 'na'
 }
 
@@ -109,11 +110,12 @@ export function worked(stay: number) {
   return h && m ? `${h}시간 ${m}분` : h ? `${h}시간` : `${m}분`
 }
 
-/** 한 줄의 화면 값: 정정값이 있으면 정정값, 출근과 퇴근이 1시간 안이면 퇴근 누락 */
-export function view(r: Att) {
+/** 한 줄의 화면 값: 정정값이 있으면 정정값. 출근과 마지막 기록이 1시간 안이면 그날 자정 전은 근무 중(open), 지나면 퇴근 누락 */
+export function view(r: Att, now = Date.now()) {
   const first = r.fix_first_at ?? r.first_at
   const last = r.fix_last_at ?? r.last_at
   const stay = Math.floor((Date.parse(last) - Date.parse(first)) / 60_000)
-  const missing = stay < 60
-  return { first, last, missing, worked: missing ? null : worked(stay), fixed: !!r.fix_by }
+  const short = stay < 60
+  const missing = short && ended(r.workday, now)
+  return { first, last, missing, open: short && !missing, worked: short ? null : worked(stay), fixed: !!r.fix_by }
 }

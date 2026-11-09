@@ -2,10 +2,10 @@ import Link from 'next/link'
 import { AutoForm } from '../finance/auto-form'
 import { Info, Table, td, tdl } from '../finance/ui'
 import { fixAttendance } from './actions'
-import { addMonth, dayLabel, dayState, hm, kstDate, today, view, type Absent, type Att } from './time'
+import { addMonth, ATT_FROM, dayLabel, dayState, hm, kstDate, today, view as view0, type Absent, type Att } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
-const STATE_TIP = '미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전, 오늘은 뺌. 시간 연차는 출근하는 날이라 포함). 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다. 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
+const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
 const LIST = 'att-list'
 const EDIT = 'att-edit'
 
@@ -39,6 +39,7 @@ export function AttendanceView({ m, u, d, rows, absents, names, edit, at = Date.
   const lead = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay()
   const days = new Date(Date.UTC(y, mo, 0)).getUTCDate()
   const now = today(at)
+  const view = (r: Att) => view0(r, at)
   const on = (day: string) => ({ rs: mine.filter((r) => r.workday === day), as: missed && missed.filter((a) => a.workday === day) })
 
   // 목록: 고른 날(없으면 그 달 전체). 날짜별로 기록 줄 다음에 미출근 줄(이름순), sort 는 안정 정렬
@@ -65,7 +66,11 @@ export function AttendanceView({ m, u, d, rows, absents, names, edit, at = Date.
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={link({ m: addMonth(m, -1) })} aria-label="이전 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">‹</Link>
+          {m > ATT_FROM.slice(0, 7) ? (
+            <Link href={link({ m: addMonth(m, -1) })} aria-label="이전 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">‹</Link>
+          ) : (
+            <span className="px-2 py-0.5 text-neutral-700">‹</span>
+          )}
           <h2 className="text-base font-semibold text-neutral-100">{y}년 {mo}월</h2>
           <Link href={link({ m: addMonth(m, 1) })} aria-label="다음 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">›</Link>
           <AutoForm className="ml-2" action="/admin/attendance">
@@ -82,7 +87,7 @@ export function AttendanceView({ m, u, d, rows, absents, names, edit, at = Date.
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm ring-2 ring-inset ring-emerald-600" />이슈 없음</span>
             <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-sm ring-2 ring-inset ring-red-500" />미출근이나 퇴근 누락 있음</span>
-            <Info align="right" text="테두리는 11/09(NFC가 출퇴근 정본이 된 날) 이후 평일 중 끝난 날에만 붙습니다. 주말, 공휴일, 오늘과 그 뒤는 테두리가 없습니다." />
+            <Info align="right" text="기록은 NFC 출퇴근을 시작한 11/09부터입니다. 테두리는 그 뒤 평일 중 자정이 지난 날에만 붙습니다. 주말, 공휴일, 오늘과 그 뒤는 테두리가 없습니다." />
           </div>
           <p className="text-neutral-500">날짜를 누르면 아래에 그날 목록이 나옵니다</p>
         </div>
@@ -134,7 +139,7 @@ export function AttendanceView({ m, u, d, rows, absents, names, edit, at = Date.
           <form id={EDIT} action={fixAttendance} className="scroll-mt-4 space-y-3 rounded-xl border border-sky-900 bg-sky-950/20 p-4 text-sm">
             <p className="font-medium text-neutral-100">
               {name(es)} {dayLabel(ed)} 정정{' '}
-              <span className="font-normal text-neutral-400">{target ? `지금 출근 ${time(tv!.first, ed)}, 퇴근 ${tv!.missing ? '누락' : time(tv!.last, ed)}` : '기록 없음(새 줄을 만듭니다)'}</span>
+              <span className="font-normal text-neutral-400">{target ? `지금 출근 ${time(tv!.first, ed)}, 퇴근 ${tv!.missing ? '누락' : tv!.open ? '아직 없음' : time(tv!.last, ed)}` : '기록 없음(새 줄을 만듭니다)'}</span>
             </p>
             {edit.err && <p className="text-red-300">{edit.err}</p>}
             {[['slack_id', es], ['workday', ed], ['email', edit.emails[es] ?? target?.member_email ?? ''], ['m', m], ['u', u ?? ''], ['d', d ?? '']].map(([k, v]) => (
@@ -147,7 +152,7 @@ export function AttendanceView({ m, u, d, rows, absents, names, edit, at = Date.
               </label>
               <label className="space-y-1">
                 <span className="block text-xs text-neutral-400">퇴근(05:00 전은 다음 날)</span>
-                <input type="time" name="last" required defaultValue={tv && !tv.missing ? hm(tv.last) : '18:00'} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100" />
+                <input type="time" name="last" required defaultValue={tv && !tv.missing && !tv.open ? hm(tv.last) : '18:00'} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-100" />
               </label>
               <label className="min-w-48 flex-1 space-y-1">
                 <span className="block text-xs text-neutral-400">메모</span>
@@ -191,7 +196,7 @@ export function AttendanceView({ m, u, d, rows, absents, names, edit, at = Date.
                   <td className={`${tdl} whitespace-nowrap tabular-nums`}>{dayLabel(r.workday)}</td>
                   <td className={tdl}>{name(r.slack_id)}</td>
                   <td className={td}>{time(v.first, r.workday)}</td>
-                  <td className={td}>{v.missing ? <span className={`${badge} bg-amber-950 text-amber-300`}>누락</span> : time(v.last, r.workday)}</td>
+                  <td className={td}>{v.missing ? <span className={`${badge} bg-amber-950 text-amber-300`}>누락</span> : v.open ? <span className={`${badge} bg-neutral-800 text-neutral-300`}>근무 중</span> : time(v.last, r.workday)}</td>
                   <td className={td}>{v.worked ?? '—'}</td>
                   <td className={td}>{r.taps}</td>
                   <td className={td}>

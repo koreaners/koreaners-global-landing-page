@@ -1,6 +1,6 @@
 // 근태 시간 계산 점검: node app/admin/attendance/time.check.mjs
 import assert from 'node:assert/strict'
-import { absent, dayState, editorOf, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
+import { absent, dayState, editorOf, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
 
 assert.equal(worked(550), '8시간 10분') // 09:00~18:10, 휴게 1시간
 assert.equal(worked(300), '4시간') // 5시간 머묾, 휴게 1시간
@@ -12,7 +12,14 @@ assert.equal(worked(20), '20분')
 assert.equal(worked(0), '0분')
 
 const row = (first_at, last_at, fix = {}) => ({ slack_id: 'U1', member_email: 'a@koreaners.com', workday: '2026-11-05', first_at, last_at, taps: 2, source: 'nfc', fix_first_at: null, fix_last_at: null, fix_by: null, fix_note: null, ...fix })
-assert.deepEqual(view(row('2026-11-05T09:00:00+09:00', '2026-11-05T18:10:59+09:00')), { first: '2026-11-05T09:00:00+09:00', last: '2026-11-05T18:10:59+09:00', missing: false, worked: '8시간 10분', fixed: false })
+assert.deepEqual(view(row('2026-11-05T09:00:00+09:00', '2026-11-05T18:10:59+09:00')), { first: '2026-11-05T09:00:00+09:00', last: '2026-11-05T18:10:59+09:00', missing: false, open: false, worked: '8시간 10분', fixed: false })
+// 퇴근 누락은 그날 자정이 지나야: 11/05 23:59 KST 는 근무 중, 11/06 00:00 KST 부터 누락
+const solo = row('2026-11-05T09:00:00+09:00', '2026-11-05T09:00:00+09:00')
+const at = (iso) => { const v = view(solo, Date.parse(iso)); return [v.missing, v.open] }
+assert.deepEqual(at('2026-11-05T14:59:00Z'), [false, true])
+assert.deepEqual(at('2026-11-05T15:00:00Z'), [true, false])
+assert.equal(ended('2026-11-05', Date.parse('2026-11-05T14:59:59Z')), false)
+assert.equal(ended('2026-11-05', Date.parse('2026-11-05T15:00:00Z')), true)
 assert.equal(view(row('2026-11-05T09:00:00+09:00', '2026-11-05T09:59:00+09:00')).missing, true) // 59분: 퇴근 누락
 assert.equal(view(row('2026-11-05T09:00:00+09:00', '2026-11-05T10:00:00+09:00')).worked, '1시간') // 정확히 1시간은 누락 아님
 const fixed = view(row('2026-11-05T09:00:00+09:00', '2026-11-05T09:00:00+09:00', { fix_last_at: '2026-11-05T18:00:00+09:00', fix_by: 'U9' }))
@@ -38,8 +45,9 @@ const leaves = [
 const now = Date.parse('2026-11-13T20:30:00Z') // 11/14(토) 05:30 KST
 const got = absent(members, att, leaves, '2026-11', now).map((x) => `${x.slack_id} ${x.workday.slice(8)}`)
 assert.deepEqual(got.sort(), ['A 10', 'A 11', 'A 12', 'A 13', 'B 12', 'B 13', 'C 09', 'C 12', 'C 13'].sort())
-// 진행 중인 근무일은 뺌: 11/13(금) 04:59 KST 는 아직 11/12 근무일이라 11/12 부터 제외
-assert.ok(!absent(members, att, [], '2026-11', Date.parse('2026-11-12T19:59:00Z')).some((x) => x.workday >= '2026-11-12'))
+// 자정 전 날은 뺌: 11/12 23:59 KST 엔 11/12 제외, 11/13 00:00 KST 부터 포함
+assert.ok(!absent(members, att, [], '2026-11', Date.parse('2026-11-12T14:59:00Z')).some((x) => x.workday >= '2026-11-12'))
+assert.ok(absent(members, att, [], '2026-11', Date.parse('2026-11-12T15:00:00Z')).some((x) => x.workday === '2026-11-12'))
 assert.equal(absent(members, [], [], '2026-10', now).length, 0) // ATT_FROM 전 달
 assert.equal(absent([mem('A')], [], [], '2026-12', Date.parse('2026-12-31T21:00:00Z')).some((x) => x.workday === '2026-12-25'), false) // 성탄절
 assert.equal(absent([mem('A')], [], [], '2026-12', Date.parse('2026-12-31T21:00:00Z'))[0].workday, '2026-12-31')
@@ -49,6 +57,7 @@ const short = { ...row('2026-11-10T09:00:00+09:00', '2026-11-10T09:10:00+09:00')
 assert.equal(dayState('2026-11-09', [ok], [], now), 'ok')
 assert.equal(dayState('2026-11-09', [ok], [{ slack_id: 'B', workday: '2026-11-09' }], now), 'issue') // 미출근
 assert.equal(dayState('2026-11-10', [short], [], now), 'issue') // 퇴근 누락
+assert.equal(dayState('2026-11-10', [short], [], Date.parse('2026-11-10T14:00:00Z')), 'na') // 11/10 23:00 KST: 아직 판정 안 함
 assert.equal(dayState('2026-11-10', [short], null, now), 'issue') // 명단 없어도 퇴근 누락은 빨강
 assert.equal(dayState('2026-11-09', [ok], null, now), 'na') // 명단 없으면 초록 안 씀
 assert.equal(dayState('2026-11-06', [], [], now), 'na') // ATT_FROM 전

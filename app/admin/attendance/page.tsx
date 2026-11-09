@@ -1,7 +1,7 @@
 import { notion } from '@/lib/notion/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { absent, addMonth, editorOf, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
+import { absent, addMonth, ATT_FROM, editorOf, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
 import { AttendanceView } from './view'
 
 // 근태: Supabase hr_attendance(슬랙 출퇴근 봇이 씀, RLS로 service_role만 읽음) 조회 전용 (관리자 전용, proxy가 exec를 막음)
@@ -16,7 +16,7 @@ async function load(m: string): Promise<Att[]> {
     const { data, error } = await sb
       .from('hr_attendance')
       .select(COLS)
-      .gte('workday', `${m}-01`)
+      .gte('workday', `${m}-01` < ATT_FROM ? ATT_FROM : `${m}-01`) // NFC 개시(11/09) 전 시험 기록은 빼고 보여 줌
       .lt('workday', `${addMonth(m, 1)}-01`)
       .order('workday', { ascending: false })
       .order('first_at')
@@ -95,7 +95,8 @@ type SP = { m?: string; u?: string; d?: string; e?: string; err?: string }
 // m: 달(YYYY-MM, 기본 이번 달), u: 사람(slack id), d: 고른 날(그날 목록), e: 고치는 줄(slack id:날짜), err: 정정 입력 오류
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams
-  const m = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.m ?? '') ? sp.m! : thisMonth()
+  const m0 = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.m ?? '') ? sp.m! : thisMonth()
+  const m = m0 < ATT_FROM.slice(0, 7) ? ATT_FROM.slice(0, 7) : m0 // 11월 전은 기록이 없어 11월로
   const d = sp.d?.startsWith(m) && /^\d{4}-\d{2}-\d{2}$/.test(sp.d) ? sp.d : undefined
   let rows: Att[]
   try {
