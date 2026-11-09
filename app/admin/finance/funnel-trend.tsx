@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { REPORTS_BUCKET, TREND_KEY, parseReportKey, type FunnelTrend, type WeeklyReport } from '@/lib/reports'
 import { TrendChart, type TrendPoint } from './charts'
-import { Info } from './ui'
+import { Info, won2 } from './ui'
 
 // 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
 const C1 = '#3b82f6'
@@ -50,7 +50,46 @@ function Panel({ title, note, info, href, rows = [], children }: { title: string
   return href ? <Link href={href} className="group/card block h-full">{card}</Link> : card
 }
 
-const CASH_TIMING = '공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)'
+// 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
+const TEAMS: [string, [string, string][]][] = [
+  ['영업팀', [['S1', '신규 리드: 영업 메일'], ['S1', '신규 리드: 홈페이지 문의'], ['S3', '견적 발송률'], ['S4', '수주율: 영업 메일'], ['S4', '수주율: 홈페이지 문의'], ['S6', '단계 체류'], ['S5', '수주 질'], ['', '300만 원 미만 계약 비중']]],
+  ['PM팀', [['', '3개월 내 재계약률'], ['E1', '상태별 기한 준수율'], ['E2', '업로드 일정 준수율'], ['', '변동비율']]],
+  ['전략실', [['', '인당 매출'], ['', '인당 처리 안건'], ['', '인건비 ÷ 공헌이익']]],
+  ['경영지원', [['', '기타 고정비'], ['F1', '기한 내 회수율'], ['F2', '송금 처리율']]],
+]
+
+function TeamLights({ rows }: { rows: Row[] }) {
+  const by = new Map(rows.map((r) => [r.label, r]))
+  return (
+    <section className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+      <h2 className="flex items-center gap-1.5 text-base font-semibold text-neutral-100">
+        팀별 관리지표
+        <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 회색은 목표가 아직 없거나 원천 칸이 없어 색을 정하지 않은 지표" />
+      </h2>
+      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+        {TEAMS.map(([team, items]) => (
+          <div key={team} className="space-y-1.5">
+            <h3 className="text-xs font-medium text-neutral-400">{team}</h3>
+            {items.map(([code, label]) => {
+              const r = by.get(label)
+              return (
+                <div key={label} className="flex items-center gap-1.5 text-xs">
+                  <i className={`block h-2 w-2 shrink-0 rounded-full ${r?.light ? DOT[r.light] : 'bg-neutral-600'}`} />
+                  <span className="text-neutral-300">{code && <span className="text-neutral-500">{code} </span>}{label}</span>
+                  {r?.define && <Info text={r.define} />}
+                  <span className="ml-auto whitespace-nowrap text-right tabular-nums text-neutral-100">{r ? r.value : '다음 주간 리포트부터'}</span>
+                  {r?.target && <span className="whitespace-nowrap text-neutral-500">목표 {r.target}</span>}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+const CASH_TIMING ='공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)'
 
 export async function FunnelTrendTab() {
   const supabase = await createClient()
@@ -96,6 +135,8 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
         </p>
       </div>
 
+      <TeamLights rows={rows} />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Panel title="안건 수" href="/admin/finance?tab=contracts" rows={pick('안건 수')} note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
           <TrendChart
@@ -109,16 +150,16 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           />
         </Panel>
 
-        <Panel title="입금, 송금" href="/admin/finance?tab=calendar" rows={pick('기한 내 입금률', '송금 처리율')} note="기한 내 입금률: 입금 예정일이 그 달인 회차 중 예정일까지 입금. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
+        <Panel title="입금, 송금" href="/admin/finance?tab=calendar" rows={pick('기한 내 회수율', '송금 처리율')} note="기한 내 회수율: 입금 예정일이 그 달인 회차의 공급가 중 예정일까지 들어온 금액. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
           <TrendChart
             unit="%"
             goal={100}
             series={[
-              { key: 'on', name: '기한 내 입금률', color: C1, kind: 'line' },
+              { key: 'on', name: '기한 내 회수율', color: C1, kind: 'line' },
               { key: 're', name: '송금 처리율', color: C2, kind: 'line' },
             ]}
             data={pts((i) => ({
-              on: rate(t.ontime.a[i], t.ontime.k[i]), on_t: `${t.ontime.a[i]}/${t.ontime.k[i]}건`,
+              on: rate(t.ontime.a[i], t.ontime.k[i]), on_t: `${won2(t.ontime.a[i])} / ${won2(t.ontime.k[i])}`,
               re: rate(t.remit.a[i], t.remit.k[i]), re_t: `${t.remit.a[i]}/${t.remit.k[i]}건`,
             }))}
           />
