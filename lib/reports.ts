@@ -61,7 +61,7 @@ export type FunnelTrend = {
   today: string
   months: string[]
   deals: { goal: number; repeat_goal: number; new: number[]; repeat: number[] }
-  ontime: { a: number[]; k: number[] }
+  ontime: { a: number[]; k: number[] } // 기한 내 회수율. 11/9 배포 뒤 회차부터 공급가 금액(원), 그 전은 회차 건수
   remit: { a: number[]; k: number[] }
   // 컨택월 코호트. ripe 가 false 인 달(말일이 60일 안 지남)은 수주율을 그리지 않는다
   leads: Record<string, { n: number[]; won: number[]; ripe: boolean[] }> | null
