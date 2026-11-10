@@ -30,6 +30,7 @@ export type Contract = {
   link: string | null
   unsigned?: boolean // 봇 광고주 계약 서명 전(제목 「(서명 전) 」, 코드 없음). 캘린더에 따로 표시(Leo 261026)
   dueGuess?: boolean // 비고에 「정산일 임의」: 정산일을 모르는 계약에 임의로 넣은 날(수출바우처 계약월 +2달 말일 등, Leo 261026). 캘린더 색을 따로
+  twikr?: boolean // 비고에 「공급자 트위커」: 대금이 트위커 국민 계좌로 가는 계약. 코리너스 받을 돈, 자금 캘린더 들어옴에서 뺌(매출은 그대로, 인혁 261105)
   supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
   currency?: Currency | null // Contract DB 통화 칸(매출 통화별 나눔용, 금액은 공급가(원) 그대로)
   source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(코드 받기와 코드 대조 전 임시)
@@ -211,6 +212,7 @@ export type Inflow = { date: string | null; due: string | null; krw: number; lab
  * 이미 입금됐거나 정산일이 오늘 이전인 회차 몫만큼 지금 받을 돈(예정일: 지난 입금 전 회차 정산일, 없으면 마지막 입금 회차 입금일),
  * 나머지 몫은 다음 회차 정산일에 받을 돈. 원장 부가세 입금은 지금 몫에서 먼저 빼고 남으면 나머지 몫에서. 0원 이하는 뺌 */
 export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
+  if (c.twikr) return [] // 트위커 계좌로 받는 돈은 코리너스 통장에 들어오지 않음
   const s = supplyKrw(c, r)
   const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
   const base = c.voucher ? s : (total ?? s)
