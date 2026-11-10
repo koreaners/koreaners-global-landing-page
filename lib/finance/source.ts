@@ -113,6 +113,8 @@ export function toPayout(page: Page): Payout {
     payeeId: first(page, '수취인'),
     price: num(page, '매출 단가'),
     note: str(page, '비고'),
+    dueOn: day(page, '송금 예정일'),
+    dueManual: str(page, '비고').includes('송금 예정일 임의'),
   }
 }
 

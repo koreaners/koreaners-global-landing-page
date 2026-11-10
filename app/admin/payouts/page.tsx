@@ -21,11 +21,11 @@ const STATUSES = ['대기', '송금 가능', '모인 접수', '원화 이체 대
 
 const md = (d: string) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`
 
-/** 행이 속한 회차(달)와 표에 쓸 날짜. 송금 완료: 송금일(없으면 요청일)의 달, 송금 가능, 모인 접수, 원화 이체 대기: payoutDue(자금 캘린더와 같은 규칙),
- * 대기, 보류: 미정(null) */
+/** 행이 속한 회차(달)와 표에 쓸 날짜. 송금 완료: 송금일(없으면 요청일)의 달, 그 밖: payoutDue(자금 캘린더와 같은 규칙, 노션 송금 예정일 우선).
+ * 계약 맵을 넘기지 않아 송금 예정일 없는 대기와 보류는 미정(null) */
 function slot(p: Payout, today: string): { month: string | null; date: string | null } {
   if (p.status === DONE) return { month: (p.sentDate ?? p.reqDate)?.slice(0, 7) ?? null, date: p.sentDate }
-  const date = IN_FLIGHT.includes(p.status) ? payoutDue(p, new Map(), today) : null
+  const date = payoutDue(p, new Map(), today)
   return { month: date?.slice(0, 7) ?? null, date }
 }
 
@@ -54,6 +54,7 @@ const FIX: Record<string, string> = {
   '문서 확인 필요': '서명, 인보이스 확인이 남았거나 원화 행에 공제 유형이 비었습니다',
   '계약 초과': '같은 계약의 지급 합이 공급가를 넘습니다. 금액을 확인하고 송금 확인일을 넣습니다',
   '통화 불일치': '이체 주소록 계좌 나라와 지급 통화가 다릅니다(예: 일본 계좌인데 KRW). 통화나 계좌를 바로잡습니다',
+  '송금 예정일 전': '송금 예정일이 다음 달 이후입니다. 예정일의 달이 되면 자동으로 풀립니다. 앞당기려면 지급내역의 송금 예정일을 고칩니다',
 }
 // 이번 회차 상태별 다음 할 일(settlement transfer_file.py, bank_krw.py 흐름)
 const STEP: [string, string][] = [
@@ -169,7 +170,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             <td className={td}>{p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '미상'}`}</td>
             <td className="px-2 py-2 text-right text-xs">{p.deduction ? `${p.deduction}${p.deduction === '세금계산서' && p.vat ? ` (VAT ${p.vat})` : ''}` : '-'}</td>
             <td className={td}>{won(netPayoutKrw(p, rates))}</td>
-            <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}</td>
+            <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}{d && p.status !== DONE && p.dueManual && d === p.dueOn && <span style={{ color: '#a78bfa' }}> 임의</span>}</td>
             <td className={td}>{p.reqDate ?? '-'}</td>
           </tr>
         )
@@ -180,7 +181,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
     <details className="text-xs text-neutral-500">
       <summary className="cursor-pointer select-none text-neutral-400 hover:text-neutral-200">칸 읽는 법</summary>
       <p className="mt-1">
-        송금 예정일: 송금 가능은 이번 달 묶음 생성일(송금일 3평일 전) 전이면 이번 달 송금일, 그 뒤면 다음 달 송금일. 모인 접수, 원화 이체 대기는 송금 요청일 달의 송금일(마지막 평일, 공휴일은 안 봄). 대기, 보류는 미정. 지급액은 원천징수 전 금액과 통화, 실지급액은 원화 사업소득 3.3% 공제 뒤, 세금계산서 VAT 별도면 부가세를 더한 금액이고 외화는 원화 환산입니다. 지급 ID는 노션 행을, 이름은 그 크리에이터 이력을 엽니다. 상태와 막힌 사유는 노션에서 고치면 5분 안에(새로고침이면 바로) 반영됩니다.
+        송금 예정일: 송금 가능, 대기는 노션 지급내역 「송금 예정일」(정산 봇이 매일 밤 채움). 그 칸이 비면 송금 가능은 이번 달 묶음 생성일(송금일 3평일 전) 전이면 이번 달 송금일, 그 뒤면 다음 달 송금일이고 대기는 미정. 모인 접수, 원화 이체 대기는 송금 요청일 달의 송금일(마지막 평일, 공휴일은 안 봄). 보류는 미정. 날짜 옆 「임의」는 비고에 「송금 예정일 임의」가 있어 사람이 정한 날이고, 모인 접수, 원화 이체 대기도 그 날을 씁니다. 지급액은 원천징수 전 금액과 통화, 실지급액은 원화 사업소득 3.3% 공제 뒤, 세금계산서 VAT 별도면 부가세를 더한 금액이고 외화는 원화 환산입니다. 지급 ID는 노션 행을, 이름은 그 크리에이터 이력을 엽니다. 상태와 막힌 사유는 노션에서 고치면 5분 안에(새로고침이면 바로) 반영됩니다.
       </p>
     </details>
   )
@@ -285,7 +286,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'cycles' && (
-        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중은 회차 송금일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「이번 회차」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
+        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중과 대기는 송금 예정일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「이번 회차」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
           <Table head={['회차 (정기 송금일)', '건수', '통화별 합계', '원화 환산', '상태']}>
             {[...months, null].map((m) => {
               const xs = byMonth(m)
@@ -293,7 +294,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               return (
                 <tr key={m ?? 'none'} className={m === cycle ? 'bg-sky-950/40' : ''}>
                   <td className={`${tdl} whitespace-nowrap ${m === cycle ? 'bg-[#10212b]!' : ''}`}>
-                    <Link href={go({ v: 'rows', cy: m ?? 'none' })} className="text-sky-300 hover:underline">{m ? `${m} (${payday(m).slice(5)})` : '미정 (대기, 보류, 날짜 없음)'}</Link>
+                    <Link href={go({ v: 'rows', cy: m ?? 'none' })} className="text-sky-300 hover:underline">{m ? `${m} (${payday(m).slice(5)})` : '미정 (송금 예정일 없는 대기, 보류)'}</Link>
                     {m === cycle && <span className="ml-2 rounded bg-sky-900/60 px-1.5 text-xs text-sky-200">이번 회차</span>}
                   </td>
                   <td className={td}>{t.n}</td>
