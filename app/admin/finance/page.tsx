@@ -114,7 +114,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today, data.bankLinks)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
-      {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} />}
+      {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} st={sp.st} today={today} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
@@ -239,7 +239,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     .slice(0, 5)
   // [제목, 건수, 금액, 이동, 강조]
   const todo: [string, string, number, string, boolean][] = []
-  if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, '#receivables', true])
+  if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, q({ tab: 'contracts', st: 'overdue' }), true])
   if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
   if (noDue.count) todo.push(['입금 예정일이 없는 매출채권', `${noDue.count}건`, noDue.krw, '#receivables', false])
   if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, '/admin/payouts?v=rows&nc=none', false])
@@ -437,7 +437,35 @@ function PayoutTable({ payouts, rates, contracts, q }: { payouts: Payout[]; rate
   )
 }
 
-function Contracts({ model, rates, sel, q, f, s = '-day', o }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string }) {
+function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string; st?: string; today: string }) {
+  // st=overdue: 개요 「입금 예정일이 지난 매출채권」 카드와 같은 회차만(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관)
+  if (st === 'overdue') {
+    const late = model.receivables.open.filter((x) => x.due && x.due < today).sort((a, b) => a.due!.localeCompare(b.due!))
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm text-neutral-200">입금 예정일이 지난 매출채권 {late.length}건, {won2(late.reduce((a, x) => a + x.krw, 0))} <span className="text-xs text-neutral-500">부가세 포함, 일부 입금 뺀 남은 금액, 오늘 {today}</span></span>
+          <Link href={q({ st: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
+        </div>
+        <Table head={['코드', '브랜드', '담당자', '입금 예정일', '지난 날수', '남은 금액']} left={2} tall>
+          {late.map((x, i) => (
+            <tr key={`${x.c.id}-${i}`}>
+              <td className={tdl}>
+                {x.c.source === 'sheet'
+                  ? <span title={x.c.code}>{x.c.code} <span className="rounded bg-neutral-800 px-1 text-[10px] text-neutral-400">시트</span></span>
+                  : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
+              </td>
+              <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}</td>
+              <td className={td}>{x.c.owner || '미지정'}</td>
+              <td className={td}>{x.due}</td>
+              <td className={`${td} font-semibold text-red-400`}>{Math.round((Date.parse(today) - Date.parse(x.due!)) / 86_400_000)}일</td>
+              <td className={td} title={won(x.krw)}>{won2(x.krw)}</td>
+            </tr>
+          ))}
+        </Table>
+      </div>
+    )
+  }
   const picked = model.contracts.find((x) => x.c.id === sel)
   const pool = o ? model.contracts.filter((x) => (x.c.owner || '미지정') === o) : model.contracts
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
