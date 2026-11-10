@@ -88,6 +88,7 @@ export function toContract(page: Page): Contract {
     link: (val(page, '계약서 링크') as string | null) ?? null,
     unsigned: title.startsWith('(서명 전) '),
     dueGuess: str(page, '비고').includes('정산일 임의'),
+    twikr: str(page, '비고').includes('공급자 트위커'),
   }
 }
 
