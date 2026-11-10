@@ -204,7 +204,7 @@ export function clientVat(c: Contract, paid: Map<string, number>): { vat: number
   const vat = c.vatKrw ?? (contractCurrency(c) === 'KRW' && c.supplyKrw != null ? Math.round(c.supplyKrw * 0.1) : 0)
   return { vat, got: sumPaid(paid, c.id, PARTS, ['부가세']) }
 }
-export type Inflow = { date: string | null; due: string | null; krw: number; label?: string; noTotal?: boolean }
+export type Inflow = { date: string | null; due: string | null; krw: number; label?: string; noTotal?: boolean; part?: '선금' | '잔금' }
 
 /** 계약에서 들어올(들어온) 현금, 부가세 포함(Leo 261105). 회차 금액은 합계 칸 × 몫(엔화 합계는 오늘 환율), 합계가 비면 공급가(영세율, 해외).
  * 입금 전 회차는 은행 원장 일부 입금(공급가, 부가세)을 뺀 남은 금액, 입금일 있는 회차는 다 받은 것으로 봄. 한 회차 계약은 원장 회차 이름과 무관하게 뺌.
@@ -212,7 +212,11 @@ export type Inflow = { date: string | null; due: string | null; krw: number; lab
  * 이미 입금됐거나 정산일이 오늘 이전인 회차 몫만큼 지금 받을 돈(예정일: 지난 입금 전 회차 정산일, 없으면 마지막 입금 회차 입금일),
  * 나머지 몫은 다음 회차 정산일에 받을 돈. 원장 부가세 입금은 지금 몫에서 먼저 빼고 남으면 나머지 몫에서. 0원 이하는 뺌 */
 export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
-  if (c.twikr) return [] // 트위커 계좌로 받는 돈은 코리너스 통장에 들어오지 않음
+  return c.twikr ? [] : cashIn(c, r, today, paid) // 트위커 계좌로 받는 돈은 코리너스 통장에 들어오지 않음
+}
+
+/** 트위커 표시를 보지 않는 inflows. 미수 탭 「트위커 공급 계약 제외」 목록이 씀 */
+function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
   const s = supplyKrw(c, r)
   const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
   const base = c.voucher ? s : (total ?? s)
@@ -225,6 +229,7 @@ export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, 
     due: x.due,
     krw: base * x.share - (x.date ? 0 : got(recs.length === 1 ? PARTS : [x.part], kinds)),
     noTotal: !c.voucher && total == null,
+    part: x.part,
   }))
   const cv = clientVat(c, paid)
   if (cv && cv.got <= cv.vat) {
@@ -262,7 +267,7 @@ export function priorPeriod(p: Period, today: string): Period | null {
 }
 
 export type Bucket = { label: string; count: number; krw: number; alert: boolean }
-export type OpenItem = { c: Contract; due: string | null; krw: number; label?: string } // label: 수출바우처 「부가세(고객사)」 줄
+export type OpenItem = { c: Contract; due: string | null; krw: number; label?: string; part?: '선금' | '잔금' } // label: 수출바우처 「부가세(고객사)」 줄
 
 export type ContractRow = {
   c: Contract
@@ -325,7 +330,7 @@ export type Model = {
   creators: CreatorRow[]
   owners: OwnerRow[]
   gaps: Gaps
-  receivables: { buckets: Bucket[]; open: OpenItem[] } // 받을 돈(부가세 포함, 일부 입금 뺀 남은 금액) 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
+  receivables: { buckets: Bucket[]; open: OpenItem[]; twikr: OpenItem[] } // twikr: 트위커 표시라 받을 돈에서 뺀 계약의 입금 전 회차(미수 탭 안내). 받을 돈(부가세 포함, 일부 입금 뺀 남은 금액) 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
   payables: Bucket[] // 줄 돈 상태 묶음(부가세 포함, grossPayoutKrw)
 }
 
@@ -391,6 +396,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const revenueByCur: ByCur = {}
   let receivable = 0
   const open: OpenItem[] = []
+  const twikr: OpenItem[] = []
   const monthly = new Map<string, { revenue: number; settled: number; revenueByCur: ByCur }>()
   const addCur = (o: ByCur, cur: Currency | undefined, v: number) => {
     if (cur) o[cur] = (o[cur] ?? 0) + v
@@ -417,6 +423,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       receivable += x.krw
       open.push({ c, due: x.due, krw: x.krw, label: x.label })
     }
+    if (c.twikr) for (const x of cashIn(c, r, today, paid)) if (!x.date) twikr.push({ c, due: x.due, krw: x.krw, label: x.label, part: x.part })
     const d = contractDay(c)
     if (basis === 'contract' && d) count(d, 'revenue', supplyKrw(c, r, d)!, cur)
   }
@@ -610,6 +617,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
 
   open.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
+  twikr.sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999'))
   const groups: [string, (s: string) => boolean, boolean][] = [
     ['대기', (s) => s === '대기', false],
     ['송금 진행 중', (s) => IN_FLIGHT.includes(s), false],
@@ -631,7 +639,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     creators: [...creators.values()].sort((a, b) => b.revenue - a.revenue || b.paid - a.paid),
     owners: [...owners.values()].sort((a, b) => b.supply - a.supply),
     gaps,
-    receivables: { buckets: agingBuckets(open, today), open },
+    receivables: { buckets: agingBuckets(open, today), open, twikr },
     payables,
   }
 }
