@@ -54,7 +54,7 @@ function Panel({ title, note, info, href, rows = [], children }: { title: string
 // 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
 const TEAMS: [string, [string, string][]][] = [
   ['영업팀', [['S1', '신규 리드: 영업 메일'], ['S1', '신규 리드: 홈페이지 문의'], ['S3', '견적 발송률'], ['S4', '수주율: 영업 메일'], ['S4', '수주율: 홈페이지 문의'], ['S6', '단계 체류'], ['S5', '수주 질'], ['', '300만 원 미만 계약 비중']]],
-  ['PM팀', [['', '3개월 내 재계약률'], ['E1', '상태별 기한 준수율'], ['E2', '업로드 일정 준수율'], ['', '변동비율']]],
+  ['PM팀', [['', '3개월 내 재계약률'], ['', '재계약 금액'], ['E1', '상태별 기한 준수율'], ['E2', '업로드 일정 준수율'], ['', '변동비율']]],
   ['전략실', [['', '인당 매출'], ['', '인당 처리 안건'], ['', '인건비 ÷ 공헌이익']]],
   ['경영지원', [['', '기타 고정비'], ['F1', '기한 내 회수율'], ['F2', '송금 처리율']]],
 ]
@@ -150,6 +150,17 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
             data={pts((i) => ({ new: d.new[i], repeat: d.repeat[i], title: `${full(i)} 합계 ${d.new[i] + d.repeat[i]}건` }))}
           />
         </Panel>
+
+        {d.repeat_amt && (
+          <Panel title="재계약 금액" rows={pick('재계약 금액', '재계약 금액 배수')} note={`재계약(전에 계약한 법인의 추가 계약)의 공급가 합. 목표 ${won2(d.repeat_amt_goal ?? 0)}은 4~9월 평균 유지 가정. 배수는 같은 법인 바로 앞 계약 대비`}>
+            <TrendChart
+              unit="원"
+              goal={d.repeat_amt_goal}
+              series={[{ key: 'a', name: '재계약 금액', color: C2, kind: 'bar' }]}
+              data={pts((i) => ({ a: d.repeat_amt![i], title: `${full(i)} 재계약 ${d.repeat[i]}건${d.repeat_x?.[i] != null ? `, 직전 계약 대비 ${d.repeat_x[i]}배` : ''}` }))}
+            />
+          </Panel>
+        )}
 
         <Panel title="입금, 송금" href="/admin/finance?tab=calendar" rows={pick('기한 내 회수율', '송금 처리율')} note="기한 내 회수율: 입금 예정일이 그 달인 회차의 공급가 중 예정일까지 들어온 금액. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
           <TrendChart

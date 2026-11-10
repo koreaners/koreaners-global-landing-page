@@ -60,7 +60,8 @@ export type FunnelTrend = {
   generated_at: string
   today: string
   months: string[]
-  deals: { goal: number; repeat_goal: number; new: number[]; repeat: number[] }
+  // repeat_amt(재계약 공급가 합, 원), repeat_x(직전 계약 대비 배수)는 11/10 이후 파일부터
+  deals: { goal: number; repeat_goal: number; new: number[]; repeat: number[]; repeat_amt?: number[]; repeat_amt_goal?: number; repeat_x?: (number | null)[] }
   ontime: { a: number[]; k: number[] } // 기한 내 회수율. 11/9 배포 뒤 회차부터 공급가 금액(원), 그 전은 회차 건수
   remit: { a: number[]; k: number[] }
   // 컨택월 코호트. ripe 가 false 인 달(말일이 60일 안 지남)은 수주율을 그리지 않는다
