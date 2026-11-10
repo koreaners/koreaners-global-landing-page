@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp, Banknote, Clock } from 'lucide-react'
+import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp, Banknote, Clock, HandCoins } from 'lucide-react'
 import Link from 'next/link'
 
 // 재무 메뉴는 /admin/finance 의 tab 쿼리. 고른 연도(y), 월(m), 집계 기준(b)은 메뉴를 옮겨도 유지
@@ -22,7 +22,7 @@ const item = (active: boolean) =>
     active ? 'bg-neutral-800/70 text-neutral-50' : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
   }`
 
-function Nav({ onSignOut }: { onSignOut: () => void }) {
+function Nav({ onSignOut, role }: { onSignOut: () => void; role?: string }) {
   const pathname = usePathname()
   const sp = useSearchParams()
   const inFinance = pathname.startsWith('/admin/finance')
@@ -38,6 +38,13 @@ function Nav({ onSignOut }: { onSignOut: () => void }) {
   return (
     <nav className="flex gap-1 overflow-x-auto md:flex-1 md:flex-col md:overflow-visible">
       <p className="hidden px-3 pb-1 pt-2 text-xs text-neutral-600 md:block">재무</p>
+      {/* receivables 역할은 미수 탭만 들어갈 수 있어 메뉴도 그것만 */}
+      {role === 'receivables' ? (
+        <Link href="/admin/finance?tab=receivables" className={item(true)}>
+          <HandCoins className="h-4 w-4" />
+          미수
+        </Link>
+      ) : (<>
       {FINANCE.map(([k, label, Icon]) => (
         <Link key={k} href={href(k)} className={item(inFinance && tab === k)}>
           <Icon className="h-4 w-4" />
@@ -58,6 +65,7 @@ function Nav({ onSignOut }: { onSignOut: () => void }) {
         <Clock className="h-4 w-4" />
         근태
       </Link>
+      </>)}
       <div className="flex gap-1 md:mt-auto md:flex-col md:border-t md:border-neutral-800 md:pt-3">
         <Link href="/" target="_blank" className={item(false)}>
           <ExternalLink className="h-4 w-4" />
@@ -72,7 +80,7 @@ function Nav({ onSignOut }: { onSignOut: () => void }) {
   )
 }
 
-export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
+export function AdminLayoutClient({ children, role }: { children: React.ReactNode; role?: string }) {
   const pathname = usePathname()
   const router = useRouter()
   if (pathname === '/admin/login') {
@@ -92,7 +100,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
           KOREANERS
         </Link>
         <Suspense>
-          <Nav onSignOut={handleSignOut} />
+          <Nav onSignOut={handleSignOut} role={role} />
         </Suspense>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 2xl:px-8">
