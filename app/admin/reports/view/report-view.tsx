@@ -160,7 +160,7 @@ function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
                 <p className="text-xs font-medium text-neutral-500">{g}</p>
                 <div
                   className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(var(--n),minmax(0,1fr))]"
-                  style={{ '--n': rows.length } as React.CSSProperties}
+                  style={{ '--n': Math.min(rows.length, 4) } as React.CSSProperties} // 5장 넘는 묶음(영업)은 4장씩 줄바꿈해 이름이 잘리지 않게
                 >
                   {rows.map((x) => <FunnelCard key={x.label} x={x} mtdMonth={mtdMonth} weeks={f.weeks} />)}
                 </div>
