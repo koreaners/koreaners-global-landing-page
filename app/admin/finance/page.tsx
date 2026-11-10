@@ -59,6 +59,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
   const period = { year, month }
   const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks)
+  const tw = model.receivables.twikr // 트위커 표시라 받을 돈에서 뺀 입금 전 회차(미수 탭 안내)
   const pp = priorPeriod(period, today)
   const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis, data.bankLinks) : null
   const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis, data.bankLinks) : null
@@ -123,6 +124,22 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
+      {tab === 'receivables' && tw.length > 0 && (
+        <details className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
+          <summary className="cursor-pointer">트위커 공급 계약 <span className="text-neutral-200">{new Set(tw.map((x) => x.c.id)).size}건</span>(<span title={won(tw.reduce((a, x) => a + x.krw, 0))}>{won2(tw.reduce((a, x) => a + x.krw, 0))}</span>)은 미수에서 제외</summary>
+          <p className="mt-2">공급자가 트위커이고 대금을 트위커 계좌로 받는 계약이라 코리너스 미수가 아닙니다. 노션 계약 비고의 「공급자 트위커」로 판정합니다.</p>
+          <div className="mt-2 space-y-1 tabular-nums">
+            {tw.map((x, i) => (
+              <p key={`${x.c.id}-${i}`} className="grid grid-cols-[16rem_4rem_6rem_6rem] gap-3">
+                <span className="text-neutral-200">{x.c.code}</span>
+                <span>{x.label ?? x.part}</span>
+                <span>{x.due ?? '예정일 없음'}</span>
+                <span className="text-right text-neutral-200" title={won(x.krw)}>{won2(x.krw)}</span>
+              </p>
+            ))}
+          </div>
+        </details>
+      )}
       {tab === 'receivables' && <OverdueTable model={model} today={today} />}
     </div>
   )
