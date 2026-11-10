@@ -4,6 +4,7 @@ import { refreshFinance } from './actions'
 import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
+import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, contractDay, creatorKey, grossPayoutKrw, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
@@ -22,6 +23,7 @@ const TABS = [
   ['owners', '담당자'],
   ['basis', '기준'],
   ['funnel', '지표 모니터링'],
+  ['receivables', '미수'], // 메뉴에는 receivables 역할에게만 보임(layout-client.tsx)
 ] as const
 type Tab = (typeof TABS)[number][0]
 
@@ -31,7 +33,9 @@ type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; 
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams
-  const tab: Tab = (TABS.find(([k]) => k === sp.tab)?.[0] ?? 'summary') as Tab
+  // receivables 역할(경영지원 미수 확인용)은 주소의 tab 값과 무관하게 미수 탭만 본다. proxy는 경로만 막으므로 탭은 여기서 고정
+  const only = (await adminRole()) === 'receivables'
+  const tab: Tab = only ? 'receivables' : ((TABS.find(([k]) => k === sp.tab)?.[0] ?? 'summary') as Tab)
   if (tab === 'funnel') return <FunnelTrendTab /> // 노션을 읽지 않고 주간 잡이 올린 파일만
   const thisYear = new Date().getFullYear()
   const year = sp.y === 'all' ? null : Number(sp.y) || thisYear
@@ -88,7 +92,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <form action={refreshFinance}>
           <RefreshButton />
         </form>
-        <AutoForm className="flex flex-wrap items-center gap-2 text-sm" action="/admin/finance">
+        {/* 미수는 기간, 집계 기준과 무관 */}
+        {tab !== 'receivables' && <AutoForm className="flex flex-wrap items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
           {/* 기준, 기간을 바꿔도 보던 크리에이터, 계약 상세와 검색, 정렬은 그대로 */}
           {(['sel', 'f', 's', 'o'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
@@ -108,7 +113,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
             <option value="cash">현금 기준(입금)</option>
             <option value="contract">발생 기준(계약)</option>
           </select>
-        </AutoForm>
+        </AutoForm>}
         </div>
       </div>
 
@@ -118,6 +123,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
+      {tab === 'receivables' && <OverdueTable model={model} today={today} />}
     </div>
   )
 }
@@ -437,15 +443,14 @@ function PayoutTable({ payouts, rates, contracts, q }: { payouts: Payout[]; rate
   )
 }
 
-function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string; st?: string; today: string }) {
-  // st=overdue: 개요 「입금 예정일이 지난 매출채권」 카드와 같은 회차만(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관)
-  if (st === 'overdue') {
+/** 입금 예정일이 지난 매출채권 회차(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관). 개요 카드에서 넘어온 안건 탭(st=overdue)과 미수 탭이 같이 씀 */
+function OverdueTable({ model, today, allHref }: { model: Model; today: string; allHref?: string }) {
     const late = model.receivables.open.filter((x) => x.due && x.due < today).sort((a, b) => a.due!.localeCompare(b.due!))
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-neutral-200">입금 예정일이 지난 매출채권 {late.length}건, {won2(late.reduce((a, x) => a + x.krw, 0))} <span className="text-xs text-neutral-500">부가세 포함, 일부 입금 뺀 남은 금액, 오늘 {today}</span></span>
-          <Link href={q({ st: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
+          {allHref && <Link href={allHref} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>}
         </div>
         <Table head={['코드', '브랜드', '담당자', '입금 예정일', '지난 날수', '남은 금액']} left={2} tall>
           {late.map((x, i) => (
@@ -465,7 +470,11 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
         </Table>
       </div>
     )
-  }
+}
+
+function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string; st?: string; today: string }) {
+  // st=overdue: 개요 「입금 예정일이 지난 매출채권」 카드와 같은 회차만
+  if (st === 'overdue') return <OverdueTable model={model} today={today} allHref={q({ st: undefined })} />
   const picked = model.contracts.find((x) => x.c.id === sel)
   const pool = o ? model.contracts.filter((x) => (x.c.owner || '미지정') === o) : model.contracts
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {

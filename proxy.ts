@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/middleware'
 import { editorOf } from '@/app/admin/attendance/time'
+import { gate, HOME } from '@/lib/admin-gate'
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -47,18 +48,17 @@ export async function proxy(request: NextRequest) {
 
   // 역할 판정: 서버 전용 app_metadata.role 만 신뢰 (user_metadata 는 사용자가 직접 수정
   // 가능 → 스푸핑 위험).
-  // 화이트리스트: 'admin' 은 전체, 'exec' 는 보고서와 재무 조회만. 그 외(미설정 포함)는 접근 불가.
-  // 같은 Supabase 인증을 스타라이트 계정도 쓰므로 미설정 계정을 통과시키면 안 된다.
+  // 화이트리스트(lib/admin-gate.ts): 'admin' 은 전체, 'exec' 는 보고서와 재무 조회만, 'receivables' 는 재무 「미수」 탭만.
+  // 그 외(미설정 포함)는 접근 불가. 같은 Supabase 인증을 스타라이트 계정도 쓰므로 미설정 계정을 통과시키면 안 된다.
   const role = (user?.app_metadata as Record<string, unknown> | undefined)?.role as string | undefined
-  const isFullAdmin = role === 'admin'
-  const isExec = role === 'exec'
+  const home = role && Object.hasOwn(HOME, role) ? HOME[role] : null
 
   // 로그인 페이지 접근 시
   if (pathname === '/admin/login') {
     // 권한 있는 계정이 이미 로그인되어 있으면 대시보드로 리다이렉트
-    // (전체 어드민 → /admin, exec → 재무 개요)
-    if (user && (isFullAdmin || isExec)) {
-      return NextResponse.redirect(new URL(isFullAdmin ? '/admin' : '/admin/finance', request.url))
+    // (전체 어드민 → /admin, exec → 재무 개요, receivables → 미수 탭)
+    if (user && home) {
+      return NextResponse.redirect(new URL(home, request.url))
     }
     // 세션이 없으면 로그인 페이지 접근 허용
     return response
@@ -70,15 +70,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/admin/login', request.url))
   }
 
-  // 역할 없는 계정은 로그인 화면으로 보내 로그아웃시킨다
-  if (!isFullAdmin && !isExec) {
-    return NextResponse.redirect(new URL('/admin/login?denied=1', request.url))
-  }
-
-  // 역할 게이트: exec 는 /admin/reports, /admin/finance 만 접근(첫 화면은 재무 개요). 근태 편집자(건우님)는 /admin/attendance 도
-  const attendance = pathname.startsWith('/admin/attendance') && !!editorOf(user.email)
-  if (isExec && !pathname.startsWith('/admin/reports') && !pathname.startsWith('/admin/finance') && !attendance) {
-    return NextResponse.redirect(new URL('/admin/finance', request.url))
+  // 역할 게이트: 역할 없는 계정은 로그인 화면으로 보내 로그아웃시킨다. exec 는 /admin/reports, /admin/finance 만
+  // (첫 화면은 재무 개요, 근태 편집자(건우님)는 /admin/attendance 도), receivables 는 /admin/finance 만(탭은 페이지가 고정)
+  const to = gate(role, pathname, !!editorOf(user.email))
+  if (to) {
+    return NextResponse.redirect(new URL(to, request.url))
   }
 
   // 세션이 있으면 접근 허용
