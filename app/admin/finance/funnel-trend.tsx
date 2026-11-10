@@ -151,6 +151,17 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           />
         </Panel>
 
+        {d.repeat_amt && (
+          <Panel title="재계약 금액" rows={pick('재계약 금액', '재계약 금액 배수')} note={`재계약(전에 계약한 법인의 추가 계약)의 공급가 합. 목표 ${won2(d.repeat_amt_goal ?? 0)}은 4~9월 평균 유지 가정. 배수는 같은 법인 바로 앞 계약 대비`}>
+            <TrendChart
+              unit="원"
+              goal={d.repeat_amt_goal}
+              series={[{ key: 'a', name: '재계약 금액', color: C2, kind: 'bar' }]}
+              data={pts((i) => ({ a: d.repeat_amt![i], title: `${full(i)} 재계약 ${d.repeat[i]}건${d.repeat_x?.[i] != null ? `, 직전 계약 대비 ${d.repeat_x[i]}배` : ''}` }))}
+            />
+          </Panel>
+        )}
+
         <Panel title="입금, 송금" href="/admin/finance?tab=calendar" rows={pick('기한 내 회수율', '송금 처리율')} note="기한 내 회수율: 입금 예정일이 그 달인 회차의 공급가 중 예정일까지 들어온 금액. 송금 처리율: 그 달 말일 기준, 고객 전액 입금 뒤 30일 지난 지급(그 앞 90일) 중 송금 완료">
           <TrendChart
             unit="%"
