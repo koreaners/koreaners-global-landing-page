@@ -13,6 +13,7 @@ const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 // 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
 type Row = NonNullable<WeeklyReport['funnel']>['rows'][number]
 const DOT = { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' } as const
+const EDGE = { green: 'border-emerald-500/50', yellow: 'border-amber-400/60', red: 'border-red-500/60' } as const
 const worst = (rs: Row[]) => (['red', 'yellow', 'green'] as const).find((c) => rs.some((r) => r.light === c))
 // 색 기준은 brain-weekly light(): 달성률 100% 이상 초록, 80~99% 노랑, 80% 미만 빨강(설계 문서 「신호등 규칙」)
 const LEGEND = [['green', '100% 이상'], ['yellow', '80~99%'], ['red', '80% 미만']] as const
@@ -57,13 +58,12 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
   )
 }
 
-// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(위 띠는 가장 나쁜 색).
+// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(테두리는 가장 나쁜 색).
 // note 는 차트 아래(설명 길이가 달라도 차트 시작선이 같게). 카드에 overflow-hidden 을 두지 않는다(ⓘ 말풍선이 잘림)
 function Panel({ title, note, info, href, rows = [], children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; children: React.ReactNode }) {
   const w = worst(rows)
   const card = (
-    <section className={`relative flex h-full flex-col gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5${href ? ' transition-colors group-hover/card:border-neutral-700 group-hover/card:bg-neutral-800/40' : ''}`}>
-      {w && <span aria-hidden className={`absolute inset-x-5 top-0 h-0.5 rounded-b ${DOT[w]}`} />}
+    <section className={`flex h-full flex-col gap-4 rounded-xl border bg-neutral-900 p-5 ${w ? EDGE[w] : 'border-neutral-800'}${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ''}`}>
       <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
         {title}
         {info && <Info text={info} />}
