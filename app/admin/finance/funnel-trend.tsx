@@ -92,14 +92,14 @@ function TeamLights({ rows }: { rows: Row[] }) {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
           팀별 관리지표
-          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 회색은 목표가 아직 없거나 원천 칸이 없어 색을 정하지 않은 지표" />
+          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 목표 근거는 각 지표 ⓘ와 경영진 보고서 해설. 회색은 원천 칸이 아직 없어 값을 못 내는 지표(목표는 잠정)" />
         </h2>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 sm:ml-auto">
           <span>목표 달성률</span>
           {LEGEND.map(([c, t]) => (
             <span key={c} className="inline-flex items-center gap-1.5"><Dot light={c} />{t}</span>
           ))}
-          <span className="inline-flex items-center gap-1.5"><Dot />목표 미정</span>
+          <span className="inline-flex items-center gap-1.5"><Dot />값 없음</span>
         </div>
       </div>
       {/* 3열: 영업팀(8줄) | PM팀(5줄) | 전략실+경영지원(3+3줄). 4열이면 이름이 두 줄로 꺾임. 넓은 화면에서만 열을 나눠 ⓘ 말풍선이 화면 밖으로 나가지 않게 */}
@@ -129,7 +129,10 @@ function TeamLights({ rows }: { rows: Row[] }) {
                           </td>
                           <td className="whitespace-nowrap py-2 text-right tabular-nums">
                             {off ? (
-                              <span className="text-xs text-neutral-500">{r ? PENDING : '다음 주간 리포트부터'}</span>
+                              <>
+                                <span className="text-xs text-neutral-500">{r ? PENDING : '다음 주간 리포트부터'}</span>
+                                {r?.target && <span className="block text-[11px] text-neutral-500">목표 {r.target}</span>}
+                              </>
                             ) : (
                               <>
                                 <span className="font-medium text-neutral-50">{r.value}</span>
