@@ -22,7 +22,7 @@ function Dot({ light, className = '' }: { light?: Row['light']; className?: stri
   return <i className={`block h-2 w-2 shrink-0 rounded-full ${light ? DOT[light] : 'bg-neutral-600'} ${className}`} />
 }
 
-// 「15/110곳 (13.6%)」는 13.6% 를 크게, 15/110곳 을 작게. 모양이 다르면 그대로
+// 「3/20곳 (15%)」는 15% 를 크게, 3/20곳 을 작게. 모양이 다르면 그대로
 const split = (v: string) => {
   const m = /^(.+?) \((.+)\)$/.exec(v)
   return m ? [m[2], m[1]] : [v, '']
@@ -59,7 +59,7 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
 
 // 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(위 띠는 가장 나쁜 색).
 // note 는 차트 아래(설명 길이가 달라도 차트 시작선이 같게). 카드에 overflow-hidden 을 두지 않는다(ⓘ 말풍선이 잘림)
-function Panel({ title, note, info, href, rows = [], className = '', children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; className?: string; children: React.ReactNode }) {
+function Panel({ title, note, info, href, rows = [], children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; children: React.ReactNode }) {
   const w = worst(rows)
   const card = (
     <section className={`relative flex h-full flex-col gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5${href ? ' transition-colors group-hover/card:border-neutral-700 group-hover/card:bg-neutral-800/40' : ''}`}>
@@ -74,7 +74,7 @@ function Panel({ title, note, info, href, rows = [], className = '', children }:
       <p className="mt-auto border-t border-neutral-800 pt-3 text-xs leading-relaxed text-neutral-500">{note}</p>
     </section>
   )
-  return <div className={className}>{href ? <Link href={href} className="group/card block h-full">{card}</Link> : card}</div>
+  return href ? <Link href={href} className="group/card block h-full">{card}</Link> : card
 }
 
 // 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
@@ -207,7 +207,7 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
 
       <TeamLights rows={rows} />
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Panel title="안건 수" href="/admin/finance?tab=contracts" rows={pick('안건 수')} note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
           <TrendChart
             unit="건"
@@ -287,7 +287,7 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           <p className="col-span-full text-sm text-neutral-500">월간파이낸스 정본 읽기 실패로 건전성 추이가 없습니다.</p>
         )}
         {t.fixed_items && (
-          <Panel className="xl:col-span-3" title="기타 고정비 (대항목별)" rows={pick('기타 고정비')} note="인건비를 뺀 고정비 대항목. 월간파이낸스 정본 「비용구성추이」 탭 소계라, 신호등 값(정본 고정비 − 인건비)과 합계가 조금 다를 수 있음">
+          <Panel title="기타 고정비 (대항목별)" rows={pick('기타 고정비')} note="인건비를 뺀 고정비 대항목. 월간파이낸스 정본 「비용구성추이」 탭 소계라, 신호등 값(정본 고정비 − 인건비)과 합계가 조금 다를 수 있음">
             <TrendChart
               unit="원"
               series={Object.keys(t.fixed_items).map((k, j) => ({ key: `f${j}`, name: k, color: [C1, C2, C3][j % 3], kind: 'bar' as const, stack: 'f' }))}
