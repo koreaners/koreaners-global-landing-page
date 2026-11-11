@@ -63,7 +63,7 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
 function Panel({ title, note, info, href, rows = [], children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; children: React.ReactNode }) {
   const w = worst(rows)
   const card = (
-    <section className={`flex h-full flex-col gap-4 rounded-xl border bg-neutral-900 p-5 ${w ? EDGE[w] : 'border-neutral-800'}${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ''}`}>
+    <section className={`flex h-full flex-col gap-4 rounded-xl bg-neutral-900 p-5 ${w ? `border-2 ${EDGE[w]}` : 'border border-neutral-800'}${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ''}`}>
       <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
         {title}
         {info && <Info text={info} />}
