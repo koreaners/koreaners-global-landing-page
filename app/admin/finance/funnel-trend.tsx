@@ -13,42 +13,68 @@ const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 // 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
 type Row = NonNullable<WeeklyReport['funnel']>['rows'][number]
 const DOT = { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' } as const
-const EDGE = { green: 'border-emerald-500/50', yellow: 'border-amber-400/60', red: 'border-red-500/60' } as const
 const worst = (rs: Row[]) => (['red', 'yellow', 'green'] as const).find((c) => rs.some((r) => r.light === c))
+// 색 기준은 brain-weekly light(): 달성률 100% 이상 초록, 80~99% 노랑, 80% 미만 빨강(설계 문서 「신호등 규칙」)
+const LEGEND = [['green', '100% 이상'], ['yellow', '80~99%'], ['red', '80% 미만']] as const
+const PENDING = '원천 칸 신설 전'
 
-function Lights({ rows, title }: { rows: Row[]; title: string }) {
+function Dot({ light, className = '' }: { light?: Row['light']; className?: string }) {
+  return <i className={`block h-2 w-2 shrink-0 rounded-full ${light ? DOT[light] : 'bg-neutral-600'} ${className}`} />
+}
+
+// 「15/110곳 (13.6%)」는 13.6% 를 크게, 15/110곳 을 작게. 모양이 다르면 그대로
+const split = (v: string) => {
+  const m = /^(.+?) \((.+)\)$/.exec(v)
+  return m ? [m[2], m[1]] : [v, '']
+}
+
+// 카드 머리의 신호등 값. 한 줄이면 제목과 같은 지표라 이름을 빼고 크게, 여러 줄이면 2칸 격자. 높이를 맞춰 아래 차트 시작선이 카드끼리 같게
+function Stats({ rows, title }: { rows: Row[]; title: string }) {
+  if (!rows.length) return <div className="min-h-[3.75rem]" /> // 신호등 줄이 없는 카드도 같은 높이를 비워 차트 시작선을 맞춤
+  const one = rows.length === 1 && rows[0].label === title
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {rows.map((r) => (
-        <span key={r.label} className="inline-flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-950 px-2 py-0.5 text-xs">
-          <i className={`block h-2 w-2 rounded-full ${r.light ? DOT[r.light] : 'bg-neutral-600'}`} />
-          {r.label !== title && <span className="text-neutral-400">{r.label.replace(/^(신규 리드|수주율): /, '')}</span>}
-          <span className="font-medium tabular-nums text-neutral-100">{r.value}</span>
-          {r.target && <span className="text-neutral-500">목표 {r.target}</span>}
-        </span>
-      ))}
+    <div className={`grid min-h-[3.75rem] content-start gap-x-4 gap-y-3 ${one ? '' : 'grid-cols-2'}`}>
+      {rows.map((r) => {
+        const [big, sub] = split(r.value)
+        return (
+          <div key={r.label} className="min-w-0">
+            {!one && (
+              <p className="flex items-center gap-1.5 text-xs text-neutral-400">
+                <Dot light={r.light} />
+                <span className="truncate">{r.label.replace(/^(신규 리드|수주율): /, '')}</span>
+              </p>
+            )}
+            <p className={`flex items-baseline gap-1.5 font-semibold tabular-nums text-neutral-50 ${one ? 'text-2xl' : 'mt-0.5 text-lg'}`}>
+              {one && <Dot light={r.light} className="self-center" />}
+              {big}
+              {sub && <span className="text-xs font-normal text-neutral-500">{sub}</span>}
+            </p>
+            {r.target && <p className="text-xs text-neutral-500">목표 {r.target}</p>}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(테두리는 가장 나쁜 색)
-function Panel({ title, note, info, href, rows = [], children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; children: React.ReactNode }) {
+// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(위 띠는 가장 나쁜 색).
+// note 는 차트 아래(설명 길이가 달라도 차트 시작선이 같게). 카드에 overflow-hidden 을 두지 않는다(ⓘ 말풍선이 잘림)
+function Panel({ title, note, info, href, rows = [], className = '', children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; className?: string; children: React.ReactNode }) {
   const w = worst(rows)
   const card = (
-    <section className={`h-full space-y-4 rounded-xl border bg-neutral-900 p-5 ${w ? EDGE[w] : 'border-neutral-800'}${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ''}`}>
-      <div className="space-y-2">
-        <h2 className="flex items-center gap-1.5 text-base font-semibold text-neutral-100">
-          {title}
-          {info && <Info text={info} />}
-          {href && <span className="ml-auto text-xs font-normal text-neutral-500 group-hover/card:text-neutral-200">자세히 →</span>}
-        </h2>
-        {rows.length > 0 && <Lights rows={rows} title={title} />}
-        <p className="text-xs leading-relaxed text-neutral-500">{note}</p>
-      </div>
+    <section className={`relative flex h-full flex-col gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5${href ? ' transition-colors group-hover/card:border-neutral-700 group-hover/card:bg-neutral-800/40' : ''}`}>
+      {w && <span aria-hidden className={`absolute inset-x-5 top-0 h-0.5 rounded-b ${DOT[w]}`} />}
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
+        {title}
+        {info && <Info text={info} />}
+        {href && <span className="ml-auto text-xs font-normal text-neutral-500 group-hover/card:text-neutral-200">자세히 →</span>}
+      </h2>
+      <Stats rows={rows} title={title} />
       {children}
+      <p className="mt-auto border-t border-neutral-800 pt-3 text-xs leading-relaxed text-neutral-500">{note}</p>
     </section>
   )
-  return href ? <Link href={href} className="group/card block h-full">{card}</Link> : card
+  return <div className={className}>{href ? <Link href={href} className="group/card block h-full">{card}</Link> : card}</div>
 }
 
 // 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
@@ -62,27 +88,62 @@ const TEAMS: [string, [string, string][]][] = [
 function TeamLights({ rows }: { rows: Row[] }) {
   const by = new Map(rows.map((r) => [r.label, r]))
   return (
-    <section className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-      <h2 className="flex items-center gap-1.5 text-base font-semibold text-neutral-100">
-        팀별 관리지표
-        <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 회색은 목표가 아직 없거나 원천 칸이 없어 색을 정하지 않은 지표" />
-      </h2>
-      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
-        {TEAMS.map(([team, items]) => (
-          <div key={team} className="space-y-1.5">
-            <h3 className="text-xs font-medium text-neutral-400">{team}</h3>
-            {items.map(([code, label]) => {
-              const r = by.get(label)
-              return (
-                <div key={label} className="flex items-center gap-1.5 text-xs">
-                  <i className={`block h-2 w-2 shrink-0 rounded-full ${r?.light ? DOT[r.light] : 'bg-neutral-600'}`} />
-                  <span className="text-neutral-300">{code && <span className="text-neutral-500">{code} </span>}{label}</span>
-                  {r?.define && <Info text={r.define} />}
-                  <span className="ml-auto whitespace-nowrap text-right tabular-nums text-neutral-100">{r ? r.value : '다음 주간 리포트부터'}</span>
-                  {r?.target && <span className="whitespace-nowrap text-neutral-500">목표 {r.target}</span>}
-                </div>
-              )
-            })}
+    <section className="rounded-xl border border-neutral-800 bg-neutral-900">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
+          팀별 관리지표
+          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 회색은 목표가 아직 없거나 원천 칸이 없어 색을 정하지 않은 지표" />
+        </h2>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 sm:ml-auto">
+          <span>목표 달성률</span>
+          {LEGEND.map(([c, t]) => (
+            <span key={c} className="inline-flex items-center gap-1.5"><Dot light={c} />{t}</span>
+          ))}
+          <span className="inline-flex items-center gap-1.5"><Dot />목표 미정</span>
+        </div>
+      </div>
+      {/* 3열: 영업팀(8줄) | PM팀(5줄) | 전략실+경영지원(3+3줄). 4열이면 이름이 두 줄로 꺾임. 넓은 화면에서만 열을 나눠 ⓘ 말풍선이 화면 밖으로 나가지 않게 */}
+      <div className="grid gap-x-10 gap-y-6 p-5 lg:grid-cols-3">
+        {[[TEAMS[0]], [TEAMS[1]], [TEAMS[2], TEAMS[3]]].map((col, ci) => (
+          <div key={ci} className="min-w-0 space-y-6">
+            {col.map(([team, items]) => (
+              <div key={team}>
+                <h3 className="border-b border-neutral-800 pb-2 text-xs font-semibold text-neutral-300">{team}</h3>
+                {/* 값과 목표를 한 칸에 위아래로 둬 값이 늘 오른쪽 끝에 맞음(목표 유무로 값 자리가 흔들리지 않게) */}
+                <table className="w-full text-[13px]">
+                  <tbody className="divide-y divide-neutral-800/60">
+                    {items.map(([code, label]) => {
+                      const r = by.get(label)
+                      const off = !r || r.value === PENDING
+                      return (
+                        <tr key={label} className="align-top">
+                          <td className="py-2 pr-3">
+                            <span className="flex items-start gap-2">
+                              <Dot light={r?.light} className="mt-1.5" />
+                              <span className={off ? 'text-neutral-500' : 'text-neutral-200'}>
+                                {code && <span className="mr-1 font-mono text-[11px] text-neutral-500">{code}</span>}
+                                {label}
+                                {r?.define && <span className="ml-1 inline-flex align-[-2px]"><Info text={r.define} align={ci === 2 ? 'right' : 'left'} /></span>}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap py-2 text-right tabular-nums">
+                            {off ? (
+                              <span className="text-xs text-neutral-500">{r ? PENDING : '다음 주간 리포트부터'}</span>
+                            ) : (
+                              <>
+                                <span className="font-medium text-neutral-50">{r.value}</span>
+                                {r.target && <span className="block text-[11px] text-neutral-500">목표 {r.target}</span>}
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -125,20 +186,28 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
   const pts = (f: (i: number) => Omit<TrendPoint, 'label'>) => t.months.map((_, i) => ({ label: label(i), title: full(i), ...f(i) }))
   const d = t.deals
   const leads = t.leads ? Object.entries(t.leads) : null
+  const g = new Date(t.generated_at).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }) // 2026-11-10 10:09:00, 칩의 다른 날짜(11/8)와 같은 M/D 로
+  const calc = `${+g.slice(5, 7)}/${+g.slice(8, 10)} ${g.slice(11, 16)}`
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold text-neutral-50">지표 모니터링</h1>
-        <p className="text-xs text-neutral-500">
-          경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 매주 월 07:00 갱신,{' '}
-          {new Date(t.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 계산{closed ? '' : `. 이번 달은 ${upto}까지`}. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움{period ? `. 신호등은 최신 경영진 보고서(${period}) 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달` : ''}
-        </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-neutral-50">
+          지표 모니터링
+          <Info text={`경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움${period ? '. 신호등은 최신 경영진 보고서 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달' : ''}`} />
+        </h1>
+        <div className="flex flex-wrap gap-1.5 text-xs text-neutral-400 sm:ml-auto">
+          {period && <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-1">신호등: {period} 보고서</span>}
+          <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-1">
+            {calc} 계산{closed ? '' : `, 이번 달은 ${upto}까지`}
+          </span>
+          <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-1">매주 월 07:00 갱신</span>
+        </div>
       </div>
 
       <TeamLights rows={rows} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <Panel title="안건 수" href="/admin/finance?tab=contracts" rows={pick('안건 수')} note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
           <TrendChart
             unit="건"
@@ -218,7 +287,7 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           <p className="col-span-full text-sm text-neutral-500">월간파이낸스 정본 읽기 실패로 건전성 추이가 없습니다.</p>
         )}
         {t.fixed_items && (
-          <Panel title="기타 고정비 (대항목별)" rows={pick('기타 고정비')} note="인건비를 뺀 고정비 대항목. 월간파이낸스 정본 「비용구성추이」 탭 소계라, 신호등 값(정본 고정비 − 인건비)과 합계가 조금 다를 수 있음">
+          <Panel className="xl:col-span-3" title="기타 고정비 (대항목별)" rows={pick('기타 고정비')} note="인건비를 뺀 고정비 대항목. 월간파이낸스 정본 「비용구성추이」 탭 소계라, 신호등 값(정본 고정비 − 인건비)과 합계가 조금 다를 수 있음">
             <TrendChart
               unit="원"
               series={Object.keys(t.fixed_items).map((k, j) => ({ key: `f${j}`, name: k, color: [C1, C2, C3][j % 3], kind: 'bar' as const, stack: 'f' }))}
