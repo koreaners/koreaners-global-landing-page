@@ -514,7 +514,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     for (const p of rest) shareOf.set(p.id, { share: total > 0 ? (left * krw(p)) / total : 0, estimated })
   }
 
-  // 크리에이터: 정산(지급 행)은 지급 기준일이 기간 안인 지급. 매출 몫과 그 원가(마진 짝)는 현금 기준이면 고객사 입금 회차 가운데 기간 안에 든 공급가 비율만큼(지급일과 무관, 입금 전 몫은 빠짐, 개요 매출과 같은 기준, Leo 261111), 발생 기준이면 지급 기준일이 기간 안인 지급의 몫 전부
+  // 크리에이터: 정산(지급 행)은 지급 기준일이 기간 안인 지급. 매출 몫과 그 원가(마진 짝)는 현금 기준이면 고객사 입금 회차 가운데 기간 안에 든 공급가 비율만큼(지급일과 무관, 입금 전 몫은 빠짐, 개요 매출과 같은 기준, Leo 261111), 발생 기준이면 계약 기준일이 기간 안인 계약의 몫 전부(계약일 환율, 개요 발생 매출과 같은 기준, Leo 261111)
   // 크리에이터: 수취인으로 묶고 이름은 가장 최근 지급의 이름(기간과 무관하게 전체 지급 기준)
   const latest = new Map<string, Payout>()
   for (const p of payouts) {
@@ -527,9 +527,12 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const inP = inPeriod(day, period)
     const c = p.contractId ? byId.get(p.contractId) : undefined
     const so = c ? shareOf.get(p.id) : undefined
-    const full = basis === 'cash' && c && so ? realizedSupplyKrw(c, r, today) ?? 0 : 0
-    const got = full > 0 ? recognitions(c!, today).filter((x) => x.date && inPeriod(x.date, period)).map((x) => ({ date: x.date!, frac: (supplyKrw(c!, r, x.date)! * x.share) / full })) : []
-    const frac = basis === 'cash' ? got.reduce((a, x) => a + x.frac, 0) : inP ? 1 : 0
+    const full = c && so ? realizedSupplyKrw(c, r, today) ?? 0 : 0
+    const got = basis === 'cash' && full > 0 ? recognitions(c!, today).filter((x) => x.date && inPeriod(x.date, period)).map((x) => ({ date: x.date!, frac: (supplyKrw(c!, r, x.date)! * x.share) / full })) : []
+    const cd = c ? contractDay(c) : null
+    // frac: 원가(지급)를 기간에 넣는 비율, revMul: 매출 몫에 곱하는 값(발생은 입금일 환율로 나눈 몫을 계약일 환율로 다시 맞춤)
+    const frac = basis === 'cash' ? got.reduce((a, x) => a + x.frac, 0) : so && cd && inPeriod(cd, period) ? 1 : 0
+    const revMul = basis === 'contract' && frac && full > 0 ? supplyKrw(c!, r, cd)! / full : frac
     if (!inP && !frac) continue
     const k = creatorKey(p)
     const row: CreatorRow = creators.get(k) ?? {
@@ -546,7 +549,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       else if (IN_FLIGHT.includes(p.status)) row.inFlight += v
       else row.held += v
     }
-    const share = (so?.share ?? 0) * frac
+    const share = (so?.share ?? 0) * revMul
     if (c && so && frac) {
       row.revenue += share
       row.linkedPaid += v * frac
@@ -570,11 +573,11 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const ym = d.slice(0, 7)
       let mo = row.months.find((x) => x.month === ym)
       if (!mo) row.months.push((mo = { month: ym, revenue: 0, paid: 0, keys: [] }))
-      if (inP && d === kd && !mo.keys.includes(key)) mo.keys.push(key)
+      if ((inP || frac) && d === kd && !mo.keys.includes(key)) mo.keys.push(key)
       mo.revenue += rev
       mo.paid += paid
     }
-    if (basis === 'contract') put(kd, share, v)
+    if (basis === 'contract') put(kd, share, inP ? v : 0)
     else {
       if (inP) put(kd, 0, 0)
       if (inP && p.status === DONE) put(p.sentDate ?? p.reqDate, 0, v)
