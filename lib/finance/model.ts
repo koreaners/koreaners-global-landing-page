@@ -497,7 +497,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   let overPriced = 0
   for (const [cid, all] of payByContract) {
     const c = byId.get(cid)
-    const supply = c && !c.isExpense ? realizedSupplyKrw(c, r, today) : null
+    const supply = c && !c.isExpense && !c.excluded ? realizedSupplyKrw(c, r, today) : null // 매출 제외 계약은 개요 매출처럼 몫도 없음
     if (!c || supply == null) continue
     const ps = all.filter((p) => !isDead(p))
     const face = c.supplyKrw ?? c.supplyJpy ?? c.supplyUsd ?? 0
@@ -514,7 +514,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     for (const p of rest) shareOf.set(p.id, { share: total > 0 ? (left * krw(p)) / total : 0, estimated })
   }
 
-  // 크리에이터: 지급 기준일이 기간 안인 지급
+  // 크리에이터: 정산(지급 행)은 지급 기준일이 기간 안인 지급. 매출 몫과 그 원가(마진 짝)는 현금 기준이면 고객사 입금 회차 가운데 기간 안에 든 공급가 비율만큼(지급일과 무관, 입금 전 몫은 빠짐, 개요 매출과 같은 기준, Leo 261111), 발생 기준이면 지급 기준일이 기간 안인 지급의 몫 전부
   // 크리에이터: 수취인으로 묶고 이름은 가장 최근 지급의 이름(기간과 무관하게 전체 지급 기준)
   const latest = new Map<string, Payout>()
   for (const p of payouts) {
@@ -524,34 +524,40 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const creators = new Map<string, CreatorRow>()
   for (const p of payouts) {
     const day = payoutDay(p, byId)
-    if (!inPeriod(day, period)) continue
+    const inP = inPeriod(day, period)
+    const c = p.contractId ? byId.get(p.contractId) : undefined
+    const so = c ? shareOf.get(p.id) : undefined
+    const full = basis === 'cash' && c && so ? realizedSupplyKrw(c, r, today) ?? 0 : 0
+    const got = full > 0 ? recognitions(c!, today).filter((x) => x.date && inPeriod(x.date, period)).map((x) => ({ date: x.date!, frac: (supplyKrw(c!, r, x.date)! * x.share) / full })) : []
+    const frac = basis === 'cash' ? got.reduce((a, x) => a + x.frac, 0) : inP ? 1 : 0
+    if (!inP && !frac) continue
     const k = creatorKey(p)
     const row: CreatorRow = creators.get(k) ?? {
       name: latest.get(k)!.name, key: k, aliases: [], currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0, estimated: 0,
       done: 0, inFlight: 0, held: 0, payouts: [], shares: [], months: [],
     }
     const v = krw(p)
-    row.paid += v
-    row.paidCount += 1
-    row.payouts.push(p)
-    if (p.currency && !row.currencies.includes(p.currency)) row.currencies.push(p.currency)
-    if (p.status === DONE) row.done += v
-    else if (IN_FLIGHT.includes(p.status)) row.inFlight += v
-    else row.held += v
-    const c = p.contractId ? byId.get(p.contractId) : undefined
-    const so = shareOf.get(p.id)
-    const share = so?.share ?? 0
-    if (c && so) {
+    if (inP) {
+      row.paid += v
+      row.paidCount += 1
+      row.payouts.push(p)
+      if (p.currency && !row.currencies.includes(p.currency)) row.currencies.push(p.currency)
+      if (p.status === DONE) row.done += v
+      else if (IN_FLIGHT.includes(p.status)) row.inFlight += v
+      else row.held += v
+    }
+    const share = (so?.share ?? 0) * frac
+    if (c && so && frac) {
       row.revenue += share
-      row.linkedPaid += v
+      row.linkedPaid += v * frac
       if (so.estimated) row.estimated += share
       const prev = row.shares.find((s) => s.c.id === c.id)
       if (prev) {
         prev.share += share
-        prev.paid += v
+        prev.paid += v * frac
         prev.estimated ||= so.estimated
       } else {
-        row.shares.push({ c, share, paid: v, estimated: so.estimated })
+        row.shares.push({ c, share, paid: v * frac, estimated: so.estimated })
         row.revenueCount += 1
       }
     }
@@ -564,15 +570,15 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const ym = d.slice(0, 7)
       let mo = row.months.find((x) => x.month === ym)
       if (!mo) row.months.push((mo = { month: ym, revenue: 0, paid: 0, keys: [] }))
-      if (d === kd && !mo.keys.includes(key)) mo.keys.push(key)
+      if (inP && d === kd && !mo.keys.includes(key)) mo.keys.push(key)
       mo.revenue += rev
       mo.paid += paid
     }
     if (basis === 'contract') put(kd, share, v)
     else {
-      put(kd, 0, 0)
-      if (p.status === DONE) put(p.sentDate ?? p.reqDate, 0, v)
-      if (c && share) for (const rec of recognitions(c, today)) if (rec.date) put(rec.date, share * rec.share, 0)
+      if (inP) put(kd, 0, 0)
+      if (inP && p.status === DONE) put(p.sentDate ?? p.reqDate, 0, v)
+      if (so) for (const x of got) put(x.date, so.share * x.frac, 0)
     }
     if (p.name !== row.name && !row.aliases.includes(p.name)) row.aliases.push(p.name)
     creators.set(k, row)
