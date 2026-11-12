@@ -80,14 +80,6 @@ export function absent(members: Member[], rows: Att[], leaves: Leave[], m: strin
 export const EDITORS: Record<string, string> = { 'leo@koreaners.com': 'U0A7ZHM3WAH', 'john.park@koreaners.com': 'U09JYMFS64Q' }
 export const editorOf = (email?: string | null) => (email && Object.hasOwn(EDITORS, email.toLowerCase()) ? EDITORS[email.toLowerCase()] : null)
 
-/** 달력 칸 상태. ok(초록): 판정하는 평일인데 미출근과 퇴근 누락이 없음, issue(빨강): 하나라도 있음, na: 판정 안 함
- * (주말, 공휴일, ATT_FROM 전, 자정이 안 지난 오늘과 미래). 명단을 못 읽었으면(abs null) 초록은 쓰지 않음 */
-export function dayState(day: string, rows: Att[], abs: Absent[] | null, now = Date.now()): 'ok' | 'issue' | 'na' {
-  if (day < ATT_FROM || !ended(day, now) || new Date(`${day}T12:00:00Z`).getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) return 'na'
-  if (rows.some((r) => view(r, now).missing) || abs?.length) return 'issue'
-  return abs ? 'ok' : 'na'
-}
-
 /** 정정 입력(HH:MM 둘)을 근무일 기준 ISO 로. 하루가 05:00에 바뀌므로 05:00 전 시각은 다음 날. 퇴근이 출근보다 늦어야 함 */
 export function fixTimes(workday: string, first: string, last: string) {
   const at = (t: string) => {

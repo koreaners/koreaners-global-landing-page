@@ -1,6 +1,6 @@
 // 근태 시간 계산 점검: node app/admin/attendance/time.check.mjs
 import assert from 'node:assert/strict'
-import { absent, dayState, editorOf, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
+import { absent, editorOf, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
 
 assert.equal(worked(550), '8시간 10분') // 09:00~18:10, 휴게 1시간
 assert.equal(worked(300), '4시간') // 5시간 머묾, 휴게 1시간
@@ -51,21 +51,6 @@ assert.ok(absent(members, att, [], '2026-11', Date.parse('2026-11-12T15:00:00Z')
 assert.equal(absent(members, [], [], '2026-10', now).length, 0) // ATT_FROM 전 달
 assert.equal(absent([mem('A')], [], [], '2026-12', Date.parse('2026-12-31T21:00:00Z')).some((x) => x.workday === '2026-12-25'), false) // 성탄절
 assert.equal(absent([mem('A')], [], [], '2026-12', Date.parse('2026-12-31T21:00:00Z'))[0].workday, '2026-12-31')
-// 달력 칸 상태(now: 11/14 05:30 KST)
-const ok = { ...att[0] }
-const short = { ...row('2026-11-10T09:00:00+09:00', '2026-11-10T09:10:00+09:00'), workday: '2026-11-10' }
-assert.equal(dayState('2026-11-09', [ok], [], now), 'ok')
-assert.equal(dayState('2026-11-09', [ok], [{ slack_id: 'B', workday: '2026-11-09' }], now), 'issue') // 미출근
-assert.equal(dayState('2026-11-10', [short], [], now), 'issue') // 퇴근 누락
-assert.equal(dayState('2026-11-10', [short], [], Date.parse('2026-11-10T14:00:00Z')), 'na') // 11/10 23:00 KST: 아직 판정 안 함
-assert.equal(dayState('2026-11-10', [short], null, now), 'issue') // 명단 없어도 퇴근 누락은 빨강
-assert.equal(dayState('2026-11-09', [ok], null, now), 'na') // 명단 없으면 초록 안 씀
-assert.equal(dayState('2026-11-06', [], [], now), 'na') // ATT_FROM 전
-assert.equal(dayState('2026-11-14', [], [], now), 'na') // 진행 중인 날(토요일이기도)
-assert.equal(dayState('2026-11-13', [], [], Date.parse('2026-11-13T01:00:00Z')), 'na') // 오늘(금)
-assert.equal(dayState('2026-11-15', [], [], Date.parse('2026-11-20T01:00:00Z')), 'na') // 일요일
-assert.equal(dayState('2026-12-25', [], [], Date.parse('2026-12-31T01:00:00Z')), 'na') // 공휴일
-
 // 정정 시각: 05:00 전은 다음 날
 assert.deepEqual(fixTimes('2026-11-09', '09:00', '18:30'), { first: '2026-11-09T09:00:00+09:00', last: '2026-11-09T18:30:00+09:00' })
 assert.deepEqual(fixTimes('2026-11-30', '22:00', '01:30'), { first: '2026-11-30T22:00:00+09:00', last: '2026-12-01T01:30:00+09:00' })

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { AutoForm } from '../finance/auto-form'
 import { Card, Info, Table, td, tdl } from '../finance/ui'
 import { fixAttendance } from './actions'
-import { addMonth, ATT_FROM, dayLabel, dayState, hm, kstDate, today, view as view0, type Absent, type Att } from './time'
+import { addMonth, ATT_FROM, dayLabel, hm, kstDate, today, view as view0, type Absent, type Att } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
 const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
@@ -11,7 +11,7 @@ const EDIT = 'att-edit'
 const ROW = 'att-row'
 const inp = 'rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200'
 
-// 자금 캘린더와 같은 색(GOOD, ALERT)
+// 자금 캘린더와 같은 색
 const GOOD = '#3fae6a'
 const ALERT = '#e66767'
 const WARN = '#e0a84f'
@@ -155,19 +155,15 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex flex-wrap items-center gap-x-2">
-              <span className="w-8 text-neutral-500">테두리</span>
-              <Legend items={[['이슈 없음', GOOD], ['미출근이나 퇴근 누락 있음', ALERT]]} />
-              <Info align="right" text="기록은 NFC 출퇴근을 시작한 11/09부터입니다. 테두리는 그 뒤 평일 중 자정이 지난 날에만 붙습니다. 주말, 공휴일, 오늘과 그 뒤는 테두리가 없습니다." />
-            </div>
-            <div className="flex flex-wrap items-center gap-x-2">
-              <span className="w-8 text-neutral-500">칸</span>
+              <span className="w-8 text-neutral-500">상태</span>
               <Legend items={ST.slice(0, 4).map(([, l, c]) => [l, c])} />
+              <Info align="right" text="기록은 NFC 출퇴근을 시작한 11/09부터입니다. 미출근과 퇴근 누락은 평일 중 자정이 지난 날에만 셉니다." />
             </div>
             <p className="text-neutral-500">날짜를 누르면 아래에 그날 목록이 나옵니다</p>
           </div>
         </div>
 
-        {!absents && <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">재직자 명단이나 휴가 기록을 읽지 못해 미출근은 표시하지 않았습니다(초록 테두리도 쓰지 않음).</p>}
+        {!absents && <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">재직자 명단이나 휴가 기록을 읽지 못해 미출근은 표시하지 않았습니다.</p>}
 
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <Card label="출근 기록" value={`${mine.length}건`} note="이 달 출근이 찍힌 날(정정, 자동 채움 포함)" />
@@ -189,7 +185,6 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
             {Array.from({ length: days }, (_, i) => {
               const date = `${m}-${String(i + 1).padStart(2, '0')}`
               const { rs, as } = on(date)
-              const ds = dayState(date, rs, as, at)
               const xs: (Att | Absent)[] = [...rs, ...(as ?? [])]
               const ring = date === day ? 'rounded-xl ring-2 ring-inset ring-sky-500' : ''
               return (
@@ -197,7 +192,6 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                   key={date}
                   href={date === day ? link({}, `#${LIST}`) : link({ d: date }, `#${LIST}`)}
                   className={`flex min-h-16 flex-col space-y-1 bg-neutral-900 p-1 text-[11px] sm:min-h-32 sm:space-y-1.5 sm:p-2.5 sm:text-sm hover:bg-neutral-800/70 ${ring}`}
-                  style={ds === 'na' || date === day ? undefined : { boxShadow: `inset 0 0 0 2px ${ds === 'ok' ? GOOD : ALERT}` }}
                 >
                   <span className={`self-start ${date === now ? 'rounded bg-neutral-100 px-1 font-semibold text-neutral-900' : 'text-neutral-500'}`}>{i + 1}</span>
                   {ST.slice(0, 4).map(([s, label, color]) => {
