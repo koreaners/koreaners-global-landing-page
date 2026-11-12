@@ -623,12 +623,13 @@ const CREATOR_TIPS = [
   `계약 공급가 × 이 사람 정산금 ÷ 그 계약 정산금 합(지급내역 「매출 단가」가 있는 행은 그 값). 계약 연결 없는 지급은 0. 현금 기준이면 고객사가 입금한 회차만 입금일로 기간을 고르고(입금 전 몫은 빠짐, 개요 매출과 같은 기준), 발생 기준이면 계약 기준일로 고릅니다(계약일 환율, 개요 발생 매출과 같은 기준).`,
   '매출 몫이 있는 계약 수',
   '매출 몫 ÷ 매출 건수',
-  `이 사람 지급 행 금액 합. 상태 무관(송금 완료, 진행 중, 보류 모두, 종결 행은 빠짐). ${CREATOR_PERIOD}`,
-  '지급 행 수(한 계약에 행이 여러 개면 여러 건)',
-  '정산 합계 ÷ 정산 건수',
-  `매출 몫 − 그 매출 몫과 연결된 지급(상태 무관, 보류 포함. 비고 맨 윗줄에 「보류 해제 금지」 등이 적힌 중복, 반송 보류는 빠짐. 계약 마진과 같은 기준). 계약 연결 없는 지급은 빠짐. 기간은 매출 몫과 같이 고르고, 현금 기준이면 지급도 매출 몫과 같은 입금 비율만큼만 짝지어 마진율이 계약 마진율과 같습니다.`,
+  `이 매출 몫에 대응하는 이 사람 지급. 매출 몫이 있는 계약에 연결된 지급(상태 무관, 보류 포함. 종결 행과 비고 맨 윗줄에 「보류 해제 금지」 등이 적힌 중복, 반송 보류는 빠짐). 현금 기준이면 고객사가 입금한 비율만큼만 들어가고, 입금 전 회차 몫의 지급은 그 입금이 들어올 때 매출 몫과 함께 잡힙니다. 계약 연결 없는 지급은 빠짐. 매출 몫 − 원가 = 마진`,
+  '매출 몫 − 원가. 계약 마진과 같은 기준',
   '마진 ÷ 매출 건수',
   '마진 ÷ 매출 몫. 매출 몫이 정산금 비중이라 한 계약의 참여자는 모두 그 계약 마진율과 같음. 높으면 그 계약에 연결된 지급이 빠졌는지 확인',
+  `이 사람 지급 행 금액 합. 상태 무관(송금 완료, 진행 중, 보류 모두, 종결 행은 빠짐). 지급 현황용이라 마진 계산에는 원가 칸을 씁니다. ${CREATOR_PERIOD}`,
+  '지급 행 수(한 계약에 행이 여러 개면 여러 건)',
+  '정산 합계 ÷ 정산 건수',
   '상태가 송금 완료인 지급 합',
   '상태가 송금 가능, 모인 접수, 원화 이체 대기인 지급 합',
   '그 밖의 상태(보류 등)인 지급 합',
@@ -640,6 +641,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
   const igs = new Map<string, Set<string>>()
   for (const p of all) for (const id of p.creatorIds ?? []) if (ig[id]) igs.set(creatorKey(p), (igs.get(creatorKey(p)) ?? new Set()).add(ig[id]))
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
+  const cost = (x: Model['creators'][number]) => (x.revenue ? x.linkedPaid : null) // 원가: 매출 몫에 대응하는 지급(매출 몫 − 원가 = 마진)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
   // 건당 평균: 매출, 마진은 매출 몫이 있는 계약 수로, 정산은 지급 행 수로 나눔
   const avgRevenue = (x: Model['creators'][number]) => (x.revenueCount ? x.revenue / x.revenueCount : null)
@@ -647,10 +649,10 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
   const avgMargin = (x: Model['creators'][number]) => (x.revenueCount && x.revenue ? (x.revenue - x.linkedPaid) / x.revenueCount : null)
   const rows = sortRows(model.creators.filter((x) => hit(f, x.name)), s, {
     name: (x) => x.name, revenue: (x) => x.revenue, revenueCount: (x) => x.revenueCount, paid: (x) => x.paid, paidCount: (x) => x.paidCount,
-    margin, rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held, avgRevenue, avgPaid, avgMargin,
+    cost, margin, rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held, avgRevenue, avgPaid, avgMargin,
   })
   // 합계는 표에 보이는 행(검색 적용) 기준. 마진율은 매출 몫이 있는 행끼리
-  const tot = rows.reduce((a, x) => ({ revenue: a.revenue + x.revenue, paid: a.paid + x.paid, margin: a.margin + (margin(x) ?? 0), rn: a.rn + x.revenueCount, pn: a.pn + x.paidCount }), { revenue: 0, paid: 0, margin: 0, rn: 0, pn: 0 })
+  const tot = rows.reduce((a, x) => ({ revenue: a.revenue + x.revenue, paid: a.paid + x.paid, cost: a.cost + (cost(x) ?? 0), margin: a.margin + (margin(x) ?? 0), rn: a.rn + x.revenueCount, pn: a.pn + x.paidCount }), { revenue: 0, paid: 0, cost: 0, margin: 0, rn: 0, pn: 0 })
   const per = (v: number, n: number) => (n ? won2(v / n) : '-')
   // 이름을 누르면 목록 위 패널이 아니라 크리에이터 한 명만 보는 화면으로 바뀜
   if (picked)
@@ -664,7 +666,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}{picked.aliases.length > 0 && <span className="ml-2 text-xs font-normal text-neutral-500">다른 이름 {picked.aliases.join(', ')}</span>} <Insta urls={igs.get(picked.key)} /></h2>
           <p className="text-sm text-neutral-200">
-            매출 몫 {won(picked.revenue)}, 정산 {won(picked.paid)}
+            매출 몫 {won(picked.revenue)}, 원가 {won(picked.revenue ? picked.linkedPaid : 0)}, 마진 {won(picked.revenue ? picked.revenue - picked.linkedPaid : 0)} · 정산 {won(picked.paid)}
           </p>
           {picked.months.length > 0 && (
             <div className="space-y-2">
@@ -702,15 +704,16 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card label={f ? '매출 몫 합계 (검색 결과)' : '매출 몫 합계'} value={won2(tot.revenue)} note={`${tot.rn}건, 건당 평균 ${per(tot.revenue, tot.rn)}`} />
-        <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, 건당 평균 ${per(tot.margin, tot.rn)}`} />
+        <Card label={f ? '마진 총액 (검색 결과)' : '마진 총액'} value={won2(tot.margin)} note={`매출 몫 − 원가 ${won2(tot.cost)}, 마진율 ${pct(tot.revenue ? tot.margin / tot.revenue : null)}, 건당 평균 ${per(tot.margin, tot.rn)}`} />
         <Card label={f ? '정산 합계 (검색 결과)' : '정산 합계'} value={won2(tot.paid)} note={`상태 무관 지급 ${tot.pn}행, 건당 평균 ${per(tot.paid, tot.pn)}`} />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
         <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
       </div>
-      <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '정산 합계', '정산 건수', '건당 평균 정산', '마진', '건당 평균 마진', '마진율', '송금 완료', '진행 중', '미지급, 보류']} tall tips={CREATOR_TIPS}
-        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'paid', 'paidCount', 'avgPaid', 'margin', 'avgMargin', 'rate', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
+      <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '원가', '마진', '건당 평균 마진', '마진율', '정산 합계', '정산 건수', '건당 평균 정산', '송금 완료', '진행 중', '미지급, 보류']} tall tips={CREATOR_TIPS}
+        groups={[['', 2], ['수익성', 7], ['지급 현황', 6]]}
+        sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'cost', 'margin', 'avgMargin', 'rate', 'paid', 'paidCount', 'avgPaid', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
           <tr key={x.name}>
             <td className={tdl}>
@@ -721,12 +724,13 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Money n={x.revenue} />
             <td className={td}>{x.revenueCount}</td>
             <Money n={avgRevenue(x)} />
-            <Money n={x.paid} />
-            <td className={td}>{x.paidCount}</td>
-            <Money n={avgPaid(x)} />
+            <Money n={cost(x)} />
             <Money n={margin(x)} />
             <Money n={avgMargin(x)} />
             <td className={td}>{pct(rate(x))}{(rate(x) ?? 0) >= HIGH_MARGIN && <span className="block text-xs text-amber-400">원가 지급 덜 붙음?</span>}</td>
+            <Money n={x.paid} />
+            <td className={td}>{x.paidCount}</td>
+            <Money n={avgPaid(x)} />
             <Money n={x.done} />
             <Money n={x.inFlight} />
             <Money n={x.held} />
@@ -734,7 +738,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         ))}
       </Table>
       <p className="text-xs text-neutral-500">
-        인스타는 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 값이라(지급내역 「매출 단가」가 있는 행은 그 값), 한 계약의 참여자는 모두 그 계약 마진율을 받습니다. 정산 합계는 상태와 관계없어 개요의 정산과 합이 다릅니다. 마진은 매출 몫에서 그 몫이 있는 지급을 뺀 값입니다. 매출 몫과 마진은 현금 기준이면 고객사 입금일, 발생 기준이면 계약 기준일로 기간을 골라 개요 매출과 같은 기준이고, 크리에이터 지급이 없는 계약만큼 개요 매출보다 적습니다. 정산 합계는 지급일(송금일, 없으면 요청일)로 고릅니다. 계약 연결 없는 지급은 마진에서 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
+        인스타는 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 값이라(지급내역 「매출 단가」가 있는 행은 그 값), 한 계약의 참여자는 모두 그 계약 마진율을 받습니다. 수익성 묶음은 매출 몫 − 원가 = 마진이고, 지급 현황 묶음의 정산 합계는 상태와 관계없는 지급 합이라 원가와 다르고 개요의 정산과도 합이 다릅니다. 매출 몫과 마진은 현금 기준이면 고객사 입금일, 발생 기준이면 계약 기준일로 기간을 골라 개요 매출과 같은 기준이고, 크리에이터 지급이 없는 계약만큼 개요 매출보다 적습니다. 정산 합계는 지급일(송금일, 없으면 요청일)로 고릅니다. 계약 연결 없는 지급은 마진에서 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
       </p>
     </div>
   )
