@@ -97,9 +97,9 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     images: [
       {
-        url: "/images/logo.png",
-        width: 800,
-        height: 400,
+        url: "/images/og.png",
+        width: 1200,
+        height: 630,
         alt: "코리너스 KOREANERS",
       },
     ],
@@ -109,7 +109,7 @@ export const metadata: Metadata = {
     title: "코리너스 | KOREANERS",
     description:
       "크로스보더 인플루언서 마케팅, 시딩, 콘텐츠 제작까지. 글로벌 마케팅 전문 에이전시.",
-    images: ["/images/logo.png"],
+    images: ["/images/og.png"],
   },
   // canonical은 루트에 두지 않는다 — 루트에 두면 자체 alternates가 없는 하위 페이지가 전부 "/"로 고정됨.
   robots: {
@@ -149,11 +149,11 @@ export default function RootLayout({
                 url: "https://www.koreaners.co",
                 logo: {
                   "@type": "ImageObject",
-                  url: "https://www.koreaners.co/images/logo.png",
-                  width: 800,
-                  height: 400,
+                  url: "https://www.koreaners.co/images/logo-square.png",
+                  width: 512,
+                  height: 512,
                 },
-                image: "https://www.koreaners.co/images/logo.png",
+                image: "https://www.koreaners.co/images/og.png",
                 description:
                   "크로스보더 인플루언서 마케팅 전문 대행사. 185+ 브랜드, 220+ 주요 크리에이터. 캠페인, 시딩, 콘텐츠, 리포팅까지.",
                 foundingDate: "2022",
@@ -222,7 +222,7 @@ export default function RootLayout({
                 name: "코리너스",
                 alternateName: "KOREANERS",
                 url: "https://www.koreaners.co",
-                logo: "https://www.koreaners.co/images/logo.png",
+                logo: "https://www.koreaners.co/images/logo-square.png",
                 priceRange: "$$",
                 areaServed: [
                   { "@type": "Country", name: "South Korea" },

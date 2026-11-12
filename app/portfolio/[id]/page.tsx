@@ -129,7 +129,7 @@ export async function generateMetadata({
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.koreaners.co";
   const ogImage = portfolio.thumbnail_url
     ? toAbsoluteUrl(siteUrl, resolveThumbnailSrc(portfolio.thumbnail_url))
-    : `${siteUrl}/images/logo.png`;
+    : `${siteUrl}/images/og.png`;
 
   const description = portfolioDescription(portfolio);
 
