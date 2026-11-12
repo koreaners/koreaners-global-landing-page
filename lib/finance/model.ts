@@ -523,6 +523,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
   const creators = new Map<string, CreatorRow>()
   for (const p of payouts) {
+    if (p.status === CLOSED) continue // 종결(중복, 지급 아님)은 나가지 않을 돈이라 정산 합계, 건수, 미지급·보류에서도 뺌(261112, 중복 행이 정산에 두 번 잡힘)
     const day = payoutDay(p, byId)
     const inP = inPeriod(day, period)
     const c = p.contractId ? byId.get(p.contractId) : undefined
