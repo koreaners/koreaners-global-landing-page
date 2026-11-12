@@ -48,7 +48,7 @@ function Legend({ items }: { items: [string, string][] }) {
 type Edit = { e?: string; err?: string; emails: Record<string, string> }
 
 export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = Date.now() }: { m: string; u?: string; d?: string; st?: string; rows: Att[]; absents: Absent[] | null; names: Record<string, string>; edit?: Edit; at?: number }) {
-  // auto8: 봇이 빠진 평일을 8시간 근무로 채운 줄(인혁, 건우, 보람)
+  // auto8: 봇이 빠진 평일을 8시간 근무로 채운 줄(인혁, 건우, 보람, 사야카, 리카). '시간 연차': 연차 시작을 퇴근으로 채운 줄(봇 nfc.leave_fill)
   const name = (id: string) => (id === 'auto8' ? '자동(8시간)' : names[id] ?? id)
   const view = (r: Att) => view0(r, at)
   const state = (r: Att | Absent): St => {
