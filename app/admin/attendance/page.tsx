@@ -16,7 +16,7 @@ async function load(m: string): Promise<Att[]> {
     const { data, error } = await sb
       .from('hr_attendance')
       .select(COLS)
-      .gte('workday', `${m}-01` < ATT_FROM ? ATT_FROM : `${m}-01`) // NFC 개시(11/09) 전 시험 기록은 빼고 보여 줌
+      .gte('workday', `${m}-01`) // 11/09 전은 닥스웨이브에서 옮긴 기록(source docswave), 미출근 판정은 ATT_FROM 부터
       .lt('workday', `${addMonth(m, 1)}-01`)
       .order('workday', { ascending: false })
       .order('first_at')
