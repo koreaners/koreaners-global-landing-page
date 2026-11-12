@@ -6,7 +6,7 @@ import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, contractDay, creatorKey, grossPayoutKrw, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, payoutDue, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -123,7 +123,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} st={sp.st} today={today} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
       {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
-      {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} />}
+      {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} q={q} />}
       {tab === 'receivables' && tw.length > 0 && (
         <details className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
           <summary className="cursor-pointer">트위커 공급 계약 <span className="text-neutral-200">{new Set(tw.map((x) => x.c.id)).size}건</span>(<span title={won(tw.reduce((a, x) => a + x.krw, 0))}>{won2(tw.reduce((a, x) => a + x.krw, 0))}</span>)은 미수에서 제외</summary>
@@ -489,11 +489,27 @@ function OverdueTable({ model, today, allHref }: { model: Model; today: string; 
     )
 }
 
+// 원가 덜 붙음 표시(계약 단위, model costFlag). n: 크리에이터 행에서 걸린 계약 수
+const COST_TIP = {
+  missing: `고객 입금과 마지막 입금분 송금 회차가 끝났는데 마진율이 ${HIGH_MARGIN * 100}%(체험단 ${HIGH_MARGIN_TRIAL * 100}%) 이상이거나, 지급 합계가 계약 DB 「예상 원가(원)」의 90% 미만인 계약입니다. 빠진 지급 행이 없는지 확인하세요.`,
+  pending: '마진율이 높지만 고객 입금 전이거나 마지막 입금분 송금 회차 전이라, 크리에이터 송금 신청이 아직 들어오지 않았을 수 있는 계약입니다.',
+}
+function CostNote({ f, n, left }: { f: CostFlag; n?: number; left?: boolean }) {
+  if (!f) return null
+  return (
+    <span className={`flex items-center gap-1 text-xs ${left ? '' : 'justify-end '}${f === 'missing' ? 'text-amber-400' : 'text-neutral-500'}`}>
+      {f === 'missing' ? '원가 누락 의심' : '원가 미확정'}{n ? ` 계약 ${n}건` : ''}<Info text={COST_TIP[f]} align={left ? 'left' : 'right'} />
+    </span>
+  )
+}
+
 function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string; st?: string; today: string }) {
   // st=overdue: 개요 「입금 예정일이 지난 매출채권」 카드와 같은 회차만
   if (st === 'overdue') return <OverdueTable model={model} today={today} allHref={q({ st: undefined })} />
   const picked = model.contracts.find((x) => x.c.id === sel)
-  const pool = o ? model.contracts.filter((x) => (x.c.owner || '미지정') === o) : model.contracts
+  // st=cost: 기준 탭 「원가 누락 의심」 계약만
+  const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : model.contracts
+  const pool = o ? all.filter((x) => (x.c.owner || '미지정') === o) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
     supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => x.overdue, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
@@ -516,6 +532,12 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
           <Link href={q({ tab: 'owners' })} className="text-sm text-sky-300 hover:underline">← 담당자 목록</Link>
           <span className="text-sm text-neutral-200">담당자 {o}의 안건</span>
           <Link href={q({ o: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
+        </div>
+      )}
+      {st === 'cost' && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm text-amber-400">원가 누락 의심 계약만 보는 중</span>
+          <Link href={q({ st: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
         </div>
       )}
       <SearchBox q={q} f={f} n={rows.length} total={pool.length} placeholder="코드, 브랜드, 법인, 담당자" />
@@ -545,7 +567,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
             <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{x.c.source !== 'sheet' && x.supply != null && !x.payouts.length ? '지급 연결 없음' : pct(x.rate)}</span>
-              {x.rate != null && x.rate >= HIGH_MARGIN && <span className="block text-xs text-amber-400">원가 지급 덜 붙음?</span>}
+              <CostNote f={x.costFlag} />
             </td>
             <td className={td}>{x.c.link ? <a href={x.c.link} target="_blank" className="text-sky-300 hover:underline">열기</a> : '-'}</td>
           </tr>
@@ -643,6 +665,9 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
   const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
   const cost = (x: Model['creators'][number]) => (x.revenue ? x.linkedPaid : null) // 원가: 매출 몫에 대응하는 지급(매출 몫 − 원가 = 마진)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
+  // 크리에이터 마진율이 높을 때만, 원인이 된 계약의 원가 표시(누락 의심 우선). 매출 단가가 없어 몫은 계약 마진율을 그대로 받으므로 판정은 계약에서
+  const costOf = (x: Model['creators'][number]): CostFlag =>
+    (rate(x) ?? 0) < HIGH_MARGIN ? null : x.shares.some((s) => s.flag === 'missing') ? 'missing' : x.shares.some((s) => s.flag === 'pending') ? 'pending' : null
   // 건당 평균: 매출, 마진은 매출 몫이 있는 계약 수로, 정산은 지급 행 수로 나눔
   const avgRevenue = (x: Model['creators'][number]) => (x.revenueCount ? x.revenue / x.revenueCount : null)
   const avgPaid = (x: Model['creators'][number]) => (x.paidCount ? x.paid / x.paidCount : null)
@@ -687,7 +712,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
               {picked.shares.map((s) => (
                 <tr key={s.c.id}>
-                  <td className={tdl}><Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: s.c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{s.c.code}</Link></td>
+                  <td className={tdl}><Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: s.c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{s.c.code}</Link><CostNote f={s.flag} left /></td>
                   <td className={td}>{s.c.brand || s.c.corp}</td>
                   <Money n={s.paid} />
                   <Money n={s.share} />
@@ -727,7 +752,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Money n={cost(x)} />
             <Money n={margin(x)} />
             <Money n={avgMargin(x)} />
-            <td className={td}>{pct(rate(x))}{(rate(x) ?? 0) >= HIGH_MARGIN && <span className="block text-xs text-amber-400">원가 지급 덜 붙음?</span>}</td>
+            <td className={td}>{pct(rate(x))}<CostNote f={costOf(x)} n={x.shares.filter((s) => s.flag === costOf(x)).length} /></td>
             <Money n={x.paid} />
             <td className={td}>{x.paidCount}</td>
             <Money n={avgPaid(x)} />
@@ -780,7 +805,7 @@ function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Sear
   )
 }
 
-function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis: Basis; src: Src }) {
+function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; basis: Basis; src: Src; q: (o: Partial<Search>) => string }) {
   const g = model.gaps
   const rows: [string, React.ReactNode][] = [
     ['서명 전 계약(유니크코드 없음, 모든 집계에서 빠짐)', `${g.unsigned}건`],
@@ -794,7 +819,8 @@ function Basis({ model, rates, basis, src }: { model: Model; rates: Rates; basis
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],
     ['통화나 지급액이 없어 환산하지 못한 지급', `${g.noRate}행`],
     ['매출 단가 합이 공급가를 넘는 계약(크리에이터 매출 몫을 단가 비율로 줄임)', `${g.overPriced}건`],
-    [`마진율 ${HIGH_MARGIN * 100}% 이상 계약(고른 기간, 원가 지급이 덜 붙었을 수 있음)`, `${g.highMargin}건`],
+    [`원가 지급이 덜 붙었을 수 있는 계약(고른 기간, 마진율 ${HIGH_MARGIN * 100}% 이상, 체험단 ${HIGH_MARGIN_TRIAL * 100}% 이상, 예상 원가(원)가 있으면 지급 합계가 그 90% 미만)`, <Link key="c" href={q({ tab: 'contracts', st: 'cost' })} className="text-sky-300 hover:underline">누락 의심 {g.highMargin.missing}건 →</Link>],
+    ['같은 조건이지만 고객 입금 전이거나 마지막 입금분 송금 회차 전인 계약(원가 미확정, 송금 신청 전일 수 있음)', `${g.highMargin.pending}건`],
     ['비고 맨 윗줄에 「보류 해제 금지」 등이 적혀 마진, 매출 몫에서 뺀 보류(중복, 반송 종결)', `${g.dead.count}행, ${won(g.dead.krw)}`],
   ]
   return (

@@ -76,6 +76,7 @@ export function toContract(page: Page): Contract {
     totalKrw: num(page, '합계(원)'),
     totalJpy: num(page, '합계(엔)'),
     vatKrw: num(page, '부가세(원)'),
+    expectedCost: num(page, '예상 원가(원)'),
     voucher: (val(page, '수출바우처') as string | null) ?? null,
     preText: str(page, '선금 금액'),
     postText: str(page, '잔금 금액'),

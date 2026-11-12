@@ -35,6 +35,7 @@ export type Contract = {
   currency?: Currency | null // Contract DB 통화 칸(매출 통화별 나눔용, 금액은 공급가(원) 그대로)
   source?: 'sheet' // Contract DB에 없어 운영 대시보드 시트에서 읽은 행(코드 받기와 코드 대조 전 임시)
   supplyFrom?: 'sheet' // Contract DB 공급가(원, 엔)가 둘 다 비어 같은 코드 시트 행의 계약 금액으로 채운 계약
+  expectedCost?: number | null // Contract DB 「예상 원가(원)」: 크리에이터 지급 원가 예상 합계(부가세 제외). 있으면 원가 덜 붙음을 마진율 대신 이 값으로 판정(인혁 261112)
 }
 
 export type Payout = {
@@ -72,9 +73,21 @@ export type Period = { year: number | null; month: number | null; upto?: number 
 
 const DONE = '송금 완료'
 export const CLOSED = '종결' // 중복, 지급 아님 등 끝난 행(인혁 261106). 나가지 않을 돈이라 미지급금, 보류, 원가, 매출 몫에서 모두 뺌
-// 마진율이 이 이상이면 원가 지급이 덜 붙었을 수 있음(뒤 회차 크리에이터 송금 신청 전인 계약, 261102)
-// ponytail: 고정 문턱, 계약별 예상 원가 칸이 생기면 그것과 대조
+// 원가 덜 붙음 판정(계약 단위, 261102 → 인혁 261112). 계약 DB 「예상 원가(원)」가 있으면 지급 합계가 그 90% 미만,
+// 없으면 마진율이 문턱 이상. 체험단(T)은 원래 마진이 높아 문턱을 따로 둠
+// ponytail: 유형별 고정 문턱, 예상 원가 칸이 채워지면 그쪽이 우선
 export const HIGH_MARGIN = 0.7
+export const HIGH_MARGIN_TRIAL = 0.85
+const EXPECTED_SLACK = 0.9 // 외화 지급의 환율 차이 여유
+export const marginCap = (c: Contract) => (/^\d{4}-T-/.test(c.code) ? HIGH_MARGIN_TRIAL : HIGH_MARGIN)
+// missing: 고객 입금이 다 끝나고 마지막 입금분 송금 회차도 지남(빠진 지급 행 확인 대상), pending: 아직 송금 신청 전일 수 있음
+export type CostFlag = 'missing' | 'pending' | null
+function costFlag(c: Contract, cost: number, rate: number | null, today: string): CostFlag {
+  const low = c.expectedCost != null ? cost < c.expectedCost * EXPECTED_SLACK : rate != null && rate >= marginCap(c)
+  if (!low) return null
+  const last = recognitions(c, today).map((x) => x.date).filter((d): d is string => !!d).sort().at(-1)
+  return paidUp(c, today) && last && cyclePayday(last) < today ? 'missing' : 'pending'
+}
 const IN_FLIGHT = ['송금 가능', '모인 접수', '원화 이체 대기']
 
 export function rateOf(c: Currency | null, r: Rates): number | null {
@@ -284,6 +297,7 @@ export type ContractRow = {
   open: boolean // 아직 받지 않은 회차가 있음
   due: string | null // 받지 않은 회차 가운데 가장 이른 입금 예정일(정산일)
   overdue: number | null // 그 예정일이 오늘보다 앞이면 지난 날수
+  costFlag: CostFlag
 }
 
 export type CreatorRow = {
@@ -301,7 +315,7 @@ export type CreatorRow = {
   held: number
   payouts: Payout[]
   estimated: number // 매출 몫 가운데 매출 단가 없이 지급 비율로 나눈 추정 몫(여러 명이 든 계약)
-  shares: { c: Contract; share: number; paid: number; estimated: boolean }[]
+  shares: { c: Contract; share: number; paid: number; estimated: boolean; flag: CostFlag }[]
   months: { month: string; revenue: number; paid: number; keys: string[] }[] // 기준(basis)에 따른 달별, keys: 안건(계약, 계약 없으면 지급 행), 기준과 무관하게 계약 기준일의 달
 }
 
@@ -319,7 +333,7 @@ export type Gaps = {
   fxNoBilled: number // 원화 청구액 없는 외화 송금 완료
   noRate: number // 통화나 금액이 없어 환산 못 한 지급
   overPriced: number // 매출 단가 합이 공급가를 넘어 단가 비율로 줄인 계약
-  highMargin: number // 고른 기간 계약 중 마진율이 HIGH_MARGIN 이상(원가 지급이 덜 붙었을 수 있음)
+  highMargin: { missing: number; pending: number } // 고른 기간 계약 중 원가 덜 붙음(costFlag) 건수
   dead: { count: number; krw: number } // 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 보류(수입 계약 연결분)
   bankAmbiguous: number // 은행 원장에서 여러 계약 후보라 사람 판정이 필요한 연결(받을 돈에서 빼지 않음)
   bankOverpaidVat: number // 원장 부가세 입금이 계약 부가세보다 많은 수출바우처 계약(부가세 더 들어옴, 받을 돈 줄 없음)
@@ -452,7 +466,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
   const { revenue, settled } = totals
 
-  // 안건별 마진: 계약 기준일이 기간 안인 수입 계약
+  // 안건별 마진: 계약 기준일이 기간 안인 수입 계약. 원가 덜 붙음 표시는 기간 밖 계약도 크리에이터 몫에 쓰므로 전부 기록
+  const flagOf = new Map<string, CostFlag>()
   const rows: ContractRow[] = revenueContracts
     .map((c) => {
       const supply = realizedSupplyKrw(c, r, today)
@@ -467,6 +482,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const unpaid = recs.filter((x) => !x.date)
       const due = unpaid.map((x) => x.due).filter((d): d is string => !!d).sort()[0] ?? null
       const late = due ? -daysFrom(today, due) : 0
+      const rate = margin != null && supply ? margin / supply : null
+      const flag = supply == null || c.source === 'sheet' ? null : costFlag(c, cost, rate, today)
+      flagOf.set(c.id, flag)
       return {
         c,
         day: contractDay(c),
@@ -474,7 +492,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
         received,
         cost,
         margin,
-        rate: margin != null && supply ? margin / supply : null,
+        rate,
+        costFlag: flag,
         payouts: ps,
         estimated: recs.some((x) => x.estimated),
         open: unpaid.length > 0,
@@ -561,7 +580,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
         prev.paid += v * frac
         prev.estimated ||= so.estimated
       } else {
-        row.shares.push({ c, share, paid: v * frac, estimated: so.estimated })
+        row.shares.push({ c, share, paid: v * frac, estimated: so.estimated, flag: flagOf.get(c.id) ?? null })
         row.revenueCount += 1
       }
     }
@@ -622,7 +641,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     fxNoBilled: payouts.filter((p) => p.status === DONE && p.currency && p.currency !== 'KRW' && p.krwBilled == null).length,
     noRate: payouts.filter((p) => payoutKrw(p, r) == null).length,
     overPriced,
-    highMargin: rows.filter((x) => x.rate != null && x.rate >= HIGH_MARGIN).length,
+    highMargin: { missing: rows.filter((x) => x.costFlag === 'missing').length, pending: rows.filter((x) => x.costFlag === 'pending').length },
     dead: { count: deadPs.length, krw: deadPs.reduce((a, p) => a + krw(p), 0) },
     bankAmbiguous: links.filter((l) => l.ambiguous).length,
     bankOverpaidVat: revenueContracts.filter((c) => { const v = clientVat(c, paid); return !!v && v.got > v.vat }).length,
