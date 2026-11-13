@@ -6,7 +6,7 @@ import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, ownersOf, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -122,7 +122,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today, data.bankLinks)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} st={sp.st} today={today} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
-      {tab === 'owners' && <Owners model={model} q={q} s={sp.s} />}
+      {tab === 'owners' && <Owners model={model} q={q} s={sp.s} year={year} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} q={q} />}
       {tab === 'receivables' && tw.length > 0 && (
         <details className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
@@ -400,12 +400,13 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           </div>
         </Panel>
 
-        <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율`} action={<Link href={q({ tab: 'owners' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
+        <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율, 여러 명이 맡은 계약은 n분의 1`} action={<Link href={q({ tab: 'owners' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
           <div className="space-y-2.5">
             {topOwners.map((o) => (
               <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${o.count}건, ${ownerRate(o, model)}`} />
             ))}
           </div>
+          {(year == null || year < 2026) && <p className="text-xs text-amber-200/90">{OWNER_GAP}</p>}
         </Panel>
       </div>
 
@@ -547,7 +548,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
   const picked = model.contracts.find((x) => x.c.id === sel)
   // st=cost: 기준 탭 「원가 누락 의심」 계약만
   const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : st === 'nolink' ? model.contracts.filter(noLinkPaid) : model.contracts
-  const pool = o ? all.filter((x) => (x.c.owner || '미지정') === o) : all
+  const pool = o ? all.filter((x) => ownersOf(x.c).includes(o)) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
     supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => x.overdue, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
@@ -768,12 +769,15 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
 /** 담당자 마진율. 계약 어디에도 지급이 연결되지 않았으면 100%가 아니라 「지급 연결 없음」 */
 function ownerRate(o: Model['owners'][number], model: Model) {
   if (o.rate == null) return '마진율 -'
-  const linked = model.contracts.some((x) => (x.c.owner || '미지정') === o.owner && x.payouts.length)
+  const linked = model.contracts.some((x) => ownersOf(x.c).includes(o.owner) && x.payouts.length)
   return linked ? `마진율 ${pct(o.rate)}` : '지급 연결 없음'
 }
 
-function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Search>) => string; s?: string }) {
-  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => (x.c.owner || '미지정') === o.owner && x.payouts.length)
+// 2025 계약은 대부분 백필이라 원천 자료에 담당자가 없음(261113 감사: 2025년 공급가 83%가 미지정)
+const OWNER_GAP = '2025년까지의 계약은 대부분 담당자(정)가 비어 있어 「미지정」으로 잡힙니다.'
+
+function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partial<Search>) => string; s?: string; year: number | null }) {
+  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => ownersOf(x.c).includes(o.owner) && x.payouts.length)
   const rows = sortRows(model.owners, s, {
     owner: (o) => o.owner, count: (o) => o.count, supply: (o) => o.supply, received: (o) => o.received, cost: (o) => o.cost,
     margin: (o) => (o.rate == null && !o.margin ? null : o.margin), rate: (o) => (o.rate != null && linked(o) ? o.rate : null), // 지급 연결 없음은 100%로 치지 않고 끝으로
@@ -796,7 +800,8 @@ function Owners({ model, q, s = '-supply' }: { model: Model; q: (o: Partial<Sear
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다. 공급가가 없는 계약은 빠집니다.</p>
+      {(year == null || year < 2026) && <p className="text-xs text-amber-200/90">{OWNER_GAP}</p>}
+      <p className="text-xs text-neutral-500">노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다. 공급가가 없는 계약은 빠집니다. 여러 명이 맡은 계약(「,」나 「/」로 나눔)은 공급가, 입금액, 변동비, 마진을 n분의 1씩 나누고 계약 수는 각자 1건으로 셉니다.</p>
     </div>
   )
 }

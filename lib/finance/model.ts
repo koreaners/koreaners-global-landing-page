@@ -394,6 +394,13 @@ export function agingBuckets(open: OpenItem[], today: string): Bucket[] {
   })
 }
 
+/** 계약 담당자(정) 목록: 「,」와 「/」로 나누고 앞뒤 공백을 지워 중복 없이(「리카, 사야카」 = 「사야카/리카」), 비면 미지정.
+ * 실명과 짧은 이름(마스다 리카, 리카)은 맞추지 않음(별칭 표는 확인 전, 인혁 261113) */
+export const ownersOf = (c: Contract): string[] => {
+  const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean))]
+  return xs.length ? xs : ['미지정']
+}
+
 /** 지급 기준일: 송금일, 없으면 송금 요청일, 없으면 연결 계약 기준일 */
 /** 크리에이터 묶기 키: 수취인(계좌)이 같으면 이름이 달라도 한 사람 */
 export const creatorKey = (p: Payout) => p.payeeId || p.name
@@ -646,21 +653,24 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
   for (const c of creators.values()) c.months.sort((a, b) => b.month.localeCompare(a.month))
 
-  // 담당자별
+  // 담당자별. 여러 명이 맡은 계약은 돈을 n분의 1씩, 건수는 각자 1건(인혁 261113). 담당자 줄 돈의 합 = 회사 합계
   const owners = new Map<string, OwnerRow>()
   const marginSupply = new Map<string, number>() // 마진율 분모: 마진을 셈한 계약 공급가만
   for (const x of priced) {
-    const key = x.c.owner || '미지정'
-    const o = owners.get(key) ?? { owner: key, count: 0, supply: 0, received: 0, cost: 0, margin: 0, rate: null }
-    o.count += 1
-    o.supply += x.supply ?? 0
-    o.received += x.received
-    o.cost += x.cost
-    o.margin += x.margin ?? 0
-    const ms = (marginSupply.get(key) ?? 0) + (x.margin != null ? (x.supply ?? 0) : 0)
-    marginSupply.set(key, ms)
-    o.rate = ms ? o.margin / ms : null
-    owners.set(key, o)
+    const keys = ownersOf(x.c)
+    const f = 1 / keys.length
+    for (const key of keys) {
+      const o = owners.get(key) ?? { owner: key, count: 0, supply: 0, received: 0, cost: 0, margin: 0, rate: null }
+      o.count += 1
+      o.supply += (x.supply ?? 0) * f
+      o.received += x.received * f
+      o.cost += x.cost * f
+      o.margin += (x.margin ?? 0) * f
+      const ms = (marginSupply.get(key) ?? 0) + (x.margin != null ? (x.supply ?? 0) * f : 0)
+      marginSupply.set(key, ms)
+      o.rate = ms ? o.margin / ms : null
+      owners.set(key, o)
+    }
   }
 
   const unlinked = payouts.filter(needsLink)
