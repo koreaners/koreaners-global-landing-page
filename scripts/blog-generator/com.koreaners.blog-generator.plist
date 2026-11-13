@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/leo/Downloads/Claude-Projects/koreaners-global-landing-page/scripts/blog-generator/generate_blog.py</string>
+        <string>/Users/leo/koreaners-global-landing-page/scripts/blog-generator/generate_blog.py</string>
     </array>
 
     <key>StartCalendarInterval</key>
@@ -30,6 +30,8 @@
     <dict>
         <key>PATH</key>
         <string>/usr/local/bin:/usr/bin:/bin</string>
+        <key>NOTION_BLOG_DB_ID</key>
+        <string>2f501ca3e4808082aae4f046911ccf9b</string>
     </dict>
 </dict>
 </plist>

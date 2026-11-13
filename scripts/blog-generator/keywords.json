@@ -15,25 +15,25 @@
     {
       "pillar": "일본 인플루언서 마케팅",
       "keyword": "일본 마이크로 인플루언서 섭외 5단계 프로세스",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
       "pillar": "일본 인플루언서 마케팅",
       "keyword": "일본 인플루언서 계약 시 주의사항",
-      "used": false,
+      "used": true,
       "recommended_format": "pitfall"
     },
     {
       "pillar": "일본 인플루언서 마케팅",
       "keyword": "일본 인플루언서 마케팅 ROI 측정법",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
       "pillar": "일본 인플루언서 마케팅",
       "keyword": "한국 브랜드 일본 인플루언서 성공 사례 3선",
-      "used": false,
+      "used": true,
       "recommended_format": "case-study"
     },
     {
@@ -57,19 +57,19 @@
     {
       "pillar": "일본 체험단/시딩",
       "keyword": "일본 대량 시딩 캠페인 설계 방법",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
       "pillar": "일본 체험단/시딩",
       "keyword": "일본 체험단 비용 및 기대 효과",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
       "pillar": "일본 체험단/시딩",
       "keyword": "일본 아마존 리뷰 마케팅 가이드",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
@@ -99,19 +99,19 @@
     {
       "pillar": "일본 SNS 플랫폼 가이드",
       "keyword": "일본 TikTok 마케팅 한국 브랜드 사례",
-      "used": false,
+      "used": true,
       "recommended_format": "case-study"
     },
     {
       "pillar": "일본 SNS 플랫폼 가이드",
       "keyword": "일본 X(트위터) 마케팅 특성과 활용법",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
       "pillar": "일본 SNS 플랫폼 가이드",
       "keyword": "일본 LINE 마케팅 광고 방법",
-      "used": false,
+      "used": true,
       "recommended_format": "tactical"
     },
     {
@@ -130,6 +130,48 @@
       "pillar": "한-일 크로스보더 실무",
       "keyword": "일본 시장 진출 시 마케팅 비용 가이드",
       "used": true,
+      "recommended_format": "tactical"
+    },
+    {
+      "pillar": "체험단 시딩 공동구매",
+      "keyword": "일본 인플루언서 공동구매 하는 법",
+      "used": false,
+      "recommended_format": "tactical"
+    },
+    {
+      "pillar": "체험단 시딩 공동구매",
+      "keyword": "인플루언서 시딩 플랫폼과 협찬 플랫폼 비교",
+      "used": false,
+      "recommended_format": "comparative"
+    },
+    {
+      "pillar": "외국인 인플루언서",
+      "keyword": "인플루언서 마케팅 플랫폼과 대행사 차이",
+      "used": false,
+      "recommended_format": "comparative"
+    },
+    {
+      "pillar": "일본 진출",
+      "keyword": "한국 브랜드 일본 진출 방법 단계별 가이드",
+      "used": false,
+      "recommended_format": "tactical"
+    },
+    {
+      "pillar": "일본 진출",
+      "keyword": "일본 마케팅 방법과 2026 트렌드",
+      "used": false,
+      "recommended_format": "tactical"
+    },
+    {
+      "pillar": "뷰티와 화장품",
+      "keyword": "한국 화장품 일본 수출 후 현지 마케팅",
+      "used": false,
+      "recommended_format": "tactical"
+    },
+    {
+      "pillar": "채널별 마케팅",
+      "keyword": "일본 메타 광고 운영 가이드",
+      "used": false,
       "recommended_format": "tactical"
     }
   ]
