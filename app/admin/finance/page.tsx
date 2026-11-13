@@ -37,7 +37,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const only = (await adminRole()) === 'receivables'
   const tab: Tab = only ? 'receivables' : ((TABS.find(([k]) => k === sp.tab)?.[0] ?? 'summary') as Tab)
   if (tab === 'funnel') return <FunnelTrendTab /> // 노션을 읽지 않고 주간 잡이 올린 파일만
-  const thisYear = new Date().getFullYear()
+  // 기본 연도도 한국 시간 오늘에서(서버는 UTC라 새해 첫날 0~9시에 전년으로 열리던 문제, 261113 감사)
+  const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
+  const thisYear = Number(today.slice(0, 4))
   const year = sp.y === 'all' ? null : Number(sp.y) || thisYear
   const month = year != null && Number(sp.m) >= 1 && Number(sp.m) <= 12 ? Number(sp.m) : null
   const basis: Basis = sp.b === 'contract' ? 'contract' : 'cash'
@@ -56,7 +58,6 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     )
   }
 
-  const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
   const period = { year, month }
   const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks)
   const tw = model.receivables.twikr // 트위커 표시라 받을 돈에서 뺀 입금 전 회차(미수 탭 안내)
@@ -364,7 +365,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
             <div className="space-y-1 border-t border-neutral-800 pt-3">
               <p className="text-xs text-neutral-500">예정일이 가장 오래 지난 회차</p>
               {late.map((o, i) => (
-                <Link key={`${o.c.id}-${i}`} href={q({ tab: 'contracts', sel: o.c.id })} className="grid grid-cols-[1fr_auto_6.5rem] items-baseline gap-3 rounded px-1 py-1 text-sm hover:bg-neutral-800/40">
+                <Link key={`${o.c.id}-${i}`} href={q({ tab: 'contracts', y: 'all', m: undefined, sel: o.c.id })} className="grid grid-cols-[1fr_auto_6.5rem] items-baseline gap-3 rounded px-1 py-1 text-sm hover:bg-neutral-800/40">
                   <span className="truncate text-neutral-300" title={o.c.code}>{o.c.brand || o.c.code}{o.label ? ` ${o.label}` : ''}</span>
                   <span className="text-xs tabular-nums text-neutral-500">{o.due}, {Math.round((Date.parse(today) - Date.parse(o.due!)) / 86_400_000)}일 지남</span>
                   <span className="text-right tabular-nums text-neutral-200">{won2(o.krw)}</span>
@@ -414,7 +415,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       </div>
 
       <details className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-        <summary className="cursor-pointer text-sm text-neutral-300">월별 표로 보기 ({labels.cur})</summary>
+        <summary className="cursor-pointer text-sm text-neutral-300">월별 표로 보기 ({year == null ? labels.cur : `${year}년`})</summary>
         <div className="mt-4">
           <Table head={['월', cb ? '매출(계약)' : '매출(입금)', ...monthCurs.map((k) => `${CUR_NAME[k]} 매출`), cb ? '정산(계약)' : '정산(송금)', flowNames.net, '매출 누적', '정산 누적', `${flowNames.net} 누적`]}>
             {model.monthly.map((r) => {
@@ -554,7 +555,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
   const pool = o ? all.filter((x) => ownersOf(x.c).includes(o)) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
-    supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => x.overdue, cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
+    supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => (x.c.twikr ? null : x.overdue), cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
   })
   return (
     <div className="space-y-4">
@@ -604,7 +605,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
             <td className={td}>{x.open ? (x.due ?? <span className="text-neutral-500">예정일 없음</span>) : '-'}</td>
-            <td className={`${td}${x.overdue ? ' font-semibold text-red-400' : ''}`}>{x.overdue ? `${x.overdue}일` : '-'}</td>
+            <td className={`${td}${x.overdue && !x.c.twikr ? ' font-semibold text-red-400' : ''}`}>{!x.overdue ? '-' : x.c.twikr ? <span className="text-neutral-500">트위커 수금</span> : `${x.overdue}일`}</td>
             <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : <Link href={q({ sel: x.c.id })} className="text-sky-300 hover:underline">{won2(x.cost)}</Link>}</td>
             <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
@@ -615,7 +616,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다. 변동비는 연결된 지급 합계(종결, 해제 금지 보류는 뺌), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 노션 계약 페이지가, 변동비를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다(트위커 공급 계약은 트위커 계좌로 받아 미수가 아니라서 「트위커 수금」). 변동비는 연결된 지급 합계(종결, 해제 금지 보류는 뺌), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 노션 계약 페이지가, 변동비를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
     </div>
   )
 }
