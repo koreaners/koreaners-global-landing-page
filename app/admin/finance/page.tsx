@@ -441,7 +441,7 @@ function PayoutTable({ payouts, rates, contracts, q }: { payouts: Payout[]; rate
           <tr key={p.id}>
             {contracts && (
               <>
-                <td className={`${tdl} whitespace-nowrap`}>{c ? (q ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{c.code}</Link> : c.code) : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
+                <td className={`${tdl} whitespace-nowrap`}>{c ? <CodeLink c={c} q={q} /> :<span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
                 <td className={`${tdl} whitespace-nowrap`}>{ym(p) ?? '-'}</td>
                 <td className={tdl}>{c ? c.brand || c.corp : '-'}</td>
               </>
@@ -494,6 +494,13 @@ const COST_TIP = {
   missing: `고객 입금과 마지막 입금분 송금 회차가 끝났는데 마진율이 ${HIGH_MARGIN * 100}%(체험단 ${HIGH_MARGIN_TRIAL * 100}%) 이상이거나, 지급 합계가 계약 DB 「예상 원가(원)」의 90% 미만인 계약입니다. 빠진 지급 행이 없는지 확인하세요.`,
   pending: '마진율이 높지만 고객 입금 전이거나 마지막 입금분 송금 회차 전이라, 크리에이터 송금 신청이 아직 들어오지 않았을 수 있는 계약입니다.',
 }
+/** 계약 코드: 노션 계약 페이지(새 탭). 노션에 없는 시트 계약만 안건 탭 */
+function CodeLink({ c, q }: { c: Contract; q?: (o: Partial<Search>) => string }) {
+  const cls = 'underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200'
+  if (c.source !== 'sheet') return <a href={notion(c.id)} target="_blank" className={cls} title={`${c.code} (노션 열기)`}>{c.code}</a>
+  return q ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: c.id })} className={cls}>{c.code}</Link> : <>{c.code}</>
+}
+
 function CostNote({ f, n, left }: { f: CostFlag; n?: number; left?: boolean }) {
   if (!f) return null
   return (
@@ -690,9 +697,13 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         <CreatorView payouts={all.filter((p) => creatorKey(p) === picked.key)} contracts={contracts} today={today} />
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}{picked.aliases.length > 0 && <span className="ml-2 text-xs font-normal text-neutral-500">다른 이름 {picked.aliases.join(', ')}</span>} <Insta urls={igs.get(picked.key)} /></h2>
-          <p className="text-sm text-neutral-200">
-            매출 몫 {won(picked.revenue)}, 원가 {won(picked.revenue ? picked.linkedPaid : 0)}, 마진 {won(picked.revenue ? picked.revenue - picked.linkedPaid : 0)} · 정산 {won(picked.paid)}
-          </p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <Card label="매출 몫" value={won2(picked.revenue)} note={`${picked.revenueCount}건, 건당 평균 ${per(picked.revenue, picked.revenueCount)}${picked.currencies.length ? `, ${picked.currencies.join(', ')}` : ''}`} />
+            <Card label="마진" value={won2(margin(picked) ?? 0)} note={`매출 몫 − 원가 ${won2(cost(picked) ?? 0)}, 건당 평균 ${per(margin(picked) ?? 0, picked.revenueCount)}`} />
+            <Card label="마진율" value={pct(rate(picked))} note={costOf(picked) ? `${costOf(picked) === 'missing' ? '원가 누락 의심' : '원가 미확정'} 계약 ${picked.shares.filter((s) => s.flag === costOf(picked)).length}건` : '마진 ÷ 매출 몫'} />
+            <Card label="정산 합계" value={won2(picked.paid)} note={`상태 무관 지급 ${picked.paidCount}행, 건당 평균 ${per(picked.paid, picked.paidCount)}`} />
+            <Card label="송금 완료" value={won2(picked.done)} note={`진행 중 ${won2(picked.inFlight)}, 미지급(보류) ${won2(picked.held)}`} />
+          </div>
           {picked.months.length > 0 && (
             <div className="space-y-2">
               <Legend items={[['매출 몫', REV], ['정산액', SET], ['안건 수(오른쪽 축)', NET_COLOR]]} />
@@ -712,7 +723,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
             <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
               {picked.shares.map((s) => (
                 <tr key={s.c.id}>
-                  <td className={tdl}><Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: s.c.id })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{s.c.code}</Link><CostNote f={s.flag} left /></td>
+                  <td className={tdl}><CodeLink c={s.c} q={q} /><CostNote f={s.flag} left /></td>
                   <td className={td}>{s.c.brand || s.c.corp}</td>
                   <Money n={s.paid} />
                   <Money n={s.share} />
