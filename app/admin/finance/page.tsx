@@ -954,7 +954,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(노션 계약 DB 먼저, 없으면 시트, 은행 대조 전)" />
+        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(노션 계약 DB 먼저, 없으면 시트). 공급가, 부가세를 나눠 받은 회차는 은행 입금일별로" />
         <Card label="입금 예정" value={won2(sum(items, 'in', ['due', 'late', 'guess']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}, 정산일 임의 ${won2(sum(items, 'in', ['guess']))}, 서명 전 계약 ${won2(sum(items, 'in', ['unsigned']))}은 따로(합계 제외)`} />
         <Card label="출금" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
         <Card label="출금 예정" value={won2(sum(items, 'out', ['flight', 'due', 'wait', 'late', 'guess', 'docs']))} note={`실지급액, 그중 예정일 지남 ${won2(sum(items, 'out', ['late']))}, 정산일 임의 ${won2(sum(items, 'out', ['guess']))}, 보류 제외`} />

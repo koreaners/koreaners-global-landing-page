@@ -62,8 +62,8 @@ export type Payout = {
 }
 
 // 은행 원장 bank_transactions.links 한 항목(계약 연결, 정산 람다가 씀). kind 공급가, 부가세는 회차 일부 입금이고
-// kind 전액이나 없음은 노션 입금일로 이미 반영된 줄. ambiguous는 한 줄이 여러 계약 후보라 사람 판정 전(빼지 않음)
-export type BankLink = { db: string; code?: string; page: string; part?: string; kind?: string; amount?: number | null; ambiguous?: boolean }
+// kind 전액이나 없음은 노션 입금일로 이미 반영된 줄. ambiguous는 한 줄이 여러 계약 후보라 사람 판정 전(빼지 않음). at: 그 줄의 은행 입금일(YYYY-MM-DD)
+export type BankLink = { db: string; code?: string; page: string; part?: string; kind?: string; amount?: number | null; ambiguous?: boolean; at?: string }
 
 // daily: 통화별 날짜 → 원화 환율(fx.ts 일별 기준환율). 없으면 모든 날짜에 오늘 환율
 export type Rates = { JPY: number; USD: number; CNY: number; at: string; source: string; daily?: Partial<Record<'JPY' | 'USD' | 'CNY', Record<string, number>>> }
@@ -205,6 +205,18 @@ export function partialPaid(links: BankLink[]): Map<string, number> {
   return m
 }
 
+/** partialPaid와 같은 줄을 은행 입금일과 함께: 「계약 page:회차:kind」 → [{at, amount}]. 입금일 없는 줄은 뺌(자금 캘린더 현금 표시용) */
+export type DatedPaid = Map<string, { at: string; amount: number }[]>
+export function partialDated(links: BankLink[]): DatedPaid {
+  const m: DatedPaid = new Map()
+  for (const l of links) {
+    if (l.ambiguous || l.amount == null || !l.at || (l.kind !== '공급가' && l.kind !== '부가세')) continue
+    const k = `${l.page}:${l.part ?? ''}:${l.kind}`
+    m.set(k, [...(m.get(k) ?? []), { at: l.at, amount: l.amount }])
+  }
+  return m
+}
+
 const PARTS = ['선금', '잔금', '']
 const sumPaid = (paid: Map<string, number>, page: string, parts: string[], kinds: string[]) =>
   parts.reduce((a, p) => a + kinds.reduce((b, k) => b + (paid.get(`${page}:${p}:${k}`) ?? 0), 0), 0)
@@ -226,12 +238,14 @@ export type Inflow = { date: string | null; due: string | null; krw: number; lab
  * 수출바우처는 기관이 공급가만 내므로 회차는 공급가 × 몫(일부 입금은 공급가만 뺌). 고객사가 따로 내는 부가세 「부가세(고객사)」(clientVat)는
  * 이미 입금됐거나 정산일이 오늘 이전인 회차 몫만큼 지금 받을 돈(예정일: 지난 입금 전 회차 정산일, 없으면 마지막 입금 회차 입금일),
  * 나머지 몫은 다음 회차 정산일에 받을 돈. 원장 부가세 입금은 지금 몫에서 먼저 빼고 남으면 나머지 몫에서. 0원 이하는 뺌 */
-export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
-  return c.twikr ? [] : cashIn(c, r, today, paid) // 트위커 계좌로 받는 돈은 코리너스 통장에 들어오지 않음
+export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, number>, dated?: DatedPaid): Inflow[] {
+  return c.twikr ? [] : cashIn(c, r, today, paid, dated) // 트위커 계좌로 받는 돈은 코리너스 통장에 들어오지 않음
 }
 
-/** 트위커 표시를 보지 않는 inflows. 미수 탭 「트위커 공급 계약 제외」 목록이 씀 */
-function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>): Inflow[] {
+/** 트위커 표시를 보지 않는 inflows. 미수 탭 「트위커 공급 계약 제외」 목록이 씀.
+ * dated(자금 캘린더만 줌): 은행 원장 일부 입금을 그 은행 입금일의 들어온 돈 줄로 내고, 노션 입금일 있는 회차는 그만큼 뺀 나머지만 입금일에 둠
+ * (공급가, 부가세를 다른 날 받은 회차가 부가세 들어온 날 하루에 합계 전액으로 찍히던 문제, 인혁 261113) */
+function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>, dated?: DatedPaid): Inflow[] {
   const s = supplyKrw(c, r)
   const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
   const base = c.voucher ? s : (total ?? s)
@@ -239,13 +253,20 @@ function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>)
   const got = (parts: string[], kinds: string[]) => sumPaid(paid, c.id, parts, kinds)
   const kinds = c.voucher ? ['공급가'] : ['공급가', '부가세']
   const recs = recognitions(c, today)
+  const partsOf = (x: Recognition) => (recs.length === 1 ? PARTS : [x.part])
+  // 입금일 있는 회차는 은행 입금일이 있어 따로 찍히는 일부 입금만 뺌(입금일 없는 옛 캐시 링크면 예전처럼 전액)
+  const banked = (x: Recognition) => partsOf(x).reduce((a, p) => a + kinds.reduce((b, k) => b + (dated?.get(`${c.id}:${p}:${k}`) ?? []).reduce((s, y) => s + y.amount, 0), 0), 0)
   const out: Inflow[] = recs.map((x) => ({
     date: x.date,
     due: x.due,
-    krw: base * x.share - (x.date ? 0 : got(recs.length === 1 ? PARTS : [x.part], kinds)),
+    krw: base * x.share - (x.date ? banked(x) : got(partsOf(x), kinds)),
     noTotal: !c.voucher && total == null,
     part: x.part,
   }))
+  if (dated) {
+    for (const x of recs) for (const p of partsOf(x)) for (const k of kinds) for (const b of dated.get(`${c.id}:${p}:${k}`) ?? []) out.push({ date: b.at, due: null, krw: b.amount, label: `은행 일부 입금(${k})`, part: x.part })
+    if (c.voucher) for (const p of PARTS) for (const b of dated.get(`${c.id}:${p}:부가세`) ?? []) out.push({ date: b.at, due: null, krw: b.amount, label: '부가세(고객사) 입금' })
+  }
   const cv = clientVat(c, paid)
   if (cv && cv.got <= cv.vat) {
     const early = (xs: (string | null)[]) => xs.filter((d): d is string => !!d).sort()[0] ?? null
@@ -737,17 +758,18 @@ export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string)
 export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'wait' | 'late' | 'guess' | 'unsigned' | 'docs'; date: string; krw: number; title: string; sub: string; code: string | null; contractId: string | null; notionId: string | null; pay?: { id: string; pid: number | null }; manual?: boolean } // notionId: 계약 노션 페이지(시트 행은 null), pay: 출금의 지급내역 노션 행
 
 /** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
- * 들어옴은 inflows(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음, 입금 전 회차는 은행 원장 일부 입금을 뺀 남은 금액, 수출바우처는 기관 공급가와 고객사 부가세 줄).
+ * 들어옴은 inflows(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음, 은행 원장 일부 입금은 그 은행 입금일에 따로, 회차 줄은 그만큼 뺀 남은 금액, 수출바우처는 기관 공급가와 고객사 부가세 줄).
  * 합계가 비면 공급가로 대신하고 표시. 나감은 실지급액(3.3% 공제 뒤, 세금계산서 VAT 별도는 부가세 더함). VAT 칸이 빈 세금계산서 행은 그대로 두고 표시 */
 export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates, ym: string, today: string, links: BankLink[] = []): CalItem[] {
   const signed = contracts.filter((c) => c.code)
   const byId = new Map(signed.map((c) => [c.id, c]))
   const out: CalItem[] = []
   const paid = partialPaid(links)
+  const dated = partialDated(links)
   for (const c of contracts) {
     if (!c.code && !c.unsigned) continue
     if (c.isExpense || c.excluded) continue
-    for (const x of inflows(c, r, today, paid)) {
+    for (const x of inflows(c, r, today, paid, dated)) {
       const date = x.date ?? x.due
       if (!date?.startsWith(ym)) continue
       out.push({ kind: 'in', state: x.date ? 'done' : c.unsigned ? 'unsigned' : c.dueGuess ? 'guess' : date < today ? 'late' : 'due', date, krw: x.krw, title: c.brand || c.corp || c.code, sub: x.label ?? (x.noTotal ? '합계 없음(공급가)' : ''), code: c.code, contractId: c.id, notionId: c.source === 'sheet' ? null : c.id })

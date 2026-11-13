@@ -161,9 +161,9 @@ async function readBankLinks(): Promise<BankLink[]> {
   const sb = createAdminClient()
   const out: BankLink[] = []
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from('bank_transactions').select('id, links').eq('direction', '입금').contains('links', JSON.stringify([{ db: 'contract' }])).order('id').range(from, from + 999)
+    const { data, error } = await sb.from('bank_transactions').select('id, at, links').eq('direction', '입금').contains('links', JSON.stringify([{ db: 'contract' }])).order('id').range(from, from + 999)
     if (error) throw new Error(`은행 원장 조회 실패: ${error.message}`)
-    for (const row of data ?? []) for (const l of (row.links ?? []) as BankLink[]) if (l?.db === 'contract' && l.page) out.push(l)
+    for (const row of data ?? []) for (const l of (row.links ?? []) as BankLink[]) if (l?.db === 'contract' && l.page) out.push({ ...l, at: row.at ? String(row.at).slice(0, 10) : undefined })
     if ((data ?? []).length < 1000) return out
   }
 }
