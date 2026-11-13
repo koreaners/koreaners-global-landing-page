@@ -11,7 +11,7 @@ const TTL = 300
 let inflight: Promise<FinanceData> | null = null
 const load = () => (inflight ??= loadFinance(process.env).finally(() => { inflight = null }))
 
-const cached = unstable_cache(async () => gzipSync(JSON.stringify(await load())).toString('base64'), ['admin-finance-v9'], { revalidate: TTL, tags: ['admin-finance'] })
+const cached = unstable_cache(async () => gzipSync(JSON.stringify(await load())).toString('base64'), ['admin-finance-v10'], { revalidate: TTL, tags: ['admin-finance'] })
 
 export async function getFinance(): Promise<FinanceData> {
   const d: FinanceData = JSON.parse(gunzipSync(Buffer.from(await cached(), 'base64')).toString())

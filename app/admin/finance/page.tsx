@@ -223,7 +223,7 @@ function Legend({ items }: { items: [string, string][] }) {
   )
 }
 
-type Src = Pick<FinanceData, 'sheet' | 'sheetError' | 'bankError'>
+type Src = Pick<FinanceData, 'bankError'>
 
 function Overview({ model, prior, all, labels, year, month, today, rates, q, basis, src }: {
   model: Model; prior: Model | null; all: Model; labels: Labels; year: number | null; month: number | null; today: string; rates: Rates; q: (o: Partial<Search>) => string; basis: Basis; src: Src
@@ -292,9 +292,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   return (
     <div className="space-y-6">
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
-        {src.sheet
-          ? <>노션 계약 DB에 아직 안 올라온 계약 <span className="text-neutral-200">{src.sheet.added}건</span>은 운영 대시보드 시트에서 읽어 함께 셉니다(같은 계약인지 확인 중 {src.sheet.dups.length}건, 계약 코드가 없는 행 {src.sheet.codeless}건).</>
-          : <span className="text-[#e66767]">운영 대시보드 시트를 읽지 못해 노션 계약 DB 계약만 집계합니다: {src.sheetError ?? '원인 미상'}</span>}
+        노션 계약 DB 계약만 셉니다(운영 대시보드 시트 계약은 더 이상 합치지 않음).
         {src.bankError && <span className="text-[#e66767]"> 은행 원장을 읽지 못해 일부 입금을 빼지 않은 회차 전액을 매출채권으로 셉니다: {src.bankError}</span>}
         {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
         <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
@@ -850,11 +848,7 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
           <li>
             크리에이터 탭: 매출 몫은 계약 공급가를 정산금 비중으로 나눈 값입니다(지급내역 「매출 단가」가 있는 행은 그 값, 부가세 제외, 계약 공급가와 같은 통화). 현금 기준이면 고객사가 입금한 회차만 입금일로(입금 전 몫은 빠짐), 발생 기준이면 계약 기준일로 기간을 골라 개요 매출과 같은 기준이고, 크리에이터 지급이 없는 계약만큼 개요 매출보다 적습니다. 수입 계약에 연결되지 않은 지급은 정산에만 들어가고 매출 몫은 없습니다. 마진율은 매출 몫이 있는 지급끼리만 짝짓습니다. 정산 합계는 상태와 관계없고, 송금일이 없으면 요청일이나 계약일로 기간을 고르므로 개요의 정산(송금 완료, 송금일 기준)과 합이 다릅니다.
           </li>
-          <li>
-            {src.sheet
-              ? `운영 대시보드 시트(${src.sheet.tab})에서 노션 계약 DB에 없는 계약 ${src.sheet.added}건(코드 없는 행 ${src.sheet.codeless}건 포함)을 더했습니다(코드 받기와 코드 대조 전 임시). 중복 후보(확인 요청 중, 집계에 포함): ${src.sheet.dups.join(', ') || '없음'}. 공급가를 시트에서 채운 계약 ${src.sheet.supplyFrom.length}건.`
-              : `운영 대시보드 시트를 읽지 못해 노션 계약 DB 계약만 집계합니다: ${src.sheetError ?? '원인 미상'}`}
-          </li>
+          <li>운영 대시보드 시트 계약은 더 이상 합치지 않고 노션 계약 DB 계약만 셉니다. 시트에서 더하던 계약이 노션 계약 DB 계약과 겹쳐 매출채권이 두 번 잡혔습니다.</li>
         </ul>
       </section>
       <section className="space-y-2">
@@ -954,7 +948,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(노션 계약 DB 먼저, 없으면 시트). 공급가, 부가세를 나눠 받은 회차는 은행 입금일별로" />
+        <Card label="입금" value={won2(sum(items, 'in', ['done']))} note="부가세 포함, 입금일(노션 계약 DB). 공급가, 부가세를 나눠 받은 회차는 은행 입금일별로" />
         <Card label="입금 예정" value={won2(sum(items, 'in', ['due', 'late', 'guess']))} note={`부가세 포함, 그중 예정일 지남 ${won2(sum(items, 'in', ['late']))}, 정산일 임의 ${won2(sum(items, 'in', ['guess']))}, 서명 전 계약 ${won2(sum(items, 'in', ['unsigned']))}은 따로(합계 제외)`} />
         <Card label="출금" value={won2(sum(items, 'out', ['done']))} note="실지급액(3.3% 공제 뒤), 송금일" />
         <Card label="출금 예정" value={won2(sum(items, 'out', ['flight', 'due', 'wait', 'late', 'guess', 'docs']))} note={`실지급액, 그중 예정일 지남 ${won2(sum(items, 'out', ['late']))}, 정산일 임의 ${won2(sum(items, 'out', ['guess']))}, 보류 제외`} />

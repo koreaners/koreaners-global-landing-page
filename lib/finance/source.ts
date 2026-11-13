@@ -1,8 +1,6 @@
 // 노션 Contract DB, 지급내역 DB 전체 조회와 정리. next 에 기대지 않아 점검 스크립트도 그대로 쓴다.
 import { Client } from '@notionhq/client'
-import { google } from 'googleapis'
 import type { BankLink, Contract, Currency, Payout } from './model'
-import { sheetContracts } from './sheet'
 import { createAdminClient } from '../supabase/admin'
 
 type Prop = { type: string; [k: string]: unknown }
@@ -125,34 +123,8 @@ export type FinanceData = {
   ig: Record<string, string> // 크리에이터 리스트 페이지 id → 인스타 URL
   igError: string | null
   fetchedAt: string
-  sheet: { tab: string; added: number; codeless: number; dups: string[]; supplyFrom: string[] } | null
-  sheetError: string | null
   bankLinks: BankLink[] // 은행 원장 입금 줄의 계약 연결(일부 입금 차감, 바우처 고객사 부가세)
   bankError: string | null
-}
-
-/** 운영 대시보드(MKT Ops Master)에서 숫자가 가장 큰 Dashboard 탭 전체 값 */
-async function readDashboard(env: Record<string, string | undefined>): Promise<{ tab: string; values: string[][] }> {
-  const id = env.GOOGLE_SHEETS_PROJECT_ID
-  const scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-  let auth
-  if (env.GOOGLE_SERVICE_ACCOUNT_JSON) auth = new google.auth.GoogleAuth({ credentials: JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON), scopes })
-  else if (env.GOOGLE_ACCESS_TOKEN) {
-    // 로컬 미리보기 전용: gcloud auth print-access-token 으로 받은 토큰
-    auth = new google.auth.OAuth2()
-    auth.setCredentials({ access_token: env.GOOGLE_ACCESS_TOKEN })
-  }
-  if (!id || !auth) throw new Error('환경변수 없음: GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_SHEETS_PROJECT_ID')
-  const sheets = google.sheets({ version: 'v4', auth })
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: id, fields: 'sheets.properties.title' })
-  const num = (t: string) => Number(t.match(/\d+/)?.[0] ?? -1)
-  const tab = (meta.data.sheets ?? [])
-    .map((x) => x.properties?.title ?? '')
-    .filter((t) => /dashboard/i.test(t))
-    .sort((a, b) => num(b) - num(a))[0]
-  if (!tab) throw new Error('Dashboard 탭 없음')
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId: id, range: `'${tab}'!A:AZ`, valueRenderOption: 'FORMATTED_VALUE' })
-  return { tab, values: (res.data.values ?? []) as string[][] }
 }
 
 /** 은행 원장(Supabase bank_transactions, RLS로 service_role만 읽음) 입금 줄 가운데 계약 연결이 있는 줄의 links를 펼침.
@@ -195,18 +167,8 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
     const u = val(x, '인스타') as string | null
     if (u) ig[x.id] = u
   }
+  // 운영 대시보드 시트 계약 합치기는 끔(인혁 261113: 시트가 더하던 3건이 노션 계약과 겹쳐 매출채권이 두 번 잡힘). sheet.ts는 남겨 둠
   const contracts = c.map(toContract)
-  // Contract DB에 아직 없는 운영 대시보드 계약을 더함(코드 받기와 코드 대조 전 임시). 시트를 못 읽어도 노션만으로 계속
-  let sheet: FinanceData['sheet'] = null
-  let sheetError: string | null = null
-  try {
-    const { tab, values } = await readDashboard(env)
-    const r = sheetContracts(values, contracts)
-    contracts.push(...r.contracts)
-    sheet = { tab, added: r.contracts.length, codeless: r.codeless, dups: r.dups, supplyFrom: r.supplyFrom }
-  } catch (e) {
-    sheetError = e instanceof Error ? e.message : String(e)
-  }
   // 원장을 못 읽어도 노션만으로 계속(일부 입금 차감 없이 회차 전액을 받을 돈으로)
   let bankLinks: BankLink[] = []
   let bankError: string | null = null
@@ -215,5 +177,5 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
   } catch (e) {
     bankError = e instanceof Error ? e.message : String(e)
   }
-  return { contracts, payouts: p.map(toPayout), ig, igError, fetchedAt: new Date().toISOString(), sheet, sheetError, bankLinks, bankError }
+  return { contracts, payouts: p.map(toPayout), ig, igError, fetchedAt: new Date().toISOString(), bankLinks, bankError }
 }
