@@ -51,6 +51,7 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
               {sub && <span className="text-xs font-normal text-neutral-500">{sub}</span>}
             </p>
             {r.target && <p className="text-xs text-neutral-500">목표 {r.target}</p>}
+            {r.note && <p className="text-xs text-neutral-500">{r.note}</p>}
           </div>
         )
       })}
@@ -139,6 +140,8 @@ function TeamLights({ rows }: { rows: Row[] }) {
                                 {r.target && <span className="block text-[11px] text-neutral-500">목표 {r.target}</span>}
                               </>
                             )}
+                            {/* 기준 달, 3개월 합 같은 보고서 줄 설명(정본 줄은 10월 값이라 11월로 읽히지 않게, 261113 감사). 길어서 칸 안에서 줄바꿈 */}
+                            {r?.note && <span className="ml-auto block max-w-[12rem] whitespace-normal text-[11px] text-neutral-500">{r.note}</span>}
                           </td>
                         </tr>
                       )
