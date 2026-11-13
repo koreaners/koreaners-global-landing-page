@@ -284,6 +284,28 @@ function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>,
   return out.filter((x) => x.krw > 0)
 }
 
+/** 현금 기준 공급가(매출)를 날짜별로: 은행 원장 공급가 일부 입금은 은행 입금일에(회차 공급가 몫까지), 노션 입금일 회차는 그만큼 뺀 나머지를 입금일에.
+ * 원화 계약만 원장을 씀(원장 금액이 원화라서), 그 밖은 노션 입금일에 몫 전부. 개요 매출과 크리에이터 매출 몫, 원가 비율이 같이 씀(인혁 261113) */
+export function cashSupply(c: Contract, r: Rates, today: string, dated?: DatedPaid): { date: string; krw: number }[] {
+  const recs = recognitions(c, today)
+  const bank = dated && contractCurrency(c) === 'KRW'
+  const out: { date: string; krw: number }[] = []
+  for (const x of recs) {
+    let left = x.date || bank ? supplyKrw(c, r, x.date)! * x.share : 0
+    if (bank) {
+      const parts = recs.length === 1 ? PARTS : [x.part]
+      const bs = parts.flatMap((p) => dated!.get(`${c.id}:${p}:공급가`) ?? []).sort((a, b) => a.at.localeCompare(b.at))
+      for (const b of bs) {
+        const v = Math.min(b.amount, left)
+        if (v > 0) out.push({ date: b.at, krw: v })
+        left -= v
+      }
+    }
+    if (x.date && left > 0) out.push({ date: x.date, krw: left })
+  }
+  return out
+}
+
 /** 계약 기준일: 계약일자, 없으면 시작일, 없으면 첫 입금일 */
 export function contractDay(c: Contract): string | null {
   return c.contractDate ?? c.startDate ?? [c.preDate, c.postDate].filter(Boolean).sort()[0] ?? null
@@ -437,6 +459,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const krw = (p: Payout) => payoutKrw(p, r) ?? 0
   const gross = (p: Payout) => grossPayoutKrw(p, r) ?? 0
   const paid = partialPaid(links)
+  const dated = partialDated(links)
 
   const payByContract = new Map<string, Payout[]>()
   for (const p of payouts) {
@@ -479,7 +502,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       count(date, 'revenue', v, cur)
       if (linked && inPeriod(date, period)) linkedRevenue += v
     }
-    for (const rec of recognitions(c, today)) if (rec.date && basis === 'cash') add(rec.date, supplyKrw(c, r, rec.date)! * rec.share)
+    if (basis === 'cash') for (const x of cashSupply(c, r, today, dated)) add(x.date, x.krw)
     for (const x of inflows(c, r, today, paid)) {
       if (x.date) continue
       receivable += x.krw
@@ -595,7 +618,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const c = p.contractId ? byId.get(p.contractId) : undefined
     const so = c ? shareOf.get(p.id) : undefined
     const full = c && so ? realizedSupplyKrw(c, r, today) ?? 0 : 0
-    const got = basis === 'cash' && full > 0 ? recognitions(c!, today).filter((x) => x.date && inPeriod(x.date, period)).map((x) => ({ date: x.date!, frac: (supplyKrw(c!, r, x.date)! * x.share) / full })) : []
+    const got = basis === 'cash' && full > 0 ? cashSupply(c!, r, today, dated).filter((x) => inPeriod(x.date, period)).map((x) => ({ date: x.date, frac: x.krw / full })) : []
     const cd = c ? contractDay(c) : null
     // frac: 원가(지급)를 기간에 넣는 비율, revMul: 매출 몫에 곱하는 값(발생은 입금일 환율로 나눈 몫을 계약일 환율로 다시 맞춤)
     const frac = basis === 'cash' ? got.reduce((a, x) => a + x.frac, 0) : so && cd && inPeriod(cd, period) ? 1 : 0
@@ -618,7 +641,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     }
     const share = (so?.share ?? 0) * revMul
     const on = !!(c && so && frac)
-    row.lines.push({ p, c, krw: v, share: on ? share : 0, cost: on ? v * frac : 0, inP, why: on || !c ? null : !so ? '제외' : basis === 'cash' && !recognitions(c, today).some((x) => x.date) ? '입금 전' : '기간 밖' })
+    row.lines.push({ p, c, krw: v, share: on ? share : 0, cost: on ? v * frac : 0, inP, why: on || !c ? null : !so ? '제외' : basis === 'cash' && !cashSupply(c, r, today, dated).length ? '입금 전' : '기간 밖' })
     if (c && so && frac) {
       row.revenue += share
       row.linkedPaid += v * frac
