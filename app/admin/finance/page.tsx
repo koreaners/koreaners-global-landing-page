@@ -140,7 +140,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           </div>
         </details>
       )}
-      {tab === 'receivables' && <OverdueTable model={model} today={today} />}
+      {tab === 'receivables' && data.bankError && <p className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-2.5 text-xs text-[#e66767]">{bankWarn(data.bankError)}</p>}
+      {tab === 'receivables' && <OverdueTable model={model} today={today} bankError={data.bankError} />}
     </div>
   )
 }
@@ -224,6 +225,8 @@ function Legend({ items }: { items: [string, string][] }) {
 }
 
 type Src = Pick<FinanceData, 'bankError'>
+// 은행 원장을 못 읽으면 노션만으로 계속 셈(source.ts). 개요와 미수 탭이 같은 경고(미수 역할은 미수 탭만 봄, 261113 감사)
+const bankWarn = (e: string) => `은행 원장을 읽지 못해 일부 입금을 빼지 않은 회차 전액을 매출채권으로 셉니다. 수출바우처 고객사 부가세는 이미 받았어도 미수로 잡힐 수 있습니다: ${e}`
 
 function Overview({ model, prior, all, labels, year, month, today, rates, q, basis, src }: {
   model: Model; prior: Model | null; all: Model; labels: Labels; year: number | null; month: number | null; today: string; rates: Rates; q: (o: Partial<Search>) => string; basis: Basis; src: Src
@@ -293,7 +296,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     <div className="space-y-6">
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
         노션 계약 DB 계약만 셉니다(운영 대시보드 시트 계약은 더 이상 합치지 않음).
-        {src.bankError && <span className="text-[#e66767]"> 은행 원장을 읽지 못해 일부 입금을 빼지 않은 회차 전액을 매출채권으로 셉니다: {src.bankError}</span>}
+        {src.bankError && <span className="text-[#e66767]"> {bankWarn(src.bankError)}</span>}
         {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
         <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
       </p>
@@ -493,7 +496,7 @@ function CreatorLines({ lines, flags, q }: { lines: Line[]; flags: Map<string, C
 }
 
 /** 입금 예정일이 지난 매출채권 회차(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관). 개요 카드에서 넘어온 안건 탭(st=overdue)과 미수 탭이 같이 씀 */
-function OverdueTable({ model, today, allHref }: { model: Model; today: string; allHref?: string }) {
+function OverdueTable({ model, today, allHref, bankError }: { model: Model; today: string; allHref?: string; bankError?: string | null }) {
     const late = model.receivables.open.filter((x) => x.due && x.due < today).sort((a, b) => a.due!.localeCompare(b.due!))
     return (
       <div className="space-y-4">
@@ -509,7 +512,7 @@ function OverdueTable({ model, today, allHref }: { model: Model; today: string; 
                   ? <span title={x.c.code}>{x.c.code} <span className="rounded bg-neutral-800 px-1 text-[10px] text-neutral-400">시트</span></span>
                   : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
               </td>
-              <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}</td>
+              <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}{bankError && x.label === '부가세(고객사)' && <span className="text-amber-200/90"> 원장 없어 확인 불가</span>}</td>
               <td className={td}>{x.c.owner || '미지정'}</td>
               <td className={td}>{x.due}</td>
               <td className={`${td} font-semibold text-red-400`}>{Math.round((Date.parse(today) - Date.parse(x.due!)) / 86_400_000)}일</td>

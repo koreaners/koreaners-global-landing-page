@@ -11,8 +11,11 @@ export const maxDuration = 60
 function authorized(req: NextRequest): boolean {
   const want = process.env.RECEIVABLES_API_TOKEN
   const [scheme, token] = (req.headers.get('authorization') ?? '').split(' ')
-  if (!want || scheme !== 'Bearer' || !token || token.length !== want.length) return false
-  return timingSafeEqual(Buffer.from(token), Buffer.from(want))
+  if (!want || scheme !== 'Bearer' || !token) return false
+  // 글자 수가 아니라 바이트 수로 견줌: 글자 수만 같은 비영문 토큰이 timingSafeEqual 예외(500)를 내지 않게(261113 감사)
+  const a = Buffer.from(token)
+  const b = Buffer.from(want)
+  return a.length === b.length && timingSafeEqual(a, b)
 }
 
 export async function GET(req: NextRequest) {
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
   const m = buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, 'cash', data.bankLinks)
   const rows = m.receivables.open.map((o) => ({
     id: o.c.id, code: o.c.code, brand: o.c.brand, corp: o.c.corp, owner: o.c.owner, method: o.c.method,
-    label: o.label ?? null, voucher: o.c.voucher ?? null, due: o.due, krw: Math.round(o.krw), guess: !!o.c.dueGuess,
+    label: o.label ?? null, part: o.part ?? null, voucher: o.c.voucher ?? null, due: o.due, krw: Math.round(o.krw), guess: !!o.c.dueGuess,
   }))
   return NextResponse.json({ today, fetchedAt: data.fetchedAt, bankError: data.bankError, rows })
 }

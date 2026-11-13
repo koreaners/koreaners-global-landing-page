@@ -483,7 +483,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     for (const x of inflows(c, r, today, paid)) {
       if (x.date) continue
       receivable += x.krw
-      open.push({ c, due: x.due, krw: x.krw, label: x.label })
+      open.push({ c, due: x.due, krw: x.krw, label: x.label, part: x.part }) // part: 회차 이름(선금, 잔금). 고객사 부가세 줄은 label만
     }
     if (c.twikr) for (const x of cashIn(c, r, today, paid)) if (!x.date) twikr.push({ c, due: x.due, krw: x.krw, label: x.label, part: x.part })
     const d = contractDay(c)
