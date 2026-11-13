@@ -226,6 +226,9 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   const sheetN = model.contracts.filter((x) => x.c.source === 'sheet').length // 지급 연결 전이라 마진에서 빠진 시트 계약
   const unlinkedN = model.contracts.filter((x) => x.c.source !== 'sheet' && x.supply != null && !x.payouts.length).length // 지급 연결 없어 마진에서 빠진 계약
   const p = prior?.summary ?? null
+  // 지급내역 DB는 2025-12-30부터 쌓였고 2025년 지급은 소급 등록 중(1~6월 국내 원화 빠짐, 계약 연결 일부)이라 2025년 이전과의 정산, 마진 비교는 뜻이 없음
+  const pyear = priorPeriod({ year, month }, today)?.year
+  const payGap = pyear != null && pyear < 2026
   const byMonth = new Map(all.monthly.map((r) => [r.month, r]))
   const thisYear = Number(today.slice(0, 4))
   const thisMonth = Number(today.slice(5, 7))
@@ -310,8 +313,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
-        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={p?.settled ?? null} good={null} />} note={`${vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
-        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={marginHint(cb)} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
+        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} note={`${payGap ? `${cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
+        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={payGap ? null : p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={marginHint(cb)} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
         <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint="입금 전 회차의 합계(부가세 포함)에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다. 수출바우처는 기관 공급가와 고객사 부가세를 따로 셉니다." note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint="세금계산서 VAT 포함은 지급액, VAT 별도는 부가세 10%를 더한 금액, 사업소득은 원천세 공제 전 금액입니다." note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
       </div>

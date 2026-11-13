@@ -385,6 +385,9 @@ export type Basis = 'cash' | 'contract'
 // 나가지 않을 보류: 비고 맨 윗줄(최신 판단)에 해제 금지 표시(중복 행, 반송 종결, 지급 아님). 마진 원가와 크리에이터 매출 몫에서 뺌(Leo 261102)
 // 아랫줄은 옛 기록이라 보지 않고(#983), 「확인 전」 조건부 해제 금지는 이미 나갔을 수 있는 돈이라 원가에 둠(#955)
 const DEAD = /보류 해제 금지|다시 보내지 말 것|지급 아님/
+// 수입 계약 연결이 필요한 지급: 계약 아님, 종결, 2025 옛 시트 소급 등록(비고 첫 줄 「YYMMDD 소급 등록」, 확실한 것만 연결하고 나머지는 일부러 비워 둠, Leo 261113)은 뺌
+export const needsLink = (p: Payout) => !p.contractId && !p.notContract && p.status !== CLOSED && !/^\d{6} 소급 등록/.test(p.note ?? '')
+
 export const isDead = (p: Payout) => {
   const top = (p.note ?? '').split('\n')[0]
   return p.status === CLOSED || (p.status === '보류' && DEAD.test(top) && !top.includes('확인 전'))
@@ -628,7 +631,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     owners.set(key, o)
   }
 
-  const unlinked = payouts.filter((p) => !p.contractId && !p.notContract)
+  const unlinked = payouts.filter(needsLink)
   const doneByReq = payouts.filter((p) => p.status === DONE && !p.sentDate && p.reqDate)
   const doneNoDate = payouts.filter((p) => p.status === DONE && !p.sentDate && !p.reqDate)
   const deadPs = payouts.filter((p) => p.contractId && isDead(p))

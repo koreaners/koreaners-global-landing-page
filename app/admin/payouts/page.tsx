@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { addMonth, bundleDay, CLOSED, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
+import { addMonth, bundleDay, CLOSED, needsLink, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
@@ -136,7 +136,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const rows = base
     .filter((p) => (!sp.st || (sp.st === OPEN ? p.status !== DONE : p.status === sp.st)) && (!sp.cur || (p.currency ?? '미상') === sp.cur) && (!sp.bl || p.blocked.includes(sp.bl)))
     .filter((p) => !sp.cy || (slots.get(p.id)!.month ?? 'none') === sp.cy)
-    .filter((p) => sp.nc !== 'none' || (!p.contractId && !p.notContract))
+    .filter((p) => sp.nc !== 'none' || needsLink(p))
     .filter((p) => {
       const c = p.contractId ? byId.get(p.contractId) : undefined
       return hit(sp.t, p.name, p.pid?.toString(), c?.brand, c?.code, p.blocked.join(' '))
