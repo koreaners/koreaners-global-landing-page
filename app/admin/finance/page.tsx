@@ -6,7 +6,7 @@ import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
@@ -191,7 +191,7 @@ const noLinkPaid = (x: Model['contracts'][number]) => x.c.source !== 'sheet' && 
 const NET_HINT = '이 기간 매출(입금된 공급가)에서 정산(송금 완료)을 뺀 값입니다. 계약을 고르지 않은 회사 전체 숫자이고, 입금과 송금 시점이 달라 달마다 출렁입니다. 아래 계약 단위 마진율은 지급이 연결된 계약끼리만 공급가에서 지급을 뺀 값이고, 이 기간 매출 가운데 그 계약들에서 들어온 몫의 비율을 함께 적습니다.'
 
 const marginHint = (cb: boolean) =>
-  `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(상태 무관)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
+  `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(종결, 해제 금지 보류는 뺌)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
 
 /** 가로 막대 한 줄: 이름, 막대, 금액, 보조 글 */
 function BarRow({ label, value, max, color, aside, href }: { label: string; value: number; max: number; color: string; aside?: string; href?: string }) {
@@ -320,7 +320,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
-        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} note={`${payGap ? `${cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
+        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} note={`${payGap ? `${cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
         <Tile label={cb ? '마진 (계약 단위)' : '마진 (현금, 전체)'} value={won2(net)} full={won(net)} delta={<Delta cur={net} prev={payGap || !p ? null : cb ? p.margin : p.revenue - p.settled} good />} side={`마진율 ${pct(cb ? s.marginRate : s.revenue ? net / s.revenue : null)}`} hint={cb ? marginHint(true) : NET_HINT} note={`${cb ? `지급 연결된 계약 ${s.marginN}건(매출의 ${cover}), 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}` : `매출 ${won2(s.revenue)} − 정산 ${won2(s.settled)}. 계약 단위 ${pct(s.marginRate)}(매출의 ${cover}만 지급 연결)`}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : ''}`} />
         <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint="입금 전 회차의 합계(부가세 포함)에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다. 수출바우처는 기관 공급가와 고객사 부가세를 따로 셉니다." note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint="세금계산서 VAT 포함은 지급액, VAT 별도는 부가세 10%를 더한 금액, 사업소득은 원천세 공제 전 금액입니다." note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
@@ -331,7 +331,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           <Panel
             title={cb ? '월별 매출과 정산 (발생 기준)' : '월별 현금 유출입 (계약 입금, 크리에이터 지급 기준)'}
             sub={cb
-              ? `${cy}년, 계약일의 달 기준 공급가 전액과 연결 지급액(상태 무관)`
+              ? `${cy}년, 계약일의 달 기준 공급가 전액과 연결 지급액(종결, 해제 금지 보류는 뺌)`
               : `${cy}년, 입금은 입금된 달의 공급가(부가세 제외), 출금은 송금 완료한 달의 크리에이터 지급액(원천징수 전). 통장 금액(부가세 포함, 실지급액)은 자금 캘린더`}
             action={<Legend items={[[flowNames.in, REV], [flowNames.out, SET], [flowNames.net, NET_COLOR]]} />}>
             <div className="grid grid-cols-3 gap-3 text-sm">
@@ -443,10 +443,10 @@ function PayoutTable({ payouts, rates }: { payouts: Payout[]; rates: Rates }) {
   return (
     <Table head={['지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']} left={2}>
       {payouts.map((p) => (
-        <tr key={p.id}>
+        <tr key={p.id} className={isDead(p) ? 'text-neutral-500' : ''}>
           <td className={tdl}>{p.pid ?? '-'}</td>
           <td className={tdl}>{p.name}</td>
-          <td className={td}>{p.status}</td>
+          <td className={td}>{p.status}{isDead(p) && <span className="block text-xs">원가 제외</span>}</td>
           <td className={td}>{orig(p)}</td>
           <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
           <td className={td}>{p.sentDate ?? '-'}</td>
@@ -613,7 +613,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다. 변동비는 연결된 지급 합계(상태 무관), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 노션 계약 페이지가, 변동비를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다. 변동비는 연결된 지급 합계(종결, 해제 금지 보류는 뺌), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 노션 계약 페이지가, 변동비를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
     </div>
   )
 }
@@ -819,7 +819,7 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
     ['매출 단가 합이 공급가를 넘는 계약(크리에이터 매출 몫을 단가 비율로 줄임)', `${g.overPriced}건`],
     [`원가 지급이 덜 붙었을 수 있는 계약(고른 기간, 마진율 ${HIGH_MARGIN * 100}% 이상, 체험단 ${HIGH_MARGIN_TRIAL * 100}% 이상, 예상 원가(원)가 있으면 지급 합계가 그 90% 미만)`, <Link key="c" href={q({ tab: 'contracts', st: 'cost' })} className="text-sky-300 hover:underline">누락 의심 {g.highMargin.missing}건 →</Link>],
     ['같은 조건이지만 고객 입금 전이거나 마지막 입금분 송금 회차 전인 계약(원가 미확정, 송금 신청 전일 수 있음)', `${g.highMargin.pending}건`],
-    ['비고 맨 윗줄에 「보류 해제 금지」 등이 적혀 마진, 매출 몫에서 뺀 보류(중복, 반송 종결)', `${g.dead.count}행, ${won(g.dead.krw)}`],
+    ['종결이거나 비고 맨 윗줄에 해제 금지가 적힌 지급(마진, 매출 몫에서 뺌)', `${g.dead.count}행, ${won(g.dead.krw)}`],
   ]
   return (
     <div className="space-y-6 text-sm text-neutral-300">
@@ -834,7 +834,7 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
             원화 환산: 외화 지급은 모인 원화 청구액이 있으면 그 값, 없으면 환율. 외화 계약 공급가는 입금된 몫을 입금일 환율(유럽중앙은행 기준환율), 입금 전 몫과 매출채권을 지금 환율로 셉니다(발생 기준 매출은 계약 기준일 환율). 지금 환율 1엔 {rates.JPY.toFixed(4)}원, 1달러 {rates.USD.toFixed(1)}원, 1위안 {rates.CNY.toFixed(2)}원 ({rates.source}, {rates.at}).
           </li>
           <li>
-            개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 노션 계약 DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급 전체(상태 무관)를 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠지고, 공급가가 없는 계약의 지급은 정산에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 조금 다릅니다.
+            개요의 기준 선택(지금 {basis === 'contract' ? '발생 기준(계약)' : '현금 기준(입금)'}): 현금 기준은 위 매출, 정산 규칙이고 입금일은 노션 계약 DB 선금, 잔금 입금일입니다(은행 대조 전, 클로브 계좌 연동 뒤 은행 입금으로 바꿈). 발생 기준은 계약일자(없으면 시작일, 첫 입금일)의 달에 공급가 전액과 그 계약에 연결된 지급(종결과 해제 금지 보류는 뺌, 마진 원가와 같은 기준)을 셉니다. 수입 계약에 연결되지 않은 지급은 발생 기준 정산에서 빠집니다. 지급이 하나도 연결되지 않은 계약은 공급가가 매출에는 들고 마진에는 들지 않아 매출 빼기 정산이 마진과 다릅니다.
           </li>
           <li>
             자금 캘린더

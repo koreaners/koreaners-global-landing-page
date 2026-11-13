@@ -356,7 +356,7 @@ export type Gaps = {
   noRate: number // 통화나 금액이 없어 환산 못 한 지급
   overPriced: number // 매출 단가 합이 공급가를 넘어 단가 비율로 줄인 계약
   highMargin: { missing: number; pending: number } // 고른 기간 계약 중 원가 덜 붙음(costFlag) 건수
-  dead: { count: number; krw: number } // 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 보류(수입 계약 연결분)
+  dead: { count: number; krw: number } // 종결이거나 비고 맨 윗줄에 해제 금지가 적혀 마진, 매출 몫에서 뺀 지급(수입 계약 연결분, isDead)
   bankAmbiguous: number // 은행 원장에서 여러 계약 후보라 사람 판정이 필요한 연결(받을 돈에서 빼지 않음)
   bankOverpaidVat: number // 원장 부가세 입금이 계약 부가세보다 많은 수출바우처 계약(부가세 더 들어옴, 받을 돈 줄 없음)
 }
@@ -400,7 +400,7 @@ export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null
   return p.sentDate ?? p.reqDate ?? (c ? contractDay(c) : null)
 }
 
-// cash: 매출은 입금된 달, 정산은 송금한 달. contract: 둘 다 계약 기준일의 달(공급가 전액, 그 계약에 연결된 지급 전체)
+// cash: 매출은 입금된 달, 정산은 송금한 달. contract: 둘 다 계약 기준일의 달(공급가 전액, 그 계약에 연결된 지급 가운데 종결, 해제 금지 보류를 뺀 것)
 export type Basis = 'cash' | 'contract'
 
 // 나가지 않을 보류: 비고 맨 윗줄(최신 판단)에 해제 금지 표시(중복 행, 반송 종결, 지급 아님). 마진 원가와 크리에이터 매출 몫에서 뺌(Leo 261102)
@@ -491,8 +491,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
         if (!p.sentDate && inPeriod(d, period)) settledEst += krw(p)
       }
     } else {
+      // 마진 원가와 같은 기준: 매출 제외 계약, 종결, 해제 금지 보류는 뺌(261113 감사, 종결 28행이 정산에 들어가 있었음)
       const c = p.contractId ? byId.get(p.contractId) : undefined
-      const d = c && !c.isExpense ? contractDay(c) : null
+      const d = c && !c.isExpense && !c.excluded && !isDead(p) ? contractDay(c) : null
       if (d) count(d, 'settled', krw(p))
     }
   }
