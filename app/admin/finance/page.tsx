@@ -676,8 +676,9 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
   // 지급 행의 크리에이터 관계로 이름별 인스타 URL(기간과 무관하게 전체 행)
   const igs = new Map<string, Set<string>>()
   for (const p of all) for (const id of p.creatorIds ?? []) if (ig[id]) igs.set(creatorKey(p), (igs.get(creatorKey(p)) ?? new Set()).add(ig[id]))
-  const margin = (x: Model['creators'][number]) => (x.revenue ? x.revenue - x.linkedPaid : null)
-  const cost = (x: Model['creators'][number]) => (x.revenue ? x.linkedPaid : null) // 원가: 매출 몫에 대응하는 지급(매출 몫 − 원가 = 마진)
+  // 매출 몫이 0이어도 공급가 0원 계약(순수 RS)에 걸린 지급이 있으면 원가와 마진을 보임(261113 감사 #16: 매출 몫 없는 크리에이터의 원가가 합계에서 빠짐)
+  const margin = (x: Model['creators'][number]) => (x.revenue || x.linkedPaid ? x.revenue - x.linkedPaid : null)
+  const cost = (x: Model['creators'][number]) => (x.revenue || x.linkedPaid ? x.linkedPaid : null) // 원가: 매출 몫에 대응하는 지급(매출 몫 − 원가 = 마진)
   const rate = (x: Model['creators'][number]) => (x.revenue ? (x.revenue - x.linkedPaid) / x.revenue : null)
   // 크리에이터 마진율이 높을 때만, 원인이 된 계약의 원가 표시(누락 의심 우선). 매출 단가가 없어 몫은 계약 마진율을 그대로 받으므로 판정은 계약에서
   const costOf = (x: Model['creators'][number]): CostFlag =>
@@ -813,6 +814,7 @@ function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partia
 
 function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; basis: Basis; src: Src; q: (o: Partial<Search>) => string }) {
   const g = model.gaps
+  const twc = [...new Map(model.receivables.twikr.map((o) => [o.c.id, o.c])).values()] // 입금 전 회차가 남은 트위커 공급 계약(현금 기준 매출에 없음)
   const rows: [string, React.ReactNode][] = [
     ['서명 전 계약(유니크코드 없음, 모든 집계에서 빠짐)', `${g.unsigned}건`],
     ['입금일이 하나도 없는 수입 계약', `${g.noDeposit}건`],
@@ -835,6 +837,7 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
         <h2 className="font-semibold text-neutral-100">집계 기준</h2>
         <ul className="list-disc space-y-1 pl-5 text-neutral-400">
           <li>매출: 수입 계약 공급가(부가세 제외)를 입금된 달에 셉니다. 선금+잔금 계약은 금액 비율로 나눕니다. P- 지출 계약은 빠집니다.</li>
+          {twc.length > 0 && <li>트위커 공급 계약: 대금이 트위커 계좌로 가 입금일이 빈 {twc.length}건(공급가 {won(twc.reduce((a, c) => a + (c.supplyKrw ?? 0), 0))})은 현금 기준 매출에 아직 없습니다. 준병님이 트위커 정산 완료를 알린 계약만 그날을 입금일로 적습니다(팜에이스 방식, 인혁 261113). 발생 기준 매출에는 계약일로 들어갑니다.</li>}
           <li>정산: 지급내역 「송금 완료」 행의 지급액(원천징수 전)을 송금일의 달에 셉니다. 송금일이 없는 행(모인을 거치지 않는 원화 송금)은 은행 송금일이 들어오기 전까지 송금 요청일(신청일)의 달로 어림합니다.</li>
           <li>매출채권, 미지급금: 기간과 관계없는 현재 잔액이고 부가세 포함입니다. 매출채권은 입금 전 회차의 합계(합계 칸이 비면 공급가)에서 은행 원장에 일부 입금(공급가, 부가세)으로 붙은 금액을 뺀 남은 금액이고, 수출바우처는 기관이 낼 공급가와 고객사가 따로 낼 부가세(부가세 칸, 없으면 공급가 10%)를 나눠 셉니다. 고객사 부가세는 입금됐거나 정산일이 지난 회차 몫만 지금 받을 돈이고 나머지는 다음 회차 정산일에 두며, 은행 원장이 시작된 2025-01-02 전 계약은 셈하지 않습니다. 미지급금은 세금계산서 VAT 포함은 지급액, VAT 별도는 부가세를 더한 금액, 사업소득은 원천세 공제 전 금액입니다. 미지급금은 송금 완료도 보류도 아닌 지급입니다. 보류는 따로 보이고, 마진에서는 원가에 들어갑니다. 비고 맨 윗줄(최신 판단)에 「보류 해제 금지」, 「다시 보내지 말 것」, 「지급 아님」이 적힌 보류(중복, 반송 종결)는 원가와 크리에이터 매출 몫에서 빠집니다. 「확인 전」 조건이 붙은 해제 금지는 이미 나갔을 수 있어 원가에 둡니다.</li>
           <li>마진: {marginHint(basis === 'contract')} 계약일자가 없으면 시작일, 첫 입금일로 기간을 고릅니다.</li>

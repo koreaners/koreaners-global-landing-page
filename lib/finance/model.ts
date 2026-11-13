@@ -625,7 +625,9 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const got = basis === 'cash' && full > 0 ? cashSupply(c!, r, today, dated).filter((x) => inPeriod(x.date, period)).map((x) => ({ date: x.date, frac: x.krw / full })) : []
     const cd = c ? contractDay(c) : null
     // frac: 원가(지급)를 기간에 넣는 비율, revMul: 매출 몫에 곱하는 값(발생은 입금일 환율로 나눈 몫을 계약일 환율로 다시 맞춤)
-    const frac = basis === 'cash' ? got.reduce((a, x) => a + x.frac, 0) : so && cd && inPeriod(cd, period) ? 1 : 0
+    // 공급가 0원 계약(순수 RS 등, 입금 회차가 영영 없음)의 지급은 현금 기준이면 송금한 달에 원가로(인혁 261113 감사 #16, 청담안즈 10행 1,522만)
+    const zero = !!(c && so && supplyKrw(c, r) === 0)
+    const frac = basis === 'cash' ? (zero ? (inP ? 1 : 0) : got.reduce((a, x) => a + x.frac, 0)) : so && cd && inPeriod(cd, period) ? 1 : 0
     const revMul = basis === 'contract' && frac && full > 0 ? supplyKrw(c!, r, cd)! / full : frac
     if (!inP && !frac) continue
     const k = creatorKey(p)
