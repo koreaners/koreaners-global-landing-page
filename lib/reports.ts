@@ -65,7 +65,7 @@ export type FunnelTrend = {
   ontime: { a: number[]; k: number[] } // 기한 내 회수율. 11/9 배포 뒤 회차부터 공급가 금액(원), 그 전은 회차 건수
   remit: { a: number[]; k: number[] }
   // 컨택월 코호트. ripe 가 false 인 달(말일이 60일 안 지남)은 수주율을 그리지 않는다
-  leads: Record<string, { n: number[]; won: number[]; ripe: boolean[] }> | null
+  leads: Record<string, { n: number[]; won: number[]; ripe: boolean[]; new?: number[] }> | null // new: 신규 리드 막대(홈페이지는 사이트 문의), n: 수주율 코호트
   // 월간파이낸스 정본의 달별 값. % 단위는 비율(1 = 100%)
   // adj 는 그 달까지 3개월 합으로 낸 보정값(현금 기준 시차를 평평하게). 인당 매출에는 없다
   health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[]; adj?: (number | null)[] }[] | null

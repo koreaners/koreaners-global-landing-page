@@ -42,7 +42,7 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
             {!one && (
               <p className="flex items-center gap-1.5 text-xs text-neutral-400">
                 <Dot light={r.light} />
-                <span className="truncate">{r.label.replace(/^(신규 리드|수주율): /, '')}</span>
+                <span className="truncate">{r.label.replace(/^(신규 리드|견적 발송률|수주율): /, '')}</span>
               </p>
             )}
             <p className={`flex items-baseline gap-1.5 font-semibold tabular-nums text-neutral-50 ${one ? 'text-2xl' : 'mt-0.5 text-lg'}`}>
@@ -79,7 +79,7 @@ function Panel({ title, note, info, href, rows = [], children }: { title: string
 
 // 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
 const TEAMS: [string, [string, string][]][] = [
-  ['영업팀', [['S1', '신규 리드: 영업 메일'], ['S1', '신규 리드: 홈페이지 문의'], ['S3', '견적 발송률'], ['S4', '수주율: 영업 메일'], ['S4', '수주율: 홈페이지 문의'], ['S6', '단계 체류'], ['S5', '수주 질'], ['', '300만 원 미만 계약 비중']]],
+  ['영업팀', [['S1', '신규 리드: 영업 메일'], ['S1', '신규 리드: 홈페이지 문의'], ['S3', '견적 발송률: 영업 메일'], ['S3', '견적 발송률: 홈페이지 문의'], ['S4', '수주율: 영업 메일'], ['S4', '수주율: 홈페이지 문의'], ['S6', '단계 체류'], ['S5', '수주 질'], ['', '300만 원 미만 계약 비중']]],
   ['PM팀', [['', '3개월 내 재계약률'], ['', '재계약 금액'], ['E1', '상태별 기한 준수율'], ['E2', '업로드 일정 준수율'], ['', '변동비율']]],
   ['전략실', [['', '인당 매출'], ['', '인당 처리 안건'], ['', '인건비 ÷ 공헌이익']]],
   ['경영지원', [['', '기타 고정비'], ['F1', '기한 내 회수율'], ['F2', '송금 처리율']]],
@@ -102,7 +102,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
           <span className="inline-flex items-center gap-1.5"><Dot />값 없음</span>
         </div>
       </div>
-      {/* 3열: 영업팀(8줄) | PM팀(5줄) | 전략실+경영지원(3+3줄). 4열이면 이름이 두 줄로 꺾임. 넓은 화면에서만 열을 나눠 ⓘ 말풍선이 화면 밖으로 나가지 않게 */}
+      {/* 3열: 영업팀(9줄) | PM팀(5줄) | 전략실+경영지원(3+3줄). 4열이면 이름이 두 줄로 꺾임. 넓은 화면에서만 열을 나눠 ⓘ 말풍선이 화면 밖으로 나가지 않게 */}
       <div className="grid gap-x-10 gap-y-6 p-5 lg:grid-cols-3">
         {[[TEAMS[0]], [TEAMS[1]], [TEAMS[2], TEAMS[3]]].map((col, ci) => (
           <div key={ci} className="min-w-0 space-y-6">
@@ -251,14 +251,14 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
 
         {leads ? (
           <>
-            <Panel title="신규 리드" rows={pick('신규 리드: 영업 메일', '신규 리드: 홈페이지 문의')} note="Lead Status 최초 컨택일이 그 달인 고객사 수. 시트, 슬랙, 드라이브에서 처음 잡힌 곳(계약이 먼저인 곳)은 뺌">
+            <Panel title="신규 리드" rows={pick('신규 리드: 영업 메일', '신규 리드: 홈페이지 문의')} note="홈페이지 문의: 사이트 문의가 들어온 회사 수. 영업 메일: Lead Status 최초 컨택일이 그 달인 고객사 수(크리에이터 메일함으로 온 브랜드 제안 포함, 첫 컨택 전 계약이 있던 기존 고객은 뺌). 8월 전 영업 메일은 수집 범위가 좁아 적게 나옴">
               <TrendChart
                 unit="곳"
                 series={leads.map(([ch], j) => ({ key: `l${j}`, name: ch, color: j ? C2 : C1, kind: 'bar' as const }))}
-                data={pts((i) => Object.fromEntries(leads.map(([, v], j) => [`l${j}`, v.n[i]])))}
+                data={pts((i) => Object.fromEntries(leads.map(([, v], j) => [`l${j}`, (v.new ?? v.n)[i]])))}
               />
             </Panel>
-            <Panel title="수주율 (컨택월 코호트)" rows={pick('수주율: 영업 메일', '수주율: 홈페이지 문의')} note="그 달에 처음 컨택한 고객사 중 지금까지 확정, 정산 단계이거나 계약이 연결된 곳. 말일이 60일 안 지난 달은 덜 익어 비우고, 오래된 달일수록 시간이 더 지나 높게 나옴">
+            <Panel title="수주율 (컨택월 코호트)" rows={pick('수주율: 영업 메일', '수주율: 홈페이지 문의')} note="그 달에 처음 컨택한 고객사(기존 고객 제외) 중 지금까지 확정, 정산 단계이거나 계약이 연결된 곳. 말일이 60일 안 지난 달은 덜 익어 비우고, 오래된 달일수록 시간이 더 지나 높게 나옴">
               <TrendChart
                 unit="%"
                 series={leads.map(([ch], j) => ({ key: `w${j}`, name: ch, color: j ? C2 : C1, kind: 'line' as const }))}
