@@ -429,30 +429,53 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 }
 
 /** contracts를 넘기면 계약 코드(계약 탭 링크), 계약월, 브랜드 칸을 앞에 붙이고 계약월 최근순으로 정렬. 계약 상세에서는 이미 한 계약이라 넘기지 않음 */
-function PayoutTable({ payouts, rates, contracts, q }: { payouts: Payout[]; rates: Rates; contracts?: Map<string, Contract>; q?: (o: Partial<Search>) => string }) {
-  const con = (p: Payout) => (p.contractId ? contracts?.get(p.contractId) : undefined)
-  const ym = (p: Payout) => { const c = con(p); return (c && contractDay(c)?.slice(0, 7)) ?? null }
-  const rows = contracts ? [...payouts].sort((a, b) => (ym(b) ?? '').localeCompare(ym(a) ?? '') || (b.pid ?? 0) - (a.pid ?? 0)) : payouts
+function PayoutTable({ payouts, rates }: { payouts: Payout[]; rates: Rates }) {
   return (
-    <Table head={[...(contracts ? ['계약', '계약월', '브랜드'] : []), '지급 ID', ...(contracts ? [] : ['이름']), '상태', '지급액', '원화', '송금일', '막힌 사유']} left={contracts ? 4 : 2}>
-      {rows.map((p) => {
-        const c = con(p)
+    <Table head={['지급 ID', '이름', '상태', '지급액', '원화', '송금일', '막힌 사유']} left={2}>
+      {payouts.map((p) => (
+        <tr key={p.id}>
+          <td className={tdl}>{p.pid ?? '-'}</td>
+          <td className={tdl}>{p.name}</td>
+          <td className={td}>{p.status}</td>
+          <td className={td}>{orig(p)}</td>
+          <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
+          <td className={td}>{p.sentDate ?? '-'}</td>
+          <td className={td}>{p.blocked.join(', ') || '-'}</td>
+        </tr>
+      ))}
+    </Table>
+  )
+}
+
+type Line = Model['creators'][number]['lines'][number]
+
+/** 크리에이터 상세: 지급 행마다 매출 몫, 원가, 마진. 흐린 행은 지급 기준일이 기간 밖이라 정산 합계에서 빠지고 몫만 듦 */
+function CreatorLines({ lines, flags, q }: { lines: Line[]; flags: Map<string, CostFlag>; q: (o: Partial<Search>) => string }) {
+  const ym = (x: Line) => (x.c && contractDay(x.c)?.slice(0, 7)) ?? ''
+  const rows = [...lines].sort((a, b) => ym(b).localeCompare(ym(a)) || (b.p.pid ?? 0) - (a.p.pid ?? 0))
+  const sum = (f: (x: Line) => number) => rows.reduce((a, x) => a + f(x), 0)
+  const paid = sum((x) => (x.inP ? x.krw : 0))
+  const rev = sum((x) => x.share)
+  const cost = sum((x) => x.cost)
+  return (
+    <Table head={['계약', '계약월', '브랜드', '지급 ID', '상태', '지급액', '원화', '매출 몫', '원가', '마진', '송금일', '막힌 사유']} left={4}
+      foot={<tr><td className={tdl} colSpan={6}>합계</td><td className={td}>{won(paid)}</td><td className={td}>{won(rev)}</td><td className={td}>{won(cost)}</td><td className={td}>{won(rev - cost)}</td><td className={td} colSpan={2} /></tr>}>
+      {rows.map((x) => {
+        const on = !!x.c && !x.why
         return (
-          <tr key={p.id}>
-            {contracts && (
-              <>
-                <td className={`${tdl} whitespace-nowrap`}>{c ? <CodeLink c={c} q={q} /> :<span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
-                <td className={`${tdl} whitespace-nowrap`}>{ym(p) ?? '-'}</td>
-                <td className={tdl}>{c ? c.brand || c.corp : '-'}</td>
-              </>
-            )}
-            <td className={tdl}>{p.pid ?? '-'}</td>
-            {!contracts && <td className={tdl}>{p.name}</td>}
-            <td className={td}>{p.status}</td>
-            <td className={td}>{orig(p)}</td>
-            <td className={td}>{won(payoutKrw(p, rates))}{p.krwBilled != null ? ' (청구액)' : ''}</td>
-            <td className={td}>{p.sentDate ?? '-'}</td>
-            <td className={td}>{p.blocked.join(', ') || '-'}</td>
+          <tr key={x.p.id} className={x.inP ? '' : 'text-neutral-500'}>
+            <td className={`${tdl} whitespace-nowrap`}>{x.c ? <><CodeLink c={x.c} q={q} /><CostNote f={flags.get(x.c.id) ?? null} left /></> : <span className="text-neutral-500">{x.p.notContract ? '계약 아님' : '연결 없음'}</span>}</td>
+            <td className={`${tdl} whitespace-nowrap`}>{ym(x) || '-'}</td>
+            <td className={tdl}>{x.c ? x.c.brand || x.c.corp : '-'}</td>
+            <td className={tdl}>{x.p.pid ?? '-'}</td>
+            <td className={td}>{x.p.status}</td>
+            <td className={td}>{orig(x.p)}</td>
+            <td className={td} title={x.inP ? undefined : '지급 기준일이 기간 밖이라 정산 합계에서 빠짐'}>{won(x.krw)}{x.p.krwBilled != null ? ' (청구액)' : ''}</td>
+            <td className={td}>{on ? won(x.share) : <span className="text-neutral-500">{x.why ?? '-'}</span>}</td>
+            <td className={td}>{on ? won(x.cost) : '-'}</td>
+            <td className={td}>{on ? won(x.share - x.cost) : '-'}</td>
+            <td className={td}>{x.p.sentDate ?? '-'}</td>
+            <td className={td}>{x.p.blocked.join(', ') || '-'}</td>
           </tr>
         )
       })}
@@ -685,23 +708,8 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
               <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>
           )}
-          {picked.shares.length > 0 && (
-            <h3 className="pt-2 text-sm font-semibold text-neutral-100">계약별 매출 몫 <span className="ml-1 text-xs font-normal text-neutral-500">이 크리에이터가 들어간 계약. 계약 공급가를 정산금 비중으로 나눈 몫(「매출 단가」가 있는 행은 그 값)</span></h3>
-          )}
-          {picked.shares.length > 0 && (
-            <Table head={['계약', '브랜드', '이 크리에이터 지급', '매출 몫']}>
-              {picked.shares.map((s) => (
-                <tr key={s.c.id}>
-                  <td className={tdl}><CodeLink c={s.c} q={q} /><CostNote f={s.flag} left /></td>
-                  <td className={td}>{s.c.brand || s.c.corp}</td>
-                  <Money n={s.paid} />
-                  <Money n={s.share} />
-                </tr>
-              ))}
-            </Table>
-          )}
-          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 송금 처리는 <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="underline hover:text-neutral-300">정산 마스터</Link>에서</span></h3>
-          <PayoutTable payouts={picked.payouts} rates={rates} contracts={new Map(contracts.map((c) => [c.id, c]))} q={q} />
+          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 몫(「매출 단가」가 있는 행은 그 값), 원가는 그 몫에 대응하는 지급. 합계 줄이 위 카드와 같음. 송금 처리는 <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="underline hover:text-neutral-300">정산 마스터</Link>에서</span></h3>
+          <CreatorLines lines={picked.lines} flags={new Map(picked.shares.map((s) => [s.c.id, s.flag]))} q={q} />
         </div>
       </div>
     )

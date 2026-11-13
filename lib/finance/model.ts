@@ -316,6 +316,7 @@ export type CreatorRow = {
   payouts: Payout[]
   estimated: number // 매출 몫 가운데 매출 단가 없이 지급 비율로 나눈 추정 몫(여러 명이 든 계약)
   shares: { c: Contract; share: number; paid: number; estimated: boolean; flag: CostFlag }[]
+  lines: { p: Payout; c?: Contract; krw: number; share: number; cost: number; inP: boolean; why: string | null }[] // 상세 화면 표: 지급 행마다 매출 몫과 원가. inP는 정산 합계에 든 행, why는 몫이 없는 이유
   months: { month: string; revenue: number; paid: number; keys: string[] }[] // 기준(basis)에 따른 달별, keys: 안건(계약, 계약 없으면 지급 행), 기준과 무관하게 계약 기준일의 달
 }
 
@@ -557,7 +558,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const k = creatorKey(p)
     const row: CreatorRow = creators.get(k) ?? {
       name: latest.get(k)!.name, key: k, aliases: [], currencies: [], revenue: 0, revenueCount: 0, paid: 0, paidCount: 0, linkedPaid: 0, estimated: 0,
-      done: 0, inFlight: 0, held: 0, payouts: [], shares: [], months: [],
+      done: 0, inFlight: 0, held: 0, payouts: [], shares: [], lines: [], months: [],
     }
     const v = krw(p)
     if (inP) {
@@ -570,6 +571,8 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       else row.held += v
     }
     const share = (so?.share ?? 0) * revMul
+    const on = !!(c && so && frac)
+    row.lines.push({ p, c, krw: v, share: on ? share : 0, cost: on ? v * frac : 0, inP, why: on || !c ? null : !so ? '제외' : basis === 'cash' && !recognitions(c, today).some((x) => x.date) ? '입금 전' : '기간 밖' })
     if (c && so && frac) {
       row.revenue += share
       row.linkedPaid += v * frac
