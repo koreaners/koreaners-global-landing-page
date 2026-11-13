@@ -36,6 +36,7 @@ import { SectionTag } from "@/components/ui/section-tag";
 import { NetworkStats } from "@/components/creator/network-stats";
 import { ShaderBackdrop } from "@/components/ui/shader-backdrop";
 import Image from "next/image";
+import Link from "next/link";
 
 const CREATORS_PER_PAGE = 8;
 
@@ -260,6 +261,15 @@ function CreatorContent() {
             <p className="text-base md:text-lg text-[#A8A29E] max-w-3xl mb-10">
               {t("creatorHeroDesc")}
             </p>
+            {locale === "ko" && (
+              <p className="text-sm md:text-base text-[#A8A29E] max-w-3xl -mt-6 mb-10 break-keep">
+                한국에 거주 중인 일본인 크리에이터 등 외국인 인플루언서 섭외 방법은{" "}
+                <Link href="/blog/foreign-influencer-marketing-japanese-visitors-korea-2026" className="text-[#FF4500] hover:underline">
+                  외국인 인플루언서 마케팅 가이드
+                </Link>
+                에 정리했습니다.
+              </p>
+            )}
             <Button
               onClick={() => setApplyModalOpen(true)}
               className="group px-12 py-5 text-lg font-bold uppercase tracking-wider gradient-warm text-white rounded-[var(--radius-sm)] hover:opacity-90 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 transition-all duration-300"

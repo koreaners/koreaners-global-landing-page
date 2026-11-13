@@ -140,6 +140,7 @@ export default function ServiceContent() {
               {/* 한국어 원문 그대로라 ko 로케일에서만 노출 */}
               {locale === 'ko' && (
                 <p className="text-[#A8A29E] break-keep leading-relaxed mt-8">
+                  코리너스는 일본을 중심으로 해외 인플루언서 마케팅을 대행하는 인플루언서 마케팅 에이전시입니다. 인플루언서 협찬 섭외부터 계약, 콘텐츠 검수, 성과 리포팅까지 맡습니다.{' '}
                   일본 현지 대행사와 한국 대행사의 차이와 고르는 기준은{' '}
                   <Link href="/japan-influencer-marketing" className="text-[#FF4500] hover:underline">
                     일본 인플루언서 마케팅 대행사 비교와 선택 기준
@@ -219,6 +220,15 @@ export default function ServiceContent() {
                   </div>
                 ))}
               </div>
+              {locale === 'ko' && (
+                <p className="text-[#78716C] break-keep leading-relaxed mt-8">
+                  인플루언서 시딩 대행 업체를 비교하고 있다면 캠페인 설계 순서를{' '}
+                  <Link href="/blog/japan-mass-seeding-campaign-design-guide-2026" className="text-[#FF4500] hover:underline">
+                    일본 대량 시딩 캠페인 설계 가이드
+                  </Link>
+                  에서 먼저 확인하십시오.
+                </p>
+              )}
             </div>
           </div>
         </div>
