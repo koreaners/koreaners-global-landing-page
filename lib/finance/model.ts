@@ -362,7 +362,7 @@ export type Gaps = {
 }
 
 export type Model = {
-  summary: { revenue: number; revenueByCur: ByCur; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null; marginSupply: number; marginN: number }
+  summary: { revenue: number; revenueByCur: ByCur; receivable: number; settled: number; settledEst: number; payable: number; held: number; margin: number; marginRate: number | null; marginSupply: number; marginN: number; linkedRevenue: number }
   monthly: { month: string; revenue: number; settled: number; revenueByCur: ByCur }[] // revenueByCur: 매출을 계약 통화별로(원화 환산)
   contracts: ContractRow[]
   creators: CreatorRow[]
@@ -454,11 +454,18 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     addCur(row.revenueByCur, cur, v)
     monthly.set(m, row)
   }
+  // 매출 가운데 지급이 연결된 계약(계약 단위 마진을 셈하는 계약)의 몫. 마진 카드 「매출의 X%만 지급 연결」의 분자라 매출과 같은 기준으로 셈
+  let linkedRevenue = 0
   for (const c of revenueContracts) {
     const s = supplyKrw(c, r)
     if (s == null) continue
     const cur = contractCurrency(c)
-    for (const rec of recognitions(c, today)) if (rec.date && basis === 'cash') count(rec.date, 'revenue', supplyKrw(c, r, rec.date)! * rec.share, cur)
+    const linked = c.source !== 'sheet' && (payByContract.get(c.id) ?? []).some((p) => !isDead(p))
+    const add = (date: string, v: number) => {
+      count(date, 'revenue', v, cur)
+      if (linked && inPeriod(date, period)) linkedRevenue += v
+    }
+    for (const rec of recognitions(c, today)) if (rec.date && basis === 'cash') add(rec.date, supplyKrw(c, r, rec.date)! * rec.share)
     for (const x of inflows(c, r, today, paid)) {
       if (x.date) continue
       receivable += x.krw
@@ -466,7 +473,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     }
     if (c.twikr) for (const x of cashIn(c, r, today, paid)) if (!x.date) twikr.push({ c, due: x.due, krw: x.krw, label: x.label, part: x.part })
     const d = contractDay(c)
-    if (basis === 'contract' && d) count(d, 'revenue', supplyKrw(c, r, d)!, cur)
+    if (basis === 'contract' && d) add(d, supplyKrw(c, r, d)!)
   }
 
   let payable = 0
@@ -691,7 +698,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     .filter((b) => b.count > 0 || b.label !== '기타 상태')
 
   return {
-    summary: { revenue, revenueByCur, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null, marginSupply: sumSupply, marginN: margined.length },
+    summary: { revenue, revenueByCur, receivable, settled, settledEst, payable, held, margin: sumMargin, marginRate: sumSupply ? sumMargin / sumSupply : null, marginSupply: sumSupply, marginN: margined.length, linkedRevenue },
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v })),
     contracts: rows,
     creators: [...creators.values()].sort((a, b) => b.revenue - a.revenue || b.paid - a.paid),

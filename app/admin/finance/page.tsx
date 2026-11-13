@@ -188,7 +188,7 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 const noLinkPaid = (x: Model['contracts'][number]) => x.c.source !== 'sheet' && x.supply != null && !x.payouts.length && x.received > 0
 
 // 발생 기준의 정산은 연결된 지급만이라 매출 − 정산이 연결 없는 계약 공급가만큼 부풀어(261113 확인) 발생 기준에선 계약 단위를 씀
-const NET_HINT = '이 기간 매출(입금된 공급가)에서 정산(송금 완료)을 뺀 값입니다. 계약을 고르지 않은 회사 전체 숫자이고, 입금과 송금 시점이 달라 달마다 출렁입니다. 아래 계약 단위 마진율은 지급이 연결된 계약끼리만 공급가에서 지급을 뺀 값이고, 그 계약들의 공급가가 매출에서 차지하는 비율을 함께 적습니다.'
+const NET_HINT = '이 기간 매출(입금된 공급가)에서 정산(송금 완료)을 뺀 값입니다. 계약을 고르지 않은 회사 전체 숫자이고, 입금과 송금 시점이 달라 달마다 출렁입니다. 아래 계약 단위 마진율은 지급이 연결된 계약끼리만 공급가에서 지급을 뺀 값이고, 이 기간 매출 가운데 그 계약들에서 들어온 몫의 비율을 함께 적습니다.'
 
 const marginHint = (cb: boolean) =>
   `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(상태 무관)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
@@ -231,7 +231,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   const cb = basis === 'contract'
   const s = model.summary
   const net = cb ? s.margin : s.revenue - s.settled
-  const cover = pct(s.revenue ? s.marginSupply / s.revenue : null) // 계약 단위 마진에 든 계약 공급가 ÷ 매출
+  const cover = pct(s.revenue ? s.linkedRevenue / s.revenue : null) // 매출 가운데 지급이 연결된 계약의 몫(매출과 같은 기준)
   const p = prior?.summary ?? null
   // 지급내역 DB는 2025-12-30부터 쌓였고 2025년 지급은 소급 등록 중(1~6월 국내 원화 빠짐, 계약 연결 일부)이라 2025년 이전과의 정산, 마진 비교는 뜻이 없음
   const pyear = priorPeriod({ year, month }, today)?.year
