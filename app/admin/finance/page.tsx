@@ -897,14 +897,18 @@ const LIST = 'cal-list'
 // 정상 흐름이 아닌 상태(정산일 임의, 서명 전, 서류·계좌 대기)는 날이 지나도 색을 바꾸지 않고 「예정일 지남」 글자만 붙임(Leo 261026)
 const ODD: CalItem['state'][] = ['guess', 'unsigned', 'docs']
 const Overdue = ({ show, short }: { show: boolean; short?: boolean }) => (show ? <span style={{ color: ALERT }}>{short ? ' 지남' : ', 예정일 지남'}</span> : null)
-/** 안건 칸 이름: 입금은 계약, 출금은 크리에이터 상세로 */
+const notion = (id: string) => `https://www.notion.so/${id.replace(/-/g, '')}`
+/** 안건 칸 이름: 입금은 계약 노션(시트 행은 계약 탭), 출금은 크리에이터 상세 + 지급 ID(지급내역 노션) */
 function CalTitle({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
+  if (x.kind === 'in' && x.notionId) return <a href={notion(x.notionId)} target="_blank" className="text-sky-300 hover:underline" title="노션 열기">{x.title}</a>
   const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.title }) : x.contractId ? q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId }) : null
-  return href ? <Link href={href} className="text-sky-300 hover:underline">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
+  const name = href ? <Link href={href} className="text-sky-300 hover:underline">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
+  return x.pay ? <>{name} <a href={notion(x.pay.id)} target="_blank" className="text-xs text-sky-300/80 hover:underline" title="지급내역 노션 열기">#{x.pay.pid ?? '지급'}</a></> : name
 }
-/** 안건 칸 회색 줄: 계약 코드(누르면 계약), 예외 메모. 상태는 상태 칸에 */
+/** 안건 칸 회색 줄: 계약 코드(누르면 계약 노션, 시트 행은 계약 탭), 예외 메모. 상태는 상태 칸에 */
 function CalSub({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
-  const code = x.code && x.contractId ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId })} className="underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200">{x.code}</Link> : x.code
+  const cls = 'underline decoration-neutral-700 underline-offset-2 hover:text-neutral-200'
+  const code = x.code && x.notionId ? <a href={notion(x.notionId)} target="_blank" className={cls} title="노션 열기">{x.code}</a> : x.code && x.contractId ? <Link href={q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId })} className={cls}>{x.code}</Link> : x.code
   if (!code && !x.sub) return null
   return <span className="block break-words text-xs text-neutral-500">{code}{code && x.sub ? ', ' : ''}{x.sub}</span>
 }
