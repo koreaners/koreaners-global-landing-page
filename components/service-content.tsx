@@ -140,9 +140,9 @@ export default function ServiceContent() {
               {/* 한국어 원문 그대로라 ko 로케일에서만 노출 */}
               {locale === 'ko' && (
                 <p className="text-[#A8A29E] break-keep leading-relaxed mt-8">
-                  일본 현지 대행사와 한국 대행사의 차이와 티어별 단가는{' '}
+                  일본 현지 대행사와 한국 대행사의 차이와 고르는 기준은{' '}
                   <Link href="/japan-influencer-marketing" className="text-[#FF4500] hover:underline">
-                    일본 인플루언서 마케팅 대행사 비교와 비용
+                    일본 인플루언서 마케팅 대행사 비교와 선택 기준
                   </Link>{' '}
                   페이지에 정리했습니다.
                 </p>

@@ -8,14 +8,14 @@ const pageUrl = `${siteUrl}/japan-influencer-marketing`
 
 export const metadata: Metadata = {
   // 루트 layout 의 title.template("%s | 코리너스 KOREANERS")가 브랜드를 붙임 — 여기서 중복 표기 금지.
-  title: '일본 인플루언서 마케팅 대행사 비교와 비용',
+  title: '일본 인플루언서 마케팅 대행사 비교와 선택 기준',
   description:
-    '일본 현지 대행사와 한국 대행사의 차이, 크리에이터 티어별 단가(나노 15~20만 원, 마이크로 20~35만 원부터), 견적 전 확인 항목 7가지, 코리너스의 운영 방식과 사례를 한 페이지에 정리했습니다.',
+    '일본 현지 대행사와 한국 대행사의 차이, 대행사를 고르는 기준, 견적 전 확인 항목 7가지, 코리너스의 운영 방식과 사례를 한 페이지에 정리했습니다.',
   alternates: { canonical: pageUrl },
   openGraph: {
-    title: '일본 인플루언서 마케팅 대행사 비교와 비용 | 코리너스 KOREANERS',
+    title: '일본 인플루언서 마케팅 대행사 비교와 선택 기준 | 코리너스 KOREANERS',
     description:
-      '일본 현지 대행사와 한국 대행사의 차이, 크리에이터 티어별 단가(나노 15~20만 원, 마이크로 20~35만 원부터), 견적 전 확인 항목 7가지, 코리너스의 운영 방식과 사례를 한 페이지에 정리했습니다.',
+      '일본 현지 대행사와 한국 대행사의 차이, 대행사를 고르는 기준, 견적 전 확인 항목 7가지, 코리너스의 운영 방식과 사례를 한 페이지에 정리했습니다.',
     url: pageUrl,
     images: [{ url: '/images/logo.png', width: 800, height: 400, alt: '코리너스 KOREANERS' }],
   },
@@ -109,7 +109,7 @@ export default function JapanInfluencerMarketingPage() {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: '홈', item: siteUrl },
-      { '@type': 'ListItem', position: 2, name: '일본 인플루언서 마케팅 대행사 비교와 비용' },
+      { '@type': 'ListItem', position: 2, name: '일본 인플루언서 마케팅 대행사 비교와 선택 기준' },
     ],
   }
 
@@ -184,7 +184,7 @@ export default function JapanInfluencerMarketingPage() {
         <section className="pt-32 sm:pt-40 pb-12 px-6 lg:px-24">
           <div className={containerClass}>
             <h1 className="heading-kr text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight break-keep">
-              일본 인플루언서 마케팅 대행사 비교와 비용
+              일본 인플루언서 마케팅 대행사 비교와 선택 기준
             </h1>
           </div>
         </section>
@@ -247,7 +247,7 @@ export default function JapanInfluencerMarketingPage() {
 
         <section className={sectionClass}>
           <div className={containerClass}>
-            <h2 className={h2Class}>일본 인플루언서 마케팅 비용</h2>
+            <h2 className={h2Class}>코리너스 크리에이터 티어별 단가</h2>
             <p className={`${bodyClass} mb-6`}>
               코리너스 기준 게시물 1건 단가입니다. 캠페인 규모, 채널, 콘텐츠 유형(피드, 릴스, 숏폼, 영상), 2차 사용권 포함 여부에 따라 달라집니다.
             </p>
@@ -274,7 +274,11 @@ export default function JapanInfluencerMarketingPage() {
               </table>
             </div>
             <p className={`${bodyClass} mt-6`}>
-              견적 요청 때는 대행 수수료와 크리에이터 비용을 분리해 받으십시오. 두 값이 합쳐진 견적은 업체 간 비교가 되지 않습니다.
+              견적 요청 때는 대행 수수료와 크리에이터 비용을 분리해 받으십시오. 두 값이 합쳐진 견적은 업체 간 비교가 되지 않습니다. 플랫폼별 단가, 수수료 구조, 숨은 비용까지 포함한 예산 잡는 법은{' '}
+              <Link href="/blog/japan-influencer-marketing-cost-guide-2026" className="text-[#FF4500] hover:underline">
+                일본 인플루언서 마케팅 비용 가이드
+              </Link>
+              에 정리했습니다.
             </p>
           </div>
         </section>
