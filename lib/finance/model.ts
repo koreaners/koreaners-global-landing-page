@@ -416,10 +416,14 @@ export function agingBuckets(open: OpenItem[], today: string): Bucket[] {
   })
 }
 
-/** 계약 담당자(정) 목록: 「,」와 「/」로 나누고 앞뒤 공백을 지워 중복 없이(「리카, 사야카」 = 「사야카/리카」), 비면 미지정.
- * 실명과 짧은 이름(마스다 리카, 리카)은 맞추지 않음(별칭 표는 확인 전, 인혁 261113) */
+/** 같은 직원의 다른 표기 → 계약 DB에서 더 많이 쓴 표기(봇이 슬랙 실명을 씀, 261113 감사 #6). 미나, 아이리는 누구인지 확인 전이라 뺌 */
+const OWNER_ALIAS: Record<string, string> = {
+  'Mizuno Sayaka': '사야카', '미즈노 사야카': '사야카', '히야마 유지': '유지', '마스다 리카': '리카',
+  '이시카와 미나미': '미나미', '와타나베 히로코': '히로코', 보람: '이보람', 소희: '박소희', 혜연: '심혜연',
+}
+/** 계약 담당자(정) 목록: 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭을 맞춘 뒤 중복 없이(「리카, 사야카」 = 「사야카/마스다 리카」), 비면 미지정 */
 export const ownersOf = (c: Contract): string[] => {
-  const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean))]
+  const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean).map((s) => OWNER_ALIAS[s] ?? s))]
   return xs.length ? xs : ['미지정']
 }
 

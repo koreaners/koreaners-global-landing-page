@@ -177,5 +177,16 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
   } catch (e) {
     bankError = e instanceof Error ? e.message : String(e)
   }
-  return { contracts, payouts: p.map(toPayout), ig, igError, fetchedAt: new Date().toISOString(), bankLinks, bankError }
+  return { contracts, payouts: bindPayeeByName(p.map(toPayout)), ig, igError, fetchedAt: new Date().toISOString(), bankLinks, bankError }
+}
+
+/** 수취인 관계가 빈 지급(2025 소급 행 등)은 같은 제목의 수취인이 전체에서 하나뿐일 때만 그 수취인으로 묶음. 둘 이상이면 동명이인일 수 있어 그대로(261113 감사 #12).
+ * payeeId는 creatorKey만 쓰므로 여기서 한 번 채우면 크리에이터 탭, 정산 마스터, 자금 캘린더가 같이 따라옴 */
+export function bindPayeeByName(ps: Payout[]): Payout[] {
+  const by = new Map<string, Set<string>>()
+  for (const p of ps) if (p.payeeId) by.set(p.name, (by.get(p.name) ?? new Set()).add(p.payeeId))
+  return ps.map((p) => {
+    const s = p.payeeId ? null : by.get(p.name)
+    return s?.size === 1 ? { ...p, payeeId: [...s][0] } : p
+  })
 }

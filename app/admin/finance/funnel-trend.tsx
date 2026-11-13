@@ -19,8 +19,11 @@ const worst = (rs: Row[]) => (['red', 'yellow', 'green'] as const).find((c) => r
 const LEGEND = [['green', '100% 이상'], ['yellow', '80~99%'], ['red', '80% 미만']] as const
 const PENDING = '원천 칸 신설 전'
 
-function Dot({ light, className = '' }: { light?: Row['light']; className?: string }) {
-  return <i className={`block h-2 w-2 shrink-0 rounded-full ${light ? DOT[light] : 'bg-neutral-600'} ${className}`} />
+// 값은 있는데 색이 없는 줄(표본 20곳 미만 코호트, 분모 없음 등 brain-weekly lit=False): 빈 점. 값 자체가 없는 줄(원천 칸 신설 전, 미상)은 회색 점(261113 감사 #33)
+const plain = (r?: Row) => !!r && !r.light && r.value !== PENDING && r.value !== '미상'
+
+function Dot({ light, hollow = false, className = '' }: { light?: Row['light']; hollow?: boolean; className?: string }) {
+  return <i className={`block h-2 w-2 shrink-0 rounded-full ${light ? DOT[light] : hollow ? 'border border-neutral-400' : 'bg-neutral-600'} ${className}`} />
 }
 
 // 「3/20곳 (15%)」는 15% 를 크게, 3/20곳 을 작게. 모양이 다르면 그대로
@@ -41,12 +44,12 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
           <div key={r.label} className="min-w-0">
             {!one && (
               <p className="flex items-center gap-1.5 text-xs text-neutral-400">
-                <Dot light={r.light} />
+                <Dot light={r.light} hollow={plain(r)} />
                 <span className="truncate">{r.label.replace(/^(신규 리드|견적 발송률|수주율): /, '')}</span>
               </p>
             )}
             <p className={`flex items-baseline gap-1.5 font-semibold tabular-nums text-neutral-50 ${one ? 'text-2xl' : 'mt-0.5 text-lg'}`}>
-              {one && <Dot light={r.light} className="self-center" />}
+              {one && <Dot light={r.light} hollow={plain(r)} className="self-center" />}
               {big}
               {sub && <span className="text-xs font-normal text-neutral-500">{sub}</span>}
             </p>
@@ -93,13 +96,14 @@ function TeamLights({ rows }: { rows: Row[] }) {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
           팀별 관리지표
-          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 목표 근거는 각 지표 ⓘ와 경영진 보고서 해설. 회색은 원천 칸이 아직 없어 값을 못 내는 지표(목표는 잠정)" />
+          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 목표 근거는 각 지표 ⓘ와 경영진 보고서 해설. 회색 점은 원천 칸이 아직 없거나 읽지 못해 값이 없는 지표(목표는 잠정), 빈 점은 값은 있지만 표본이 작은 코호트(20곳 미만) 등으로 색을 매기지 않은 참고 값" />
         </h2>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 sm:ml-auto">
           <span>목표 달성률</span>
           {LEGEND.map(([c, t]) => (
             <span key={c} className="inline-flex items-center gap-1.5"><Dot light={c} />{t}</span>
           ))}
+          <span className="inline-flex items-center gap-1.5"><Dot hollow />색 없음(참고 값)</span>
           <span className="inline-flex items-center gap-1.5"><Dot />값 없음</span>
         </div>
       </div>
@@ -120,7 +124,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
                         <tr key={label} className="align-top">
                           <td className="py-2 pr-3">
                             <span className="flex items-start gap-2">
-                              <Dot light={r?.light} className="mt-1.5" />
+                              <Dot light={r?.light} hollow={plain(r)} className="mt-1.5" />
                               <span className={off ? 'text-neutral-500' : 'text-neutral-200'}>
                                 {code && <span className="mr-1 font-mono text-[11px] text-neutral-500">{code}</span>}
                                 {label}
