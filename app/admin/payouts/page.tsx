@@ -121,15 +121,13 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const months = [...new Set([...all.map((p) => slots.get(p.id)!.month).filter((m): m is string => !!m), cycle])].sort().reverse()
   const byMonth = (m: string | null) => all.filter((p) => slots.get(p.id)!.month === m)
 
-  // 3. 크리에이터별: 재무 크리에이터 탭과 같은 키(수취인, 없으면 이름)로 묶고 이름은 가장 최근 지급의 이름
+  // 3. 크리에이터별: 이름으로 묶음(수취인으로 묶으면 수취인 빈 2025 소급 행이 따로 줄이 됨, 인혁 261113)
   const names = new Map<string, Payout[]>()
-  for (const p of all) names.set(creatorKey(p), [...(names.get(creatorKey(p)) ?? []), p])
-  const creators = [...names.entries()].map(([key, xs]) => {
+  for (const p of all) names.set(p.name, [...(names.get(p.name) ?? []), p])
+  const creators = [...names.entries()].map(([name, xs]) => {
     const dates = (f: (p: Payout) => string | null | undefined) => xs.map(f).filter((d): d is string => !!d).sort()
     return {
-      key,
-      name: latestName(xs),
-      aliases: [...new Set(xs.map((p) => p.name))],
+      name,
       n: xs.length,
       done: total(xs.filter((p) => p.status === DONE), rates).krw,
       plan: total(xs.filter((p) => IN_FLIGHT.includes(p.status)), rates).krw,
@@ -139,14 +137,13 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
     }
   })
   const s = sp.s ?? 'next'
-  const cRows = sortRows(creators.filter((x) => hit(sp.f, ...x.aliases)), s, {
+  const cRows = sortRows(creators.filter((x) => hit(sp.f, x.name)), s, {
     name: (x) => x.name, n: (x) => x.n, done: (x) => x.done, plan: (x) => x.plan, open: (x) => x.open, next: (x) => x.next, last: (x) => x.last,
   })
 
   // 4. 지급 행: 고른 크리에이터, 상태, 통화, 막힌 사유, 회차, 계약 연결, 글 검색
-  // sel: 크리에이터 키. 이름으로 온 옛 링크는 그 이름 행들의 키로 다시 찾음
-  const selKeys = !sp.sel ? [] : names.has(sp.sel) ? [sp.sel] : [...new Set(all.filter((p) => p.name === sp.sel).map(creatorKey))]
-  const base = sp.sel ? all.filter((p) => selKeys.includes(creatorKey(p))) : all
+  // sel: 이 화면에선 이름, 재무 크리에이터 탭에서 오면 수취인 키
+  const base = sp.sel ? all.filter((p) => p.name === sp.sel || creatorKey(p) === sp.sel) : all
   const selName = base.length ? latestName(base) : sp.sel
   const rows = base
     .filter((p) => (!sp.st || (sp.st === OPEN ? p.status !== DONE : p.status === sp.st)) && (!sp.cur || (p.currency ?? '미상') === sp.cur) && (!sp.bl || p.blocked.includes(sp.bl)))
@@ -178,7 +175,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         return (
           <tr key={p.id}>
             <td className={tdl}><a href={notionUrl(p.id)} target="_blank" className="text-sky-300 hover:underline" title="노션 행 열기">{p.pid ?? '열기'}</a></td>
-            <td className={tdl}><Link href={go({ sel: creatorKey(p) })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
+            <td className={tdl}><Link href={go({ sel: p.name })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
             <td className={tdl}><span className="block max-w-[9rem] truncate" title={c?.code}>{c ? c.brand || c.code || '-' : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</span></td>
             <td className={td}>{p.status}</td>
             <td className={`px-2 py-2 text-right text-xs${p.blocked.length && p.status !== DONE ? ' text-amber-300' : ''}`}>{p.blocked.join(', ') || '-'}</td>
@@ -228,9 +225,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       {view === 'creator' ? null : view === 'todo' ? (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label="이번 회차 송금일" value={md(payday(cycle))} full={payday(cycle)} note={`묶음 생성일 ${md(bundleDay(cycle))}${rolled && cycle === thisYm ? `, 묶음 생성 뒤라 송금 가능은 다음 회차 ${md(payday(addMonth(thisYm, 1)))}` : ''}`} />
-        <Tile label="송금 진행 중 (부가세 포함)" value={won2(plan.krw)} full={won(plan.krw)} note={`모든 회차 ${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
-        <Tile label="미정 (부가세 포함)" value={won2(openSum.krw)} full={won(openSum.krw)} note={`대기, 보류 ${openSum.n}건(보류 ${open.filter((p) => p.status === '보류').length}건), ${curText(openSum)}`} />
-        <Tile label={`${year}년 송금 완료 (부가세 포함)`} value={won2(doneYear.krw)} full={won(doneYear.krw)} note={`누적 ${doneYear.n}건, ${curText(doneYear)}`} />
+        <Tile label="송금 진행 중 (모든 회차, 부가세 포함)" value={won2(plan.krw)} full={won(plan.krw)} note={`${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
+        <Tile label="미정 (대기, 보류, 부가세 포함)" value={won2(openSum.krw)} full={won(openSum.krw)} note={`${openSum.n}건(보류 ${open.filter((p) => p.status === '보류').length}건), ${curText(openSum)}`} />
+        <Tile label={`${year}년 송금 완료 누적 (부가세 포함)`} value={won2(doneYear.krw)} full={won(doneYear.krw)} note={`${doneYear.n}건, ${curText(doneYear)}`} />
         <div className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <p className="text-xs text-neutral-400">막힌 사유 (송금 완료 제외)</p>
           {reasons.length ? reasons.slice(0, 5).map(([k, n]) => (
@@ -249,7 +246,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'creator' ? (
-        <CreatorPanel name={selName!} k={selKeys[0] ?? sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} reason={(k) => go({ sel: sp.sel, bl: k, st: OPEN })} />
+        <CreatorPanel name={selName!} k={sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} reason={(k) => go({ sel: sp.sel, bl: k, st: OPEN })} />
       ) : (
         <nav className="flex flex-wrap gap-2 border-b border-neutral-800 pb-3">
           {TABS.map(([k, label, note]) => (
@@ -328,9 +325,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
           <Table head={['이름', '건수', '송금 완료', '진행 중', '미정', '다음 송금일', '마지막 송금일']} tall
             sort={{ keys: ['name', 'n', 'done', 'plan', 'open', 'next', 'last'], cur: s, href: (k) => q({ s: k }) }}>
             {cRows.map((x) => (
-              <tr key={x.key}>
+              <tr key={x.name}>
                 <td className={tdl}>
-                  <Link href={go({ sel: x.key })} className="block max-w-[14rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
+                  <Link href={go({ sel: x.name })} className="block max-w-[14rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
                 </td>
                 <td className={td}>{x.n}</td>
                 <Money n={x.done} />
