@@ -183,7 +183,8 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   )
 }
 
-/** 입금은 됐는데 크리에이터 지급이 하나도 연결되지 않은 계약(계약 단위 마진에서 빠짐). 개요 할 일과 안건 탭 st=nolink가 같이 씀 */
+/** 입금은 됐는데 크리에이터 지급이 하나도 연결되지 않은 계약(계약 단위 마진에서 빠짐), 안건 탭 st=nolink.
+ * 개요 할 일 카드로는 쓰지 않음: 크리에이터 비용이 원래 없는 계약(월 정액 운영, 정부사업, 통과금)과 구분할 칸이 계약 DB에 없어 대부분 잡음(인혁 261113) */
 const noLinkPaid = (x: Model['contracts'][number]) => x.c.source !== 'sheet' && x.supply != null && !x.payouts.length && x.received > 0
 
 // 발생 기준의 정산은 연결된 지급만이라 매출 − 정산이 연결 없는 계약 공급가만큼 부풀어(261113 확인) 발생 기준에선 계약 단위를 씀
@@ -229,7 +230,6 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 }) {
   const cb = basis === 'contract'
   const s = model.summary
-  const noLink = model.contracts.filter(noLinkPaid)
   const net = cb ? s.margin : s.revenue - s.settled
   const cover = pct(s.revenue ? s.marginSupply / s.revenue : null) // 계약 단위 마진에 든 계약 공급가 ÷ 매출
   const p = prior?.summary ?? null
@@ -275,7 +275,6 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, q({ tab: 'contracts', st: 'overdue' }), true])
   if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
   if (noDue.count) todo.push(['입금 예정일이 없는 매출채권', `${noDue.count}건`, noDue.krw, '#receivables', false])
-  if (noLink.length) todo.push(['지급이 연결되지 않은 입금 계약', `${noLink.length}건`, noLink.reduce((a, x) => a + (x.supply ?? 0), 0), q({ tab: 'contracts', st: 'nolink' }), false])
   if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, '/admin/payouts?v=rows&nc=none', false])
 
   const bMax = Math.max(...buckets.map((b) => b.krw))
