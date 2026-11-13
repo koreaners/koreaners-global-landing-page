@@ -394,7 +394,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         <Panel title="크리에이터 매출 몫 상위" sub={`${labels.cur}, 계약 공급가를 지급액 비율로 나눈 몫${cb ? ', 계약일 기준' : ', 입금된 회차만'}`} action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
           <div className="space-y-2.5">
             {topCreators.map((c) => (
-              <BarRow key={c.name} label={c.name} value={c.revenue} max={cMax} color={REV} aside={`정산 ${won2(c.paid)}`} href={q({ tab: 'creators', sel: c.name })} />
+              <BarRow key={c.key} label={c.name} value={c.revenue} max={cMax} color={REV} aside={`정산 ${won2(c.paid)}`} href={q({ tab: 'creators', sel: c.key })} />
             ))}
             {!topCreators.length && <p className="text-sm text-neutral-500">이 기간에 매출 몫이 있는 크리에이터가 없습니다.</p>}
           </div>
@@ -667,7 +667,8 @@ const CREATOR_TIPS = [
 ]
 
 function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f, s = '-revenue', basis }: { model: Model; rates: Rates; all: Payout[]; contracts: Contract[]; ig: Record<string, string>; igError: string | null; today: string; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; basis: Basis }) {
-  const picked = model.creators.find((x) => x.name === sel)
+  // sel: 크리에이터 키(수취인 id, 없으면 이름). 이름으로 온 옛 링크는 대표 이름과 다른 이름으로 한 번 더 찾음
+  const picked = sel ? (model.creators.find((x) => x.key === sel) ?? model.creators.find((x) => x.name === sel || x.aliases.includes(sel))) : undefined
   // 지급 행의 크리에이터 관계로 이름별 인스타 URL(기간과 무관하게 전체 행)
   const igs = new Map<string, Set<string>>()
   for (const p of all) for (const id of p.creatorIds ?? []) if (ig[id]) igs.set(creatorKey(p), (igs.get(creatorKey(p)) ?? new Set()).add(ig[id]))
@@ -681,7 +682,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
   const avgRevenue = (x: Model['creators'][number]) => (x.revenueCount ? x.revenue / x.revenueCount : null)
   const avgPaid = (x: Model['creators'][number]) => (x.paidCount ? x.paid / x.paidCount : null)
   const avgMargin = (x: Model['creators'][number]) => (x.revenueCount && x.revenue ? (x.revenue - x.linkedPaid) / x.revenueCount : null)
-  const rows = sortRows(model.creators.filter((x) => hit(f, x.name)), s, {
+  const rows = sortRows(model.creators.filter((x) => hit(f, x.name, ...x.aliases)), s, {
     name: (x) => x.name, revenue: (x) => x.revenue, revenueCount: (x) => x.revenueCount, paid: (x) => x.paid, paidCount: (x) => x.paidCount,
     cost, margin, rate, done: (x) => x.done, inFlight: (x) => x.inFlight, held: (x) => x.held, avgRevenue, avgPaid, avgMargin,
   })
@@ -694,7 +695,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between gap-3">
           <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
-          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
+          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
         </div>
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}{picked.aliases.length > 0 && <span className="ml-2 text-xs font-normal text-neutral-500">다른 이름 {picked.aliases.join(', ')}</span>} <Insta urls={igs.get(picked.key)} /></h2>
@@ -717,7 +718,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
               <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>
           )}
-          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 몫(「매출 단가」가 있는 행은 그 값), 원가는 그 몫에 대응하는 지급. 합계 줄이 위 카드와 같음. 송금 처리는 <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.name)}`} className="underline hover:text-neutral-300">정산 마스터</Link>에서</span></h3>
+          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 몫(「매출 단가」가 있는 행은 그 값), 원가는 그 몫에 대응하는 지급. 합계 줄이 위 카드와 같음. 송금 처리는 <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="underline hover:text-neutral-300">정산 마스터</Link>에서</span></h3>
           <CreatorLines lines={picked.lines} flags={new Map(picked.shares.map((s) => [s.c.id, s.flag]))} q={q} />
         </div>
       </div>
@@ -737,9 +738,9 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         groups={[['', 2], ['수익성', 7], ['지급 현황', 6]]}
         sort={{ keys: ['name', null, 'revenue', 'revenueCount', 'avgRevenue', 'cost', 'margin', 'avgMargin', 'rate', 'paid', 'paidCount', 'avgPaid', 'done', 'inFlight', 'held'], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
-          <tr key={x.name}>
+          <tr key={x.key}>
             <td className={tdl}>
-              <Link href={q({ sel: x.name })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
+              <Link href={q({ sel: x.key })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
               {igs.get(x.key)?.size ? <span className="block max-w-[11rem] truncate text-xs"><Insta urls={igs.get(x.key)} /></span> : null}
             </td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
@@ -898,7 +899,7 @@ const notion = (id: string) => `https://www.notion.so/${id.replace(/-/g, '')}`
 /** 안건 칸 이름: 입금은 계약 노션(시트 행은 계약 탭), 출금은 크리에이터 상세 + 지급 ID(지급내역 노션) */
 function CalTitle({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
   if (x.kind === 'in' && x.notionId) return <a href={notion(x.notionId)} target="_blank" className="text-sky-300 hover:underline" title="노션 열기">{x.title}</a>
-  const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.title }) : x.contractId ? q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId }) : null
+  const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.creator ?? x.title }) : x.contractId ? q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId }) : null
   const name = href ? <Link href={href} className="text-sky-300 hover:underline">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
   return x.pay ? <>{name} <a href={notion(x.pay.id)} target="_blank" className="text-xs text-sky-300/80 hover:underline" title="지급내역 노션 열기">#{x.pay.pid ?? '지급'}</a></> : name
 }

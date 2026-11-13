@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { addMonth, bundleDay, CLOSED, needsLink, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
+import { addMonth, bundleDay, CLOSED, creatorKey, latestName, needsLink, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
@@ -111,13 +111,15 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const months = [...new Set([...all.map((p) => slots.get(p.id)!.month).filter((m): m is string => !!m), cycle])].sort().reverse()
   const byMonth = (m: string | null) => all.filter((p) => slots.get(p.id)!.month === m)
 
-  // 3. 크리에이터별
+  // 3. 크리에이터별: 재무 크리에이터 탭과 같은 키(수취인, 없으면 이름)로 묶고 이름은 가장 최근 지급의 이름
   const names = new Map<string, Payout[]>()
-  for (const p of all) names.set(p.name, [...(names.get(p.name) ?? []), p])
-  const creators = [...names.entries()].map(([name, xs]) => {
+  for (const p of all) names.set(creatorKey(p), [...(names.get(creatorKey(p)) ?? []), p])
+  const creators = [...names.entries()].map(([key, xs]) => {
     const dates = (f: (p: Payout) => string | null | undefined) => xs.map(f).filter((d): d is string => !!d).sort()
     return {
-      name,
+      key,
+      name: latestName(xs),
+      aliases: [...new Set(xs.map((p) => p.name))],
       n: xs.length,
       done: total(xs.filter((p) => p.status === DONE), rates).krw,
       plan: total(xs.filter((p) => IN_FLIGHT.includes(p.status)), rates).krw,
@@ -127,12 +129,15 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
     }
   })
   const s = sp.s ?? 'next'
-  const cRows = sortRows(creators.filter((x) => hit(sp.f, x.name)), s, {
+  const cRows = sortRows(creators.filter((x) => hit(sp.f, ...x.aliases)), s, {
     name: (x) => x.name, n: (x) => x.n, done: (x) => x.done, plan: (x) => x.plan, open: (x) => x.open, next: (x) => x.next, last: (x) => x.last,
   })
 
   // 4. 지급 행: 고른 크리에이터, 상태, 통화, 막힌 사유, 회차, 계약 연결, 글 검색
-  const base = sp.sel ? all.filter((p) => p.name === sp.sel) : all
+  // sel: 크리에이터 키. 이름으로 온 옛 링크는 그 이름 행들의 키로 다시 찾음
+  const selKeys = !sp.sel ? [] : names.has(sp.sel) ? [sp.sel] : [...new Set(all.filter((p) => p.name === sp.sel).map(creatorKey))]
+  const base = sp.sel ? all.filter((p) => selKeys.includes(creatorKey(p))) : all
+  const selName = base.length ? latestName(base) : sp.sel
   const rows = base
     .filter((p) => (!sp.st || (sp.st === OPEN ? p.status !== DONE : p.status === sp.st)) && (!sp.cur || (p.currency ?? '미상') === sp.cur) && (!sp.bl || p.blocked.includes(sp.bl)))
     .filter((p) => !sp.cy || (slots.get(p.id)!.month ?? 'none') === sp.cy)
@@ -163,7 +168,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         return (
           <tr key={p.id}>
             <td className={tdl}><a href={notionUrl(p.id)} target="_blank" className="text-sky-300 hover:underline" title="노션 행 열기">{p.pid ?? '열기'}</a></td>
-            <td className={tdl}><Link href={go({ sel: p.name })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
+            <td className={tdl}><Link href={go({ sel: creatorKey(p) })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
             <td className={tdl}><span className="block max-w-[9rem] truncate" title={c?.code}>{c ? c.brand || c.code || '-' : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</span></td>
             <td className={td}>{p.status}</td>
             <td className={`px-2 py-2 text-right text-xs${p.blocked.length && p.status !== DONE ? ' text-amber-300' : ''}`}>{p.blocked.join(', ') || '-'}</td>
@@ -234,7 +239,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'creator' ? (
-        <CreatorPanel name={sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} reason={(k) => go({ sel: sp.sel, bl: k, st: OPEN })} />
+        <CreatorPanel name={selName!} k={selKeys[0] ?? sp.sel!} xs={base} back={go({ v: 'creators' })} rates={rates} reason={(k) => go({ sel: sp.sel, bl: k, st: OPEN })} />
       ) : (
         <nav className="flex flex-wrap gap-2 border-b border-neutral-800 pb-3">
           {TABS.map(([k, label, note]) => (
@@ -313,9 +318,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
           <Table head={['이름', '건수', '송금 완료', '진행 중', '미정', '다음 송금일', '마지막 송금일']} tall
             sort={{ keys: ['name', 'n', 'done', 'plan', 'open', 'next', 'last'], cur: s, href: (k) => q({ s: k }) }}>
             {cRows.map((x) => (
-              <tr key={x.name}>
+              <tr key={x.key}>
                 <td className={tdl}>
-                  <Link href={go({ sel: x.name })} className="block max-w-[14rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
+                  <Link href={go({ sel: x.key })} className="block max-w-[14rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
                 </td>
                 <td className={td}>{x.n}</td>
                 <Money n={x.done} />
@@ -332,7 +337,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       {(view === 'rows' || view === 'creator') && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-neutral-100">{sp.sel ? `${sp.sel} 지급 행` : '지급 행'}</h2>
+            <h2 className="text-sm font-semibold text-neutral-100">{sp.sel ? `${selName} 지급 행` : '지급 행'}</h2>
             {/* key: 링크로 필터가 바뀌어도 드롭다운이 이전 값을 붙들지 않게 다시 그림 */}
             <CleanForm key={[sp.st, sp.cur, sp.bl, sp.t, sp.cy, sp.nc].join('|')} action="/admin/payouts" className="flex flex-wrap items-center gap-2 text-sm">
               {(['v', 'sel'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
@@ -374,7 +379,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
 }
 
 /** 크리에이터 한 명: 목록 아래가 아니라 화면 맨 위에 열림(재무 크리에이터 탭과 같은 방식). 아래 지급 행 표가 그 사람 행만 */
-function CreatorPanel({ name, xs, back, rates, reason }: { name: string; xs: Payout[]; back: string; rates: Rates; reason: (k: string) => string }) {
+function CreatorPanel({ name, k, xs, back, rates, reason }: { name: string; k: string; xs: Payout[]; back: string; rates: Rates; reason: (k: string) => string }) {
   const done = total(xs.filter((p) => p.status === DONE), rates)
   const flight = total(xs.filter((p) => IN_FLIGHT.includes(p.status)), rates)
   const held = total(xs.filter((p) => p.status === '대기' || p.status === '보류'), rates)
@@ -383,7 +388,7 @@ function CreatorPanel({ name, xs, back, rates, reason }: { name: string; xs: Pay
     <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href={back} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
-        <Link href={`/admin/finance?tab=creators&y=all&sel=${encodeURIComponent(name)}`} className="text-sm text-neutral-400 hover:text-neutral-200">재무에서 매출, 마진 보기 →</Link>
+        <Link href={`/admin/finance?tab=creators&y=all&sel=${encodeURIComponent(k)}`} className="text-sm text-neutral-400 hover:text-neutral-200">재무에서 매출, 마진 보기 →</Link>
       </div>
       <h2 className="text-base font-semibold text-neutral-50">{name}</h2>
       <p className="text-sm text-neutral-300">

@@ -404,6 +404,9 @@ export const ownersOf = (c: Contract): string[] => {
 /** 지급 기준일: 송금일, 없으면 송금 요청일, 없으면 연결 계약 기준일 */
 /** 크리에이터 묶기 키: 수취인(계좌)이 같으면 이름이 달라도 한 사람 */
 export const creatorKey = (p: Payout) => p.payeeId || p.name
+// 크리에이터 대표 이름: 같은 키 지급 가운데 가장 최근(송금일, 없으면 요청일, 같으면 지급 ID 큰 것)의 이름. 재무와 정산 마스터가 같이 씀
+const recency = (p: Payout) => (p.sentDate ?? p.reqDate ?? '') + String(p.pid ?? 0).padStart(6, '0')
+export const latestName = (ps: Payout[]) => ps.reduce((a, p) => (recency(p) > recency(a) ? p : a)).name
 
 export function payoutDay(p: Payout, byId: Map<string, Contract>): string | null {
   const c = p.contractId ? byId.get(p.contractId) : undefined
@@ -427,6 +430,7 @@ export const isDead = (p: Payout) => {
 export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = []): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
+  const dayById = new Map(contracts.map((c) => [c.id, c])) // 서명 전 계약 포함: 지급 기준일(payoutDay)에만 씀(서명 전 계약에 걸린 지급이 기간을 고르면 사라지던 문제, 261113 감사)
   contracts = contracts.filter((c) => c.code)
   const revenueContracts = contracts.filter((c) => !c.isExpense && !c.excluded)
   const byId = new Map(contracts.map((c) => [c.id, c]))
@@ -581,12 +585,12 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const latest = new Map<string, Payout>()
   for (const p of payouts) {
     const k = creatorKey(p), o = latest.get(k)
-    if (!o || (p.sentDate ?? p.reqDate ?? '') + String(p.pid ?? 0).padStart(6, '0') > (o.sentDate ?? o.reqDate ?? '') + String(o.pid ?? 0).padStart(6, '0')) latest.set(k, p)
+    if (!o || recency(p) > recency(o)) latest.set(k, p)
   }
   const creators = new Map<string, CreatorRow>()
   for (const p of payouts) {
     if (p.status === CLOSED) continue // 종결(중복, 지급 아님)은 나가지 않을 돈이라 정산 합계, 건수, 미지급·보류에서도 뺌(261112, 중복 행이 정산에 두 번 잡힘)
-    const day = payoutDay(p, byId)
+    const day = payoutDay(p, dayById)
     const inP = inPeriod(day, period)
     const c = p.contractId ? byId.get(p.contractId) : undefined
     const so = c ? shareOf.get(p.id) : undefined
@@ -777,7 +781,7 @@ export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string)
 }
 
 // 나감 due: 송금 가능(고객사 입금 끝남), wait: 대기(고객사 입금 전, 계약 입금 예정일로 잡은 날짜)
-export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'wait' | 'late' | 'guess' | 'unsigned' | 'docs'; date: string; krw: number; title: string; sub: string; code: string | null; contractId: string | null; notionId: string | null; pay?: { id: string; pid: number | null }; manual?: boolean } // notionId: 계약 노션 페이지(시트 행은 null), pay: 출금의 지급내역 노션 행
+export type CalItem = { kind: 'in' | 'out'; state: 'done' | 'flight' | 'due' | 'wait' | 'late' | 'guess' | 'unsigned' | 'docs'; date: string; krw: number; title: string; sub: string; code: string | null; contractId: string | null; notionId: string | null; pay?: { id: string; pid: number | null }; manual?: boolean; creator?: string } // notionId: 계약 노션 페이지(시트 행은 null), pay: 출금의 지급내역 노션 행, creator: 출금의 크리에이터 키(creatorKey)
 
 /** 자금 캘린더: 그 달(YYYY-MM)의 들어온 돈, 들어올 돈(입금 예정일), 나간 돈, 나갈 돈(지급 예정일). 기간 필터와 무관하게 전체 행에서 고름.
  * 들어옴은 inflows(합계 칸, 부가세 포함, 영세율과 엔화는 공급가와 같음, 은행 원장 일부 입금은 그 은행 입금일에 따로, 회차 줄은 그만큼 뺀 남은 금액, 수출바우처는 기관 공급가와 고객사 부가세 줄).
@@ -803,7 +807,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     const c = p.contractId ? byId.get(p.contractId) : undefined
     // 모인 접수, 원화 이체 대기는 송금 요청일에 이미 나가는 중이라 지남으로 보지 않음
     const note = [p.dueManual && date === p.dueOn ? '송금 예정일 임의' : '', p.deduction === '세금계산서' && !p.vat ? '세금계산서(VAT 포함, 별도 미정)' : p.currency === 'KRW' && !p.deduction ? '공제 유형 빈칸' : ''].filter(Boolean).join(', ')
-    out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : p.status === '대기' && c && paidUp(c, today) ? 'docs' : date < today ? 'late' : p.status === '대기' ? (c?.dueGuess ? 'guess' : 'wait') : 'due', date, krw: netPayoutKrw(p, r) ?? 0, title: p.name, sub: note, code: c?.code ?? null, contractId: c?.id ?? null, notionId: c && c.source !== 'sheet' ? c.id : null, pay: { id: p.id, pid: p.pid }, manual: !!(p.dueManual && date === p.dueOn) })
+    out.push({ kind: 'out', state: p.status === DONE ? 'done' : IN_FLIGHT.includes(p.status) && p.status !== '송금 가능' ? 'flight' : p.status === '대기' && c && paidUp(c, today) ? 'docs' : date < today ? 'late' : p.status === '대기' ? (c?.dueGuess ? 'guess' : 'wait') : 'due', date, krw: netPayoutKrw(p, r) ?? 0, title: p.name, sub: note, code: c?.code ?? null, contractId: c?.id ?? null, notionId: c && c.source !== 'sheet' ? c.id : null, pay: { id: p.id, pid: p.pid }, manual: !!(p.dueManual && date === p.dueOn), creator: creatorKey(p) })
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || b.krw - a.krw)
 }
