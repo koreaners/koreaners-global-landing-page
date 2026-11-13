@@ -183,6 +183,12 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   )
 }
 
+/** 입금은 됐는데 크리에이터 지급이 하나도 연결되지 않은 계약(계약 단위 마진에서 빠짐). 개요 할 일과 안건 탭 st=nolink가 같이 씀 */
+const noLinkPaid = (x: Model['contracts'][number]) => x.c.source !== 'sheet' && x.supply != null && !x.payouts.length && x.received > 0
+
+// 발생 기준의 정산은 연결된 지급만이라 매출 − 정산이 연결 없는 계약 공급가만큼 부풀어(261113 확인) 발생 기준에선 계약 단위를 씀
+const NET_HINT = '이 기간 매출(입금된 공급가)에서 정산(송금 완료)을 뺀 값입니다. 계약을 고르지 않은 회사 전체 숫자이고, 입금과 송금 시점이 달라 달마다 출렁입니다. 아래 계약 단위 마진율은 지급이 연결된 계약끼리만 공급가에서 지급을 뺀 값이고, 그 계약들의 공급가가 매출에서 차지하는 비율을 함께 적습니다.'
+
 const marginHint = (cb: boolean) =>
   `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(상태 무관)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
 
@@ -223,8 +229,9 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
 }) {
   const cb = basis === 'contract'
   const s = model.summary
-  const sheetN = model.contracts.filter((x) => x.c.source === 'sheet').length // 지급 연결 전이라 마진에서 빠진 시트 계약
-  const unlinkedN = model.contracts.filter((x) => x.c.source !== 'sheet' && x.supply != null && !x.payouts.length).length // 지급 연결 없어 마진에서 빠진 계약
+  const noLink = model.contracts.filter(noLinkPaid)
+  const net = cb ? s.margin : s.revenue - s.settled
+  const cover = pct(s.revenue ? s.marginSupply / s.revenue : null) // 계약 단위 마진에 든 계약 공급가 ÷ 매출
   const p = prior?.summary ?? null
   // 지급내역 DB는 2025-12-30부터 쌓였고 2025년 지급은 소급 등록 중(1~6월 국내 원화 빠짐, 계약 연결 일부)이라 2025년 이전과의 정산, 마진 비교는 뜻이 없음
   const pyear = priorPeriod({ year, month }, today)?.year
@@ -268,6 +275,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, q({ tab: 'contracts', st: 'overdue' }), true])
   if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
   if (noDue.count) todo.push(['입금 예정일이 없는 매출채권', `${noDue.count}건`, noDue.krw, '#receivables', false])
+  if (noLink.length) todo.push(['지급이 연결되지 않은 입금 계약', `${noLink.length}건`, noLink.reduce((a, x) => a + (x.supply ?? 0), 0), q({ tab: 'contracts', st: 'nolink' }), false])
   if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, '/admin/payouts?v=rows&nc=none', false])
 
   const bMax = Math.max(...buckets.map((b) => b.krw))
@@ -296,7 +304,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       {todo.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-neutral-100">지금 볼 것 <span className="ml-1 text-xs font-normal text-neutral-500">손이 필요한 항목, 누르면 해당 목록으로</span></h2>
-          <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${['', 'xl:grid-cols-1', 'xl:grid-cols-2', 'xl:grid-cols-3', 'xl:grid-cols-4'][todo.length]}`}>
+          <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${['', 'xl:grid-cols-1', 'xl:grid-cols-2', 'xl:grid-cols-3', 'xl:grid-cols-4', 'xl:grid-cols-5'][todo.length]}`}>
             {todo.map(([title, count, krw, href, alert]) => (
               <Link key={title} href={href} className={`flex flex-col justify-between gap-3 rounded-xl border bg-neutral-900 p-4 hover:bg-neutral-800/60 ${alert ? 'border-[#e66767]/60' : 'border-neutral-800'}`}>
                 <p className={`text-xs ${alert ? 'text-[#e66767]' : 'text-neutral-400'}`}>{title}</p>
@@ -314,7 +322,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} note={`${payGap ? `${cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급 전체, 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
-        <Tile label="마진 (계약 단위)" value={won2(s.margin)} full={won(s.margin)} delta={<Delta cur={s.margin} prev={payGap ? null : p?.margin ?? null} good />} side={`평균 마진율 ${pct(s.marginRate)}`} hint={marginHint(cb)} note={`지급 연결된 계약 ${s.marginN}건, 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : p?.marginRate != null ? `, ${labels.prev} ${pct(p.marginRate)}` : p ? `, ${labels.prev} 기록 없음` : ''}${unlinkedN ? `, 지급 연결 없음 ${unlinkedN}건 제외` : ''}${sheetN ? `, 시트 계약 ${sheetN}건 제외` : ''}`} />
+        <Tile label={cb ? '마진 (계약 단위)' : '마진 (현금, 전체)'} value={won2(net)} full={won(net)} delta={<Delta cur={net} prev={payGap || !p ? null : cb ? p.margin : p.revenue - p.settled} good />} side={`마진율 ${pct(cb ? s.marginRate : s.revenue ? net / s.revenue : null)}`} hint={cb ? marginHint(true) : NET_HINT} note={`${cb ? `지급 연결된 계약 ${s.marginN}건(매출의 ${cover}), 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}` : `매출 ${won2(s.revenue)} − 정산 ${won2(s.settled)}. 계약 단위 ${pct(s.marginRate)}(매출의 ${cover}만 지급 연결)`}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : ''}`} />
         <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint="입금 전 회차의 합계(부가세 포함)에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다. 수출바우처는 기관 공급가와 고객사 부가세를 따로 셉니다." note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint="세금계산서 VAT 포함은 지급액, VAT 별도는 부가세 10%를 더한 금액, 사업소득은 원천세 공제 전 금액입니다." note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
       </div>
@@ -541,7 +549,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
   if (st === 'overdue') return <OverdueTable model={model} today={today} allHref={q({ st: undefined })} />
   const picked = model.contracts.find((x) => x.c.id === sel)
   // st=cost: 기준 탭 「원가 누락 의심」 계약만
-  const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : model.contracts
+  const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : st === 'nolink' ? model.contracts.filter(noLinkPaid) : model.contracts
   const pool = o ? all.filter((x) => (x.c.owner || '미지정') === o) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
@@ -567,9 +575,9 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
           <Link href={q({ o: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
         </div>
       )}
-      {st === 'cost' && (
+      {(st === 'cost' || st === 'nolink') && (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm text-amber-400">원가 누락 의심 계약만 보는 중</span>
+          <span className="text-sm text-amber-400">{st === 'cost' ? '원가 누락 의심 계약만 보는 중' : '입금은 됐는데 크리에이터 지급이 연결되지 않은 계약만 보는 중(계약 단위 마진에서 빠짐)'}</span>
           <Link href={q({ st: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
         </div>
       )}
