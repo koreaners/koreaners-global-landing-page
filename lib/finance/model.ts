@@ -233,7 +233,7 @@ export function clientVat(c: Contract, paid: Map<string, number>): { vat: number
 }
 export type Inflow = { date: string | null; due: string | null; krw: number; label?: string; noTotal?: boolean; part?: '선금' | '잔금' }
 
-/** 계약에서 들어올(들어온) 현금, 부가세 포함(Leo 261105). 회차 금액은 합계 칸 × 몫(엔화 합계는 오늘 환율), 합계가 비면 공급가(영세율, 해외).
+/** 계약에서 들어올(들어온) 현금, 부가세 포함(Leo 261105). 회차 금액은 합계 칸 × 몫(엔화 합계와 외화 공급가는 입금된 회차면 입금일 환율, 입금 전이면 오늘 환율), 합계가 비면 공급가(영세율, 해외).
  * 입금 전 회차는 은행 원장 일부 입금(공급가, 부가세)을 뺀 남은 금액, 입금일 있는 회차는 다 받은 것으로 봄. 한 회차 계약은 원장 회차 이름과 무관하게 뺌.
  * 수출바우처는 기관이 공급가만 내므로 회차는 공급가 × 몫(일부 입금은 공급가만 뺌). 고객사가 따로 내는 부가세 「부가세(고객사)」(clientVat)는
  * 이미 입금됐거나 정산일이 오늘 이전인 회차 몫만큼 지금 받을 돈(예정일: 지난 입금 전 회차 정산일, 없으면 마지막 입금 회차 입금일),
@@ -246,10 +246,13 @@ export function inflows(c: Contract, r: Rates, today: string, paid: Map<string, 
  * dated(자금 캘린더만 줌): 은행 원장 일부 입금을 그 은행 입금일의 들어온 돈 줄로 내고, 노션 입금일 있는 회차는 그만큼 뺀 나머지만 입금일에 둠
  * (공급가, 부가세를 다른 날 받은 회차가 부가세 들어온 날 하루에 합계 전액으로 찍히던 문제, 인혁 261113) */
 function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>, dated?: DatedPaid): Inflow[] {
-  const s = supplyKrw(c, r)
-  const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * r.JPY : null)
-  const base = c.voucher ? s : (total ?? s)
-  if (base == null) return []
+  // 입금된 회차는 입금일 환율, 입금 전 회차(date null)는 오늘 환율(개요 매출과 같은 기준, 261113 감사)
+  const baseOn = (d: string | null) => {
+    const s = supplyKrw(c, r, d)
+    const total = c.totalKrw ?? (c.totalJpy != null ? c.totalJpy * rateOn('JPY', r, d) : null)
+    return c.voucher ? s : (total ?? s)
+  }
+  if (baseOn(null) == null) return []
   const got = (parts: string[], kinds: string[]) => sumPaid(paid, c.id, parts, kinds)
   const kinds = c.voucher ? ['공급가'] : ['공급가', '부가세']
   const recs = recognitions(c, today)
@@ -259,8 +262,8 @@ function cashIn(c: Contract, r: Rates, today: string, paid: Map<string, number>,
   const out: Inflow[] = recs.map((x) => ({
     date: x.date,
     due: x.due,
-    krw: base * x.share - (x.date ? banked(x) : got(partsOf(x), kinds)),
-    noTotal: !c.voucher && total == null,
+    krw: baseOn(x.date)! * x.share - (x.date ? banked(x) : got(partsOf(x), kinds)),
+    noTotal: !c.voucher && c.totalKrw == null && c.totalJpy == null,
     part: x.part,
   }))
   if (dated) {
@@ -745,13 +748,14 @@ const paidUp = (c: Contract, today: string) => {
 }
 
 /** 지급 예정일. 정산 마스터와 자금 캘린더가 같이 씀(설계 261028-설계-크리에이터-정산포털 「날짜 규칙」, Leo 261029 통일).
- * 송금 완료: 송금일. 모인 접수, 원화 이체 대기: 요청일 달의 송금일. 송금 가능: 오늘 기준 회차 송금일. 보류: 없음
+ * 송금 완료: 송금일. 모인 접수, 원화 이체 대기: 요청일(없으면 오늘) 달의 송금일. 송금 가능: 오늘 기준 회차 송금일. 보류: 없음
  * 대기는 정산 마스터에선 미정이고, 자금 캘린더용으로 고객사 입금이 끝났으면 오늘 기준 회차 송금일, 입금 전이면 노션 규칙(입금 다음 달 마지막 평일)대로
  * max(첫 미입금 회차 정산일, 오늘)이 든 달의 다음 달 송금일(인혁 261110)
  * 노션 「송금 예정일」(dueOn)이 있으면 송금 가능, 대기는 그 날을 그대로 씀. 모인 접수, 원화 이체 대기는 요청일 기록이 우선이고 임의 날짜(dueManual)만 따름(인혁 261110) */
 export function payoutDue(p: Payout, byId: Map<string, Contract>, today: string): string | null {
   if (p.status === DONE) return p.sentDate
-  if (p.status === '모인 접수' || p.status === '원화 이체 대기') return p.dueManual && p.dueOn ? p.dueOn : p.reqDate ? payday(p.reqDate.slice(0, 7)) : null
+  // 요청일이 비면 오늘이 든 달의 송금일(정산 람다 portal.due와 같은 규칙, 261113 감사: 원화 이체 대기 6행이 어느 회차에도 안 나옴)
+  if (p.status === '모인 접수' || p.status === '원화 이체 대기') return p.dueManual && p.dueOn ? p.dueOn : payday((p.reqDate ?? today).slice(0, 7))
   if (p.status !== '송금 가능' && p.status !== '대기') return null // 보류
   if (p.dueOn) return p.dueOn
   if (p.status === '송금 가능') return cyclePayday(today)

@@ -181,7 +181,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
     <details className="text-xs text-neutral-500">
       <summary className="cursor-pointer select-none text-neutral-400 hover:text-neutral-200">칸 읽는 법</summary>
       <p className="mt-1">
-        송금 예정일: 송금 가능, 대기는 노션 지급내역 「송금 예정일」(정산 봇이 매일 밤 채움). 그 칸이 비면 송금 가능은 이번 달 묶음 생성일(송금일 3평일 전) 전이면 이번 달 송금일, 그 뒤면 다음 달 송금일이고 대기는 미정. 모인 접수, 원화 이체 대기는 송금 요청일 달의 송금일(마지막 평일, 공휴일은 안 봄). 보류는 미정. 날짜 옆 「임의」는 비고에 「송금 예정일 임의」가 있어 사람이 정한 날이고, 모인 접수, 원화 이체 대기도 그 날을 씁니다. 지급액은 원천징수 전 금액과 통화, 실지급액은 원화 사업소득 3.3% 공제 뒤, 세금계산서 VAT 별도면 부가세를 더한 금액이고 외화는 원화 환산입니다. 지급 ID는 노션 행을, 이름은 그 크리에이터 이력을 엽니다. 상태와 막힌 사유는 노션에서 고치면 5분 안에(새로고침이면 바로) 반영됩니다.
+        송금 예정일: 송금 가능, 대기는 노션 지급내역 「송금 예정일」(정산 봇이 매일 밤 채움). 그 칸이 비면 송금 가능은 이번 달 묶음 생성일(송금일 3평일 전) 전이면 이번 달 송금일, 그 뒤면 다음 달 송금일이고 대기는 미정. 모인 접수, 원화 이체 대기는 송금 요청일(비면 오늘) 달의 송금일(마지막 평일, 공휴일은 안 봄). 보류는 미정. 날짜 옆 「임의」는 비고에 「송금 예정일 임의」가 있어 사람이 정한 날이고, 모인 접수, 원화 이체 대기도 그 날을 씁니다. 지급액은 원천징수 전 금액과 통화, 실지급액은 원화 사업소득 3.3% 공제 뒤, 세금계산서 VAT 별도면 부가세를 더한 금액이고 외화는 원화 환산입니다. 지급 ID는 노션 행을, 이름은 그 크리에이터 이력을 엽니다. 상태와 막힌 사유는 노션에서 고치면 5분 안에(새로고침이면 바로) 반영됩니다.
       </p>
     </details>
   )
@@ -294,7 +294,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               return (
                 <tr key={m ?? 'none'} className={m === cycle ? 'bg-sky-950/40' : ''}>
                   <td className={`${tdl} whitespace-nowrap ${m === cycle ? 'bg-[#10212b]!' : ''}`}>
-                    <Link href={go({ v: 'rows', cy: m ?? 'none' })} className="text-sky-300 hover:underline">{m ? `${m} (${payday(m).slice(5)})` : '미정 (송금 예정일 없는 대기, 보류)'}</Link>
+                    <Link href={go({ v: 'rows', cy: m ?? 'none' })} className="text-sky-300 hover:underline">{m ? `${m} (${payday(m).slice(5)})` : '미정 (날짜를 정할 수 없는 행)'}</Link>
                     {m === cycle && <span className="ml-2 rounded bg-sky-900/60 px-1.5 text-xs text-sky-200">이번 회차</span>}
                   </td>
                   <td className={td}>{t.n}</td>
