@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { addMonth, bundleDay, CLOSED, creatorKey, latestName, needsLink, netPayoutKrw, payday, payoutDue, payoutKrw, type Contract, type Payout, type Rates } from '@/lib/finance/model'
+import { addMonth, bundleDay, CLOSED, creatorKey, grossPayoutKrw, latestName, needsLink, netPayoutKrw, payday, payoutDue, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
@@ -29,12 +29,13 @@ function slot(p: Payout, today: string): { month: string | null; date: string | 
   return { month: date?.slice(0, 7) ?? null, date }
 }
 
+// 원화 합계는 부가세 포함(개요 미지급금과 같은 grossPayoutKrw: 세금계산서 VAT 별도는 10% 더함, 사업소득은 원천세 공제 전, 261113 감사)
 type Sum = { n: number; krw: number; by: Record<string, number> }
 function total(xs: Payout[], r: Rates): Sum {
   const o: Sum = { n: 0, krw: 0, by: {} }
   for (const p of xs) {
     o.n++
-    o.krw += payoutKrw(p, r) ?? 0
+    o.krw += grossPayoutKrw(p, r) ?? 0
     if (p.amount != null) o.by[p.currency ?? '통화 미상'] = (o.by[p.currency ?? '통화 미상'] ?? 0) + p.amount
   }
   return o
@@ -46,7 +47,8 @@ const count = (xs: string[]) => {
   return [...m.entries()].sort((a, b) => b[1] - a[1])
 }
 const statusText = (xs: Payout[]) => STATUSES.map((s) => [s, xs.filter((p) => p.status === s).length] as const).filter(([, n]) => n).map(([s, n]) => `${s} ${n}`).join(', ')
-// 막힌 사유별 푸는 법(settlement-creator-ledger rules.py evaluate와 같은 판정)
+// 막힌 사유별 푸는 법. 정산 람다(krns-lambdas/settlement) rules.evaluate와 통화 불일치는 밤마다 다시 판정(refresh.RULED),
+// 그 밖의 사유(모인 반송, 중복 송금 의심, 사람이 단 사유)는 노션에서 지울 때까지 남음(261113 감사: 사람이 단 사유의 푸는 법이 「-」)
 const FIX: Record<string, string> = {
   '수금 미완료': '고객사 입금이 끝나지 않은 계약입니다. Contract DB 입금일이 채워지면 풀립니다',
   '수입 계약 없음': '지급 행에 수입 계약이 연결되지 않았습니다. 노션 지급 행 「수입 계약」을 잇거나 송금 확인일을 넣습니다',
@@ -55,7 +57,15 @@ const FIX: Record<string, string> = {
   '계약 초과': '같은 계약의 지급 합이 공급가를 넘습니다. 금액을 확인하고 송금 확인일을 넣습니다',
   '통화 불일치': '이체 주소록 계좌 나라와 지급 통화가 다릅니다(예: 일본 계좌인데 KRW). 통화나 계좌를 바로잡습니다',
   '송금 예정일 전': '송금 예정일이 다음 달 이후입니다. 예정일의 달이 되면 자동으로 풀립니다. 앞당기려면 지급내역의 송금 예정일을 고칩니다',
+  '공제 유형 불일치': '계약서 공제 유형과 계좌 폼 사업자 여부가 달라 3.3% 원천징수인지 부가세 10%인지 모릅니다. 둘 중 틀린 쪽을 바로잡습니다. 송금 확인일로는 풀리지 않습니다',
+  '출금 확인 필요': '이미 보냈을 수 있는 행입니다. 은행, 모인 출금 내역부터 대조하고, 나가지 않았으면 노션에서 이 사유를 지웁니다. 송금 확인일을 넣어도 풀리지 않습니다',
+  '중복 송금 의심': '같은 수취인, 수입 계약, 금액의 송금 완료 행이 있습니다. 그 건의 늦은 계약서면 이 행을 종결하고, 두 번째 지급이면 노션에서 이 사유를 지웁니다',
+  '모인 만료': '모인 송금이 입금 없이 만료돼 대기로 돌아온 행입니다. 다시 보낼 건은 노션에서 사유를 지우고 모인에 다시 신청합니다',
+  '모인 취소': '모인 송금이 취소돼 대기로 돌아온 행입니다. 다시 보낼 건은 노션에서 사유를 지우고 모인에 다시 신청합니다',
+  '모인 반려': '모인이 반려해 대기로 돌아온 행입니다. 반려 사유(계좌 정보 등)를 고친 뒤 노션에서 사유를 지우고 모인에 다시 신청합니다',
 }
+// 사전에 없는 사유는 사람이 단 사유: 밤 갱신이 지우지 않음
+const HUMAN_FIX = '사람이 단 사유입니다. 확인을 마친 뒤 노션에서 이 사유를 지워야 풀리고, 송금 확인일로는 풀리지 않습니다'
 // 이번 회차 상태별 다음 할 일(settlement transfer_file.py, bank_krw.py 흐름)
 const STEP: [string, string][] = [
   ['원화 이체 대기', '은행(신한 기업뱅킹)에서 이체할 차례입니다. 이체 뒤 은행 입출금 엑셀 대조로 송금 완료와 송금일이 적힙니다'],
@@ -218,9 +228,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       {view === 'creator' ? null : view === 'todo' ? (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Tile label="이번 회차 송금일" value={md(payday(cycle))} full={payday(cycle)} note={`묶음 생성일 ${md(bundleDay(cycle))}${rolled && cycle === thisYm ? `, 묶음 생성 뒤라 송금 가능은 다음 회차 ${md(payday(addMonth(thisYm, 1)))}` : ''}`} />
-        <Tile label="송금 진행 중 (모든 회차)" value={won2(plan.krw)} full={won(plan.krw)} note={`${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
-        <Tile label="미정 (대기, 보류)" value={won2(openSum.krw)} full={won(openSum.krw)} note={`${openSum.n}건(보류 ${open.filter((p) => p.status === '보류').length}건), ${curText(openSum)}`} />
-        <Tile label={`${year}년 송금 완료 누적`} value={won2(doneYear.krw)} full={won(doneYear.krw)} note={`${doneYear.n}건, ${curText(doneYear)}`} />
+        <Tile label="송금 진행 중 (부가세 포함)" value={won2(plan.krw)} full={won(plan.krw)} note={`모든 회차 ${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
+        <Tile label="미정 (부가세 포함)" value={won2(openSum.krw)} full={won(openSum.krw)} note={`대기, 보류 ${openSum.n}건(보류 ${open.filter((p) => p.status === '보류').length}건), ${curText(openSum)}`} />
+        <Tile label={`${year}년 송금 완료 (부가세 포함)`} value={won2(doneYear.krw)} full={won(doneYear.krw)} note={`누적 ${doneYear.n}건, ${curText(doneYear)}`} />
         <div className="flex flex-col gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <p className="text-xs text-neutral-400">막힌 사유 (송금 완료 제외)</p>
           {reasons.length ? reasons.slice(0, 5).map(([k, n]) => (
@@ -233,7 +243,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       </div>
       ) : (
         <p className="text-xs text-neutral-400">
-          이번 회차 {md(payday(cycle))}, 송금 진행 중(모든 회차) {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
+          이번 회차 {md(payday(cycle))}, 금액은 부가세 포함, 송금 진행 중(모든 회차) {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
           {reasons.length > 0 && <>, 막힌 사유 {reasons.map(([k, n], i) => <span key={k}>{i ? ', ' : ''}<Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-neutral-300 underline hover:text-neutral-100">{k} {n}</Link></span>)}</>}
         </p>
       )}
@@ -253,11 +263,11 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       {view === 'todo' && (
         <>
           <Panel title={`막힌 것: 사유별 (${notDone.filter((p) => p.blocked.length).length}건)`} sub="송금 완료가 아닌 행 중 정산 봇이 막힌 사유를 적은 행입니다. 한 행에 사유가 여럿이면 각 사유에 셉니다. 「행 보기」로 그 행들을 엽니다">
-            <Table head={['막힌 사유', '푸는 법', '건수', '원화 환산', '']} left={2}>
+            <Table head={['막힌 사유', '푸는 법', '건수', '원화 환산(부가세 포함)', '']} left={2}>
               {reasons.map(([k, n]) => (
                 <tr key={k}>
                   <td className={`${tdl} whitespace-nowrap`}>{k}</td>
-                  <td className="px-2 py-2 text-left text-xs text-neutral-400">{FIX[k] ?? '-'}</td>
+                  <td className="px-2 py-2 text-left text-xs text-neutral-400">{FIX[k] ?? HUMAN_FIX}</td>
                   <td className={td}>{n}</td>
                   <Money n={total(notDone.filter((p) => p.blocked.includes(k)), rates).krw} />
                   <td className={td}><Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-sky-300 hover:underline">행 보기 →</Link></td>
@@ -291,8 +301,8 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'cycles' && (
-        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중과 대기는 송금 예정일의 달. 금액은 지급액(원천징수 전), 원화 환산은 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「이번 회차」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
-          <Table head={['회차 (정기 송금일)', '건수', '통화별 합계', '원화 환산', '상태']}>
+        <Panel title="회차별" sub="송금 완료는 송금일(없으면 송금 요청일)의 달, 진행 중과 대기는 송금 예정일의 달. 금액은 지급액(원천징수 전), 원화 환산은 부가세 포함(세금계산서 VAT 별도는 10% 더함)이고 외화는 모인 청구액 또는 환율. 건수에는 송금 완료가 들어가 할 일 탭 「이번 회차」(진행 중만)보다 많습니다. 회차를 누르면 그 회차 지급 행">
+          <Table head={['회차 (정기 송금일)', '건수', '통화별 합계', '원화 환산(부가세 포함)', '상태']}>
             {[...months, null].map((m) => {
               const xs = byMonth(m)
               const t = total(xs, rates)
@@ -314,7 +324,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       )}
 
       {view === 'creators' && (
-        <Panel title="크리에이터별" sub="금액은 원화 환산. 이름을 누르면 그 크리에이터의 지급 이력이 열립니다" action={<SearchBox q={q} f={sp.f} n={cRows.length} total={creators.length} placeholder="크리에이터 이름" />}>
+        <Panel title="크리에이터별" sub="금액은 원화 환산, 부가세 포함. 이름을 누르면 그 크리에이터의 지급 이력이 열립니다" action={<SearchBox q={q} f={sp.f} n={cRows.length} total={creators.length} placeholder="크리에이터 이름" />}>
           <Table head={['이름', '건수', '송금 완료', '진행 중', '미정', '다음 송금일', '마지막 송금일']} tall
             sort={{ keys: ['name', 'n', 'done', 'plan', 'open', 'next', 'last'], cur: s, href: (k) => q({ s: k }) }}>
             {cRows.map((x) => (
@@ -369,7 +379,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               {filtered && <Link href={q({ st: undefined, cur: undefined, bl: undefined, t: undefined, cy: undefined, nc: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">필터 지우기</Link>}
             </CleanForm>
           </div>
-          <p className="text-xs text-neutral-500">{rows.length}건 / {base.length}건, {curText(rowSum)}, 원화 환산 {won(rowSum.krw)}</p>
+          <p className="text-xs text-neutral-500">{rows.length}건 / {base.length}건, {curText(rowSum)}, 원화 환산(부가세 포함) {won(rowSum.krw)}</p>
           {legend}
           <RowsTable xs={rows} tall={!sp.sel} />
         </section>
@@ -392,7 +402,7 @@ function CreatorPanel({ name, k, xs, back, rates, reason }: { name: string; k: s
       </div>
       <h2 className="text-base font-semibold text-neutral-50">{name}</h2>
       <p className="text-sm text-neutral-300">
-        이 크리에이터: 송금 완료 {won2(done.krw)}({done.n}건), 진행 중 {won2(flight.krw)}({flight.n}건), 미정 {won2(held.krw)}({held.n}건)
+        이 크리에이터(부가세 포함): 송금 완료 {won2(done.krw)}({done.n}건), 진행 중 {won2(flight.krw)}({flight.n}건), 미정 {won2(held.krw)}({held.n}건)
         {blocked.length > 0 && <span className="text-amber-300">, 막힌 사유 {blocked.map(([k, n], i) => <span key={k}>{i ? ', ' : ''}<Link href={reason(k)} className="underline hover:text-amber-200">{k} {n}</Link></span>)}</span>}
       </p>
     </div>
