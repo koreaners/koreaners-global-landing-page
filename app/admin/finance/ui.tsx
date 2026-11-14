@@ -53,7 +53,8 @@ export function Table({ head, left = 1, sort, tall, tips, foot, groups, children
           {groups && (
             <tr>
               {groups.map(([g, n], i) => (
-                <th key={i} colSpan={n} className={`px-1.5 2xl:px-2 pt-2 font-semibold text-neutral-300 ${g ? 'border-b border-neutral-700' : ''} ${i ? 'border-l border-neutral-800' : ''}`}>{g}</th>
+                // 테두리 대신 inset 그림자: border-collapse 표의 고정 머리글은 크롬이 테두리를 안 칠해 그 1px 틈으로 스크롤된 행이 비침
+                <th key={i} colSpan={n} style={{ boxShadow: [g && 'inset 0 -1px 0 var(--color-neutral-700)', i && 'inset 1px 0 0 var(--color-neutral-800)'].filter(Boolean).join(', ') || undefined }} className="px-1.5 2xl:px-2 pt-2 pb-1 font-semibold text-neutral-300">{g}</th>
               ))}
             </tr>
           )}
