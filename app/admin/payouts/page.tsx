@@ -288,7 +288,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             }) : <p className="text-sm text-neutral-500">이번 회차에 진행 중인 행이 없습니다.</p>}
           </Panel>
           {late.length > 0 && (
-            <Panel title={`송금일이 지났는데 진행 중 (${late.length}건)`} sub="지난 회차 송금일에 나갔어야 하는데 아직 송금 완료가 아닌 행입니다. 모인, 은행에서 실제로 나갔는지 확인하고 노션 상태를 고칩니다">
+            <Panel title={`송금일이 지났는데 진행 중 (${late.length}건)`} sub="지난 회차 송금일에 나갔어야 하는데 아직 송금 완료가 아닌 행입니다. 송금 가능 행은 다음 송금 묶음에 함께 들어갑니다(정산 람다는 송금 예정일과 관계없이 송금 가능을 모두 묶음). 모인 접수, 원화 이체 대기 행은 모인, 은행에서 실제로 나갔는지 확인하고 노션 상태를 고칩니다">
               <RowsTable xs={late} />
             </Panel>
           )}
