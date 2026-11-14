@@ -429,7 +429,9 @@ export const ownersOf = (c: Contract): string[] => {
 
 /** 지급 기준일: 송금일, 없으면 송금 요청일, 없으면 연결 계약 기준일 */
 /** 크리에이터 묶기 키: 수취인(계좌)이 같으면 이름이 달라도 한 사람 */
-export const creatorKey = (p: Payout) => p.payeeId || p.name
+// 이름 비교 키: 대소문자, 연속 공백(줄바꿈 없는 공백 포함), 전각 차이만 무시. 같은 수취인이 「Sunnyway Inc.」, 「SUNNYWAY INC.」로 갈리던 14쌍(261114 정산 마스터 대조)
+export const nameKey = (s: string) => (s ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim().toUpperCase()
+export const creatorKey = (p: Payout) => p.payeeId || nameKey(p.name)
 // 크리에이터 대표 이름: 같은 키 지급 가운데 가장 최근(송금일, 없으면 요청일, 같으면 지급 ID 큰 것)의 이름. 재무와 정산 마스터가 같이 씀
 const recency = (p: Payout) => (p.sentDate ?? p.reqDate ?? '') + String(p.pid ?? 0).padStart(6, '0')
 export const latestName = (ps: Payout[]) => ps.reduce((a, p) => (recency(p) > recency(a) ? p : a)).name

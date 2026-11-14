@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
-import { addMonth, bundleDay, CLOSED, creatorKey, grossPayoutKrw, latestName, needsLink, netPayoutKrw, payday, payoutDue, type Contract, type Payout, type Rates } from '@/lib/finance/model'
+import { addMonth, bundleDay, CLOSED, creatorKey, grossPayoutKrw, nameKey, latestName, needsLink, netPayoutKrw, payday, payoutDue, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
@@ -126,8 +126,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
 
   // 3. 크리에이터별: 이름으로 묶음(수취인으로 묶으면 수취인 빈 2025 소급 행이 따로 줄이 됨, 인혁 261113)
   const names = new Map<string, Payout[]>()
-  for (const p of all) names.set(p.name, [...(names.get(p.name) ?? []), p])
-  const creators = [...names.entries()].map(([name, xs]) => {
+  for (const p of all) names.set(nameKey(p.name), [...(names.get(nameKey(p.name)) ?? []), p])
+  const creators = [...names.values()].map((xs) => {
+    const name = latestName(xs)
     const dates = (f: (p: Payout) => string | null | undefined) => xs.map(f).filter((d): d is string => !!d).sort()
     return {
       name,
@@ -146,7 +147,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
 
   // 4. 지급 행: 고른 크리에이터, 상태, 통화, 막힌 사유, 회차, 계약 연결, 글 검색
   // sel: 이 화면에선 이름, 재무 크리에이터 탭에서 오면 수취인 키
-  const base = sp.sel ? all.filter((p) => p.name === sp.sel || creatorKey(p) === sp.sel) : all
+  const base = sp.sel ? all.filter((p) => nameKey(p.name) === nameKey(sp.sel!) || creatorKey(p) === sp.sel) : all
   const selName = base.length ? latestName(base) : sp.sel
   const rows = base
     .filter((p) => (!sp.st || (sp.st === OPEN ? p.status !== DONE : p.status === sp.st)) && (!sp.cur || (p.currency ?? '미상') === sp.cur) && (!sp.bl || p.blocked.includes(sp.bl)))

@@ -1,6 +1,6 @@
 // 노션 Contract DB, 지급내역 DB 전체 조회와 정리. next 에 기대지 않아 점검 스크립트도 그대로 쓴다.
 import { Client } from '@notionhq/client'
-import type { BankLink, Contract, Currency, Payout } from './model'
+import { nameKey, type BankLink, type Contract, type Currency, type Payout } from './model'
 import { createAdminClient } from '../supabase/admin'
 
 type Prop = { type: string; [k: string]: unknown }
@@ -184,9 +184,9 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
  * payeeId는 creatorKey만 쓰므로 여기서 한 번 채우면 크리에이터 탭, 정산 마스터, 자금 캘린더가 같이 따라옴 */
 export function bindPayeeByName(ps: Payout[]): Payout[] {
   const by = new Map<string, Set<string>>()
-  for (const p of ps) if (p.payeeId) by.set(p.name, (by.get(p.name) ?? new Set()).add(p.payeeId))
+  for (const p of ps) if (p.payeeId) by.set(nameKey(p.name), (by.get(nameKey(p.name)) ?? new Set()).add(p.payeeId))
   return ps.map((p) => {
-    const s = p.payeeId ? null : by.get(p.name)
+    const s = p.payeeId ? null : by.get(nameKey(p.name))
     return s?.size === 1 ? { ...p, payeeId: [...s][0] } : p
   })
 }
