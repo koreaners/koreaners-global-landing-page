@@ -279,7 +279,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   if (overdueN) todo.push(['입금 예정일이 지난 매출채권', `${overdueN}건`, overdueKrw, q({ tab: 'contracts', st: 'overdue' }), true])
   if (held?.count) todo.push(['보류 중인 지급', `${held.count}행`, held.krw, '#payables', true])
   if (noDue.count) todo.push(['입금 예정일이 없는 매출채권', `${noDue.count}건`, noDue.krw, '#receivables', false])
-  if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, '/admin/payouts?v=rows&nc=none', false])
+  if (model.gaps.unlinked.count) todo.push(['수입 계약에 연결되지 않은 지급', `${model.gaps.unlinked.count}행`, model.gaps.unlinked.krw, q({ tab: 'basis' }), false])
 
   const bMax = Math.max(...buckets.map((b) => b.krw))
   const pMax = Math.max(1, ...model.payables.map((b) => b.krw))
@@ -375,7 +375,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 부가세 포함(세금계산서 VAT 별도는 10% 더함), 원천세 공제 전, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link><Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link></span>}>
+        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 부가세 포함(세금계산서 VAT 별도는 10% 더함), 원천세 공제 전, 원화 환산" action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link>}>
           <div className="space-y-2.5">
             {model.payables.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
@@ -700,7 +700,6 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between gap-3">
           <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
-          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
         </div>
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}{picked.aliases.length > 0 && <span className="ml-2 text-xs font-normal text-neutral-500">다른 이름 {picked.aliases.join(', ')}</span>} <Insta urls={igs.get(picked.key)} /></h2>
@@ -723,7 +722,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
               <CashflowChart data={creatorFlow(picked.months)} inColor={REV} outColor={SET} names={{ in: '매출 몫', out: '정산액', net: '', count: '안건 수' }} />
             </div>
           )}
-          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 몫(「매출 단가」가 있는 행은 그 값), 원가는 그 몫에 대응하는 지급. 합계 줄이 위 카드와 같음. 송금 처리는 <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="underline hover:text-neutral-300">정산 마스터</Link>에서</span></h3>
+          <h3 className="pt-2 text-sm font-semibold text-neutral-100">지급 행 <span className="ml-1 text-xs font-normal text-neutral-500">노션 지급내역 DB, 계약월 최근순. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 몫(「매출 단가」가 있는 행은 그 값), 원가는 그 몫에 대응하는 지급. 합계 줄이 위 카드와 같음. 송금 처리는 노션 지급내역 DB에서</span></h3>
           <CreatorLines lines={picked.lines} flags={new Map(picked.shares.map((s) => [s.c.id, s.flag]))} q={q} />
         </div>
       </div>
@@ -737,7 +736,6 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
-        <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
       </div>
       <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '원가', '마진', '건당 평균 마진', '마진율', '정산 합계', '정산 건수', '건당 평균 정산', '송금 완료', '진행 중', '미지급, 보류']} tall tips={CREATOR_TIPS}
         groups={[['', 2], ['수익성', 7], ['지급 현황', 6]]}
@@ -821,7 +819,7 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
     ['공급가가 없는 수입 계약(합계에서 빠짐)', `${g.noSupply}건`],
     ['날짜(계약일자, 시작일, 입금일)가 없는 수입 계약', `${g.noDay}건`],
     ['선금, 잔금 금액을 읽지 못해 반반으로 나눈 계약', `${g.estimatedSplit}건`],
-    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', <Link key="u" href="/admin/payouts?v=rows&nc=none" className="text-sky-300 hover:underline">{g.unlinked.count}행, {won(g.unlinked.krw)} →</Link>],
+    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', `${g.unlinked.count}행, ${won(g.unlinked.krw)}`],
     ['송금일 없이 신청일로 센 송금 완료(정산 어림)', `${g.doneByReq.count}행, ${won(g.doneByReq.krw)}`],
     ['송금일, 신청일 모두 없는 송금 완료(정산에서 빠짐)', `${g.doneNoDate.count}행, ${won(g.doneNoDate.krw)}`],
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],

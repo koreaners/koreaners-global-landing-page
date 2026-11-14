@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp, Banknote, Clock, HandCoins } from 'lucide-react'
+import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp, Clock, HandCoins } from 'lucide-react'
 import Link from 'next/link'
 
 // 재무 메뉴는 /admin/finance 의 tab 쿼리. 고른 연도(y), 월(m), 집계 기준(b)은 메뉴를 옮겨도 유지
@@ -51,10 +51,6 @@ function Nav({ onSignOut, role }: { onSignOut: () => void; role?: string }) {
           {label}
         </Link>
       ))}
-      <Link href="/admin/payouts" className={item(pathname.startsWith('/admin/payouts'))}>
-        <Banknote className="h-4 w-4" />
-        정산 마스터
-      </Link>
       <p className="hidden px-3 pb-1 pt-4 text-xs text-neutral-600 md:block">보고</p>
       <Link href="/admin/reports" className={item(pathname.startsWith('/admin/reports'))}>
         <FileText className="h-4 w-4" />
