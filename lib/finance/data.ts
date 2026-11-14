@@ -13,6 +13,8 @@ const load = () => (inflight ??= loadFinance(process.env).finally(() => { inflig
 
 const cached = unstable_cache(async () => gzipSync(JSON.stringify(await load())).toString('base64'), ['admin-finance-v10'], { revalidate: TTL, tags: ['admin-finance'] })
 
-export async function getFinance(): Promise<FinanceData> {
-  return JSON.parse(gunzipSync(Buffer.from(await cached(), 'base64')).toString())
+/** fresh: 5분보다 낡은 캐시면 노션을 직접 다시 읽음. 화면은 빠르게(false), 정산 람다 미수 알림이 읽는 받을 돈 API는 최신으로(true) */
+export async function getFinance({ fresh = false } = {}): Promise<FinanceData> {
+  const d: FinanceData = JSON.parse(gunzipSync(Buffer.from(await cached(), 'base64')).toString())
+  return fresh && Date.now() - Date.parse(d.fetchedAt) > TTL * 1000 ? load() : d
 }

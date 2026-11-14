@@ -20,7 +20,7 @@ function authorized(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  const [data, rates] = await Promise.all([getFinance(), getRates()])
+  const [data, rates] = await Promise.all([getFinance({ fresh: true }), getRates()])
   const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
   const m = buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, 'cash', data.bankLinks)
   const rows = m.receivables.open.map((o) => ({
