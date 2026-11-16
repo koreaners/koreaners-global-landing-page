@@ -115,7 +115,8 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
         {r.tiles.map((t) => {
           const note = [...t.value.slice(1), t.sub].filter(Boolean).join(' · ')
           return (
-            <Go key={t.label} href={t.href} className={`flex flex-col gap-1 rounded-xl border p-5 ${t.alert ? 'border-red-900 bg-red-950/40' : 'border-neutral-800 bg-neutral-900'}`}>
+            // 경고 카드도 테두리, 바탕은 중립. 빨강은 값 글자에만(261116 감사, 개요 할 일 카드와 같은 규칙)
+            <Go key={t.label} href={t.href} className="flex flex-col gap-1 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
               <span className="text-sm text-neutral-400">{t.label}</span>
               <span className={`text-xl font-semibold tabular-nums ${t.alert ? 'text-red-300' : 'text-neutral-50'}`}>{t.value[0]}</span>
               {note && <span className="text-[13px] text-neutral-500">{note}</span>}
