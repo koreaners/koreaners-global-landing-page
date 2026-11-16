@@ -22,7 +22,8 @@ export const hm = (iso: string) => new Date(Date.parse(iso) + KST).toISOString()
 /** KST 날짜 YYYY-MM-DD */
 export const kstDate = (iso: string) => new Date(Date.parse(iso) + KST).toISOString().slice(0, 10)
 /** '2026-11-05' -> '11/05(목)' */
-export const dayLabel = (d: string) => `${d.slice(5, 7)}/${d.slice(8, 10)}(${WD[new Date(`${d}T12:00:00Z`).getUTCDay()]})`
+// 날짜는 어드민 공통 표기(2026-11-16)에 요일만 붙임(261116 감사)
+export const dayLabel = (d: string) => `${d}(${WD[new Date(`${d}T12:00:00Z`).getUTCDay()]})`
 /** 근무일 기준 이번 달(하루 경계는 KST 05:00, 봇과 같음) */
 export const thisMonth = (now = Date.now()) => new Date(now + KST - 5 * 3_600_000).toISOString().slice(0, 7)
 export const addMonth = (ym: string, n: number) => {

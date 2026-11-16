@@ -155,7 +155,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
             <div className="flex flex-wrap items-center gap-x-2">
               <span className="w-8 text-neutral-500">상태</span>
               <Legend items={ST.slice(0, 4).map(([, l, c]) => [l, c])} />
-              <Info align="right" text="기록은 NFC 출퇴근을 시작한 11/09부터입니다. 미출근과 퇴근 누락은 평일 중 자정이 지난 날에만 셉니다." />
+              <Info align="right" text="기록은 NFC 출퇴근을 시작한 2026-11-09부터입니다. 미출근과 퇴근 누락은 평일 중 자정이 지난 날에만 셉니다." />
             </div>
             <p className="text-neutral-500">날짜를 누르면 아래에 그날 목록이 나옵니다</p>
           </div>
