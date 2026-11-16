@@ -49,82 +49,94 @@ const Head = ({ s, className }: { s: string; className: string }) => {
   return <th className={`${th} ${className}`}>{a}{b && <span className="block text-[11px] font-normal text-neutral-600">{b}</span>}</th>
 }
 
-// 묶음마다 머리 줄, 줄마다 지표 | 값 | 목표 | 달성률 | (주차별, 비교) | 기준. 좁은 화면은 목표와 기준을 지표, 값 아래로 내림.
-// 감싸는 overflow 상자를 두지 않음(ⓘ 말풍선이 잘림). 그래서 넓은 칸은 화면 폭에 따라 숨김
+// 칸을 보일지는 화면 폭이 아니라 표가 놓인 상자 폭으로 정함(@container: 어드민 사이드바, 카드 안쪽 여백과 상관없이 맞음). Tailwind 클래스는 정적 문자열이라 경우별로 적어 둠
+// 상자 폭 672px(@2xl)부터 목표, 달성률 칸. 주차 칸은 주차와 비교 칸이 3개 이하면 1024px(@5xl), 4개 이상이면 1152px(@6xl)부터.
+// 기준 칸은 주차 칸이 없으면 896px(@4xl), 3개 이하면 1280px(@7xl)부터, 4개 이상이면 늘 지표 이름 아래(5주차 달은 칸이 모자람)
+const LAYOUT = {
+  0: { wk: '', col: '@4xl:table-cell', in: '@4xl:hidden', lab: 'w-full @4xl:w-auto', nw: '@4xl:whitespace-nowrap' },
+  3: { wk: '@5xl:table-cell', col: '@7xl:table-cell', in: '@7xl:hidden', lab: 'w-full @7xl:w-auto', nw: '@7xl:whitespace-nowrap' },
+  6: { wk: '@6xl:table-cell', col: '', in: '', lab: 'w-full', nw: '' },
+} as const
+
+// 묶음마다 머리 줄, 줄마다 지표 | 값 | 목표 | 달성률 | (주차별, 비교) | 기준. 좁으면 목표, 달성률, 기준을 지표와 값 아래로 내림.
+// 주차별과 비교 칸은 좁은 상자에선 빠짐(값은 넓은 화면이나 보고서 원문에서). 감싸는 overflow 상자를 두지 않음(ⓘ 말풍선이 잘림)
 export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { groups: [string, Item[]][]; weeks?: { label: string; span: string }[]; mtd?: string; missing?: string }) {
   const rows = groups.flatMap(([, xs]) => xs.map((x) => x.row))
   const hasMtd = !!mtd && rows.some((r) => r?.mtd)
-  // 주차가 4주 이상인 달은 칸이 많아 기준 칸이 좁아짐: 아주 넓은 화면 전까진 기준을 지표 이름 아래로
-  const wide = (weeks?.length ?? 0) + (hasMtd ? 1 : 0) >= 4
-  const [noteCol, noteIn] = wide ? ['2xl:table-cell', '2xl:hidden'] : ['md:table-cell', 'md:hidden']
+  const n = (weeks?.length ?? 0) + (hasMtd ? 1 : 0)
+  const L = LAYOUT[n === 0 ? 0 : n <= 3 ? 3 : 6]
+  const mid = 'hidden @2xl:table-cell'
   return (
-    <table className="w-full text-[13px]">
-      <thead className="text-xs text-neutral-500">
-        <tr className="border-b border-neutral-800">
-          <th className="py-2 pr-3 text-left font-medium">지표</th>
-          <th className={th}>값</th>
-          <th className={`${th} hidden sm:table-cell`}>목표</th>
-          <th className={`${th} hidden sm:table-cell`}>달성률</th>
-          {weeks?.map((w) => <Head key={w.label} s={`${w.label}(${w.span})`} className="hidden lg:table-cell" />)}
-          {hasMtd && <Head s={mtd!} className="hidden lg:table-cell" />}
-          <th className={`hidden w-full py-2 pl-3 text-left font-medium ${noteCol}`}>기준</th>
-        </tr>
-      </thead>
-      {groups.map(([g, items]) => (
-        <tbody key={g}>
-          <tr>
-            <td colSpan={99} className="border-b border-neutral-800 pb-1.5 pt-5 text-xs font-semibold text-neutral-300">{g}</td>
+    <div className="@container">
+      <table className="w-full text-[13px]">
+        <thead className="text-xs text-neutral-500">
+          <tr className="border-b border-neutral-800">
+            <th className={`py-2 pr-3 text-left font-medium ${L.lab}`}>지표</th>
+            <th className={th}>값</th>
+            <th className={`${th} ${mid}`}>목표</th>
+            <th className={`${th} ${mid}`}>달성률</th>
+            {weeks?.map((w) => <Head key={w.label} s={`${w.label}(${w.span})`} className={`hidden ${L.wk}`} />)}
+            {hasMtd && <Head s={mtd!} className={`hidden ${L.wk}`} />}
+            <th className={`hidden w-full py-2 pl-3 text-left font-medium ${L.col}`}>기준</th>
           </tr>
-          {items.map(({ label, code, row: r }) => {
-            const [big, sub] = r && !off(r) ? split(r.value) : ['', '']
-            const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`].filter(Boolean).join('\n')
-            return (
-              <tr key={label} className="border-b border-neutral-800/60 align-top">
-                <td className={`py-2 pr-3 ${wide ? '' : 'md:whitespace-nowrap'}`}>
-                  <span className="flex items-start gap-2">
-                    <Dot light={r?.light} hollow={plain(r)} className="mt-1.5" />
-                    <span className="min-w-0">
-                      <span className={off(r) ? 'text-neutral-500' : 'text-neutral-200'}>
-                        {code && <span className="mr-1 font-mono text-[11px] text-neutral-500">{code}</span>}
-                        {label}
-                        {tip && <span className="ml-1 inline-flex align-[-2px]"><Info text={tip} /></span>}
+        </thead>
+        {groups.map(([g, items]) => (
+          <tbody key={g}>
+            <tr>
+              <td colSpan={99} className="border-b border-neutral-800 pb-1.5 pt-5 text-xs font-semibold text-neutral-300">{g}</td>
+            </tr>
+            {items.map(({ label, code, row: r }) => {
+              const [big, sub] = r && !off(r) ? split(r.value) : ['', '']
+              const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`].filter(Boolean).join('\n')
+              const small = [r?.target && `목표 ${r.target}`, r?.rate != null && `달성 ${r.rate}%`].filter(Boolean).join(', ')
+              return (
+                <tr key={label} className="border-b border-neutral-800/60 align-top">
+                  <td className={`py-2 pr-3 ${L.nw}`}>
+                    <span className="flex items-start gap-2">
+                      <Dot light={r?.light} hollow={plain(r)} className="mt-1.5" />
+                      <span className="min-w-0">
+                        <span className={off(r) ? 'text-neutral-500' : 'text-neutral-200'}>
+                          {code && <span className="mr-1 font-mono text-[11px] text-neutral-500">{code}</span>}
+                          {label}
+                          {tip && <span className="ml-1 inline-flex align-[-2px]"><Info text={tip} /></span>}
+                        </span>
+                        {r?.note && <span className={`block text-[11px] leading-snug text-neutral-500 ${L.in}`}>{r.note}</span>}
                       </span>
-                      {r?.note && <span className={`block text-[11px] leading-snug text-neutral-500 ${noteIn}`}>{r.note}</span>}
                     </span>
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                  {off(r) ? (
-                    <span className="text-xs text-neutral-500">{r ? r.value : missing}</span>
-                  ) : (
-                    <>
-                      <span className="text-[15px] font-semibold text-neutral-50">{big}</span>
-                      {sub && <span className="ml-1.5 text-xs text-neutral-500">{sub}</span>}
-                    </>
-                  )}
-                  {r?.target && <span className="block text-[11px] text-neutral-500 sm:hidden">목표 {r.target}</span>}
-                </td>
-                <td className="hidden whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-400 sm:table-cell">{r?.target}</td>
-                <td className="hidden px-3 py-2 sm:table-cell">
-                  {r?.rate != null && (
-                    <span className="flex items-center justify-end gap-2 tabular-nums">
-                      <span className="h-1.5 w-14 overflow-hidden rounded-full bg-neutral-800">
-                        <i className={`block h-full rounded-full ${r.light ? DOT[r.light] : 'bg-neutral-500'}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                    {off(r) ? (
+                      <span className="text-xs text-neutral-500">{r ? r.value : missing}</span>
+                    ) : (
+                      <>
+                        <span className="text-[15px] font-semibold text-neutral-50">{big}</span>
+                        {sub && <span className="ml-1.5 text-xs text-neutral-500">{sub}</span>}
+                      </>
+                    )}
+                    {small && <span className="block text-[11px] text-neutral-500 @2xl:hidden">{small}</span>}
+                  </td>
+                  <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-400 ${mid}`}>{r?.target}</td>
+                  <td className={`px-3 py-2 ${mid}`}>
+                    {r?.rate != null && (
+                      <span className="flex items-center justify-end gap-2 tabular-nums">
+                        <span className="h-1.5 w-14 overflow-hidden rounded-full bg-neutral-800">
+                          <i className={`block h-full rounded-full ${r.light ? DOT[r.light] : 'bg-neutral-500'}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                        </span>
+                        <span className="w-11 text-right text-neutral-200">{r.rate}%</span>
                       </span>
-                      <span className="w-11 text-right text-neutral-200">{r.rate}%</span>
-                    </span>
-                  )}
-                </td>
-                {weeks?.map((w, i) => (
-                  <td key={w.label} className="hidden whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-300 lg:table-cell">{r?.weeks?.[i]}</td>
-                ))}
-                {hasMtd && <td className="hidden whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-400 lg:table-cell">{r?.mtd}</td>}
-                <td className={`hidden py-2 pl-3 text-xs leading-relaxed text-neutral-500 ${noteCol}`}>{r?.note}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      ))}
-    </table>
+                    )}
+                  </td>
+                  {weeks?.map((w, i) => (
+                    <td key={w.label} className={`hidden whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-300 ${L.wk}`}>{r?.weeks?.[i]}</td>
+                  ))}
+                  {hasMtd && <td className={`hidden whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-400 ${L.wk}`}>{r?.mtd}</td>}
+                  <td className={`hidden py-2 pl-3 text-xs leading-relaxed text-neutral-500 ${L.col}`}>{r?.note}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        ))}
+      </table>
+    </div>
   )
 }
