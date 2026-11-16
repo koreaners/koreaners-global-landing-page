@@ -173,7 +173,8 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const RowsTable = ({ xs, tall }: { xs: Payout[]; tall?: boolean }) => (
     // 칸 폭 고정: 이번 회차에 단계별로 쌓인 표끼리 상태, 지급액 칸 위치를 맞춤(261116 감사). 합 71.5rem, 1440px 화면 패널 안에 들어감
     <Table head={['지급 ID', '영문이름', '안건', '상태', '막힌 사유', '지급액', '공제', '실지급액(원화)', '송금 예정일, 송금일', '송금 요청일']} left={3} tall={tall}
-      cols={['3.5rem', '9rem', '9rem', '6.5rem', '7.5rem', '7.5rem', '8.5rem', '6.5rem', '7.5rem', '6rem']}>
+      // 칸 폭은 운영 내용 폭 실측(261116 1440px) + 여백. 안건은 auto 로 남는 폭을 모두 받음(긴 안건명이 144px 에서 잘리던 문제, 표가 상자보다 3px 넓던 문제)
+      cols={['3.25rem', '11.5rem', 'auto', '5.75rem', '6rem', '6.75rem', '7.75rem', '5.5rem', '7rem', '5.25rem']}>
       {xs.map((p) => {
         const c = p.contractId ? byId.get(p.contractId) : undefined
         const d = slots.get(p.id)!.date
