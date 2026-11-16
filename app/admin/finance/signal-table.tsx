@@ -46,7 +46,7 @@ export function SignalLegend({ className = '' }: { className?: string }) {
 const th = 'whitespace-nowrap px-3 py-2 text-right font-medium'
 const Head = ({ s, className }: { s: string; className: string }) => {
   const [a, b] = head(s)
-  return <th className={`${th} ${className}`}>{a}{b && <span className="block text-[11px] font-normal text-neutral-600">{b}</span>}</th>
+  return <th className={`${th} ${className}`}>{a}{b && <span className="block text-xs font-normal text-neutral-600">{b}</span>}</th>
 }
 
 // 칸을 보일지는 화면 폭이 아니라 표가 놓인 상자 폭으로 정함(@container: 어드민 사이드바, 카드 안쪽 여백과 상관없이 맞음). Tailwind 클래스는 정적 문자열이라 경우별로 적어 둠
@@ -108,11 +108,11 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
                       <Dot light={r?.light} hollow={plain(r)} className="mt-1.5" />
                       <span className="min-w-0">
                         <span className={off(r) ? 'text-neutral-500' : 'text-neutral-200'}>
-                          {code && <span className="mr-1 font-mono text-[11px] text-neutral-500">{code}</span>}
+                          {code && <span className="mr-1 font-mono text-xs text-neutral-500">{code}</span>}
                           {label}
                           {tip && <span className="ml-1 inline-flex align-[-2px]"><Info text={tip} /></span>}
                         </span>
-                        {r?.note && <span className={`block text-[11px] leading-snug text-neutral-500 ${L.in}`}>{r.note}</span>}
+                        {r?.note && <span className={`block text-xs leading-snug text-neutral-500 ${L.in}`}>{r.note}</span>}
                       </span>
                     </span>
                   </td>
@@ -121,11 +121,11 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
                       <span className="text-xs text-neutral-500">{r ? r.value : missing}</span>
                     ) : (
                       <>
-                        <span className="text-[15px] font-semibold text-neutral-50">{big}</span>
+                        <span className="text-sm font-semibold text-neutral-50">{big}</span>
                         {sub && <span className="ml-1.5 text-xs text-neutral-500">{sub}</span>}
                       </>
                     )}
-                    {small && <span className="block text-[11px] text-neutral-500 @2xl:hidden">{small}</span>}
+                    {small && <span className="block text-xs text-neutral-500 @2xl:hidden">{small}</span>}
                   </td>
                   <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-400 ${mid}`}>{r?.target}</td>
                   <td className={`px-3 py-2 ${mid}`}>

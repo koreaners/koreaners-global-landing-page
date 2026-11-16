@@ -96,7 +96,7 @@ export function AdminLayoutClient({ children, role }: { children: React.ReactNod
     // 전역 css의 html, body overflow-x: hidden 때문에 sticky가 안 먹어, 화면 높이 껍데기 안에서 main만 스크롤
     <div data-admin className="flex h-dvh flex-col overflow-hidden bg-neutral-950 [color-scheme:dark] md:flex-row">
       <aside className="z-50 flex shrink-0 flex-col gap-3 border-b border-neutral-800 bg-neutral-950 px-3 py-3 md:w-48 md:border-b-0 2xl:w-56 md:border-r md:py-5">
-        <Link href="/admin" className="px-3 text-sm font-semibold tracking-tight text-neutral-50">
+        <Link href="/admin" className="px-3 text-sm font-semibold text-neutral-50">
           KOREANERS
         </Link>
         <Suspense>

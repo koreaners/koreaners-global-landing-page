@@ -2,12 +2,9 @@ import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { REPORTS_BUCKET, parseReportKey } from '@/lib/reports'
+import { at } from '@/app/admin/finance/ui'
 
 export const dynamic = 'force-dynamic'
-
-const WD = ['일', '월', '화', '수', '목', '금', '토']
-// '2026-10-12' -> '10. 12.(월)'
-const day = (iso: string) => `${+iso.slice(5, 7)}. ${+iso.slice(8)}.(${WD[new Date(`${iso}T12:00:00Z`).getUTCDay()]})`
 
 // 비공개 버킷의 보고서 목록(brain-weekly 가 매주 월 07:00 올림). 읽기 권한은 storage RLS(app_metadata.role admin, exec)가 정한다.
 export default async function ReportsPage() {
@@ -24,7 +21,7 @@ export default async function ReportsPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-xl font-semibold text-neutral-50">경영진 보고서</h1>
-        <p className="text-sm text-neutral-500">매주 월요일 07:00에 지난주(월~일) 주간 경영 리포트가 올라옵니다.</p>
+        <p className="text-sm text-neutral-500">매주 월요일 07:00에 지난주(월~일) 주간 경영 리포트가 올라옵니다</p>
       </div>
 
       {error && <p className="text-sm text-red-400">목록을 불러오지 못했습니다: {error.message}</p>}
@@ -48,13 +45,13 @@ export default async function ReportsPage() {
                     <Link href={`/admin/reports/view?name=${encodeURIComponent(r.name)}`} className="after:absolute after:inset-0">
                       {r.title}
                     </Link>
-                    {i === 0 && <span className="ml-2 rounded bg-sky-950 px-1.5 py-0.5 text-[11px] text-sky-300">최신</span>}
+                    {i === 0 && <span className="ml-2 rounded bg-sky-950 px-1.5 py-0.5 text-xs text-sky-300">최신</span>}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-neutral-400">
-                    {r.start.slice(0, 4)}. {day(r.start)} ~ {day(r.end)}
+                    {r.start} ~ {r.end}
                   </td>
                   <td className="hidden px-4 py-3 tabular-nums text-neutral-500 sm:table-cell">
-                    {r.updated ? new Date(r.updated).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }) : ''}
+                    {r.updated ? at(r.updated) : ''}
                   </td>
                   <td className="pr-3 text-neutral-600 group-hover:text-neutral-300">
                     <ChevronRight className="h-4 w-4" />

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Info as InfoIcon } from 'lucide-react'
 import { CleanForm } from './auto-form'
 import { FitBox } from './fit-box'
 import type { Currency, Payout } from '@/lib/finance/model'
@@ -10,6 +11,8 @@ export const won = (n: number | null | undefined) => (n == null ? '-' : `${Math.
 export const won2 = (n: number) => (Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).toLocaleString('ko-KR')}만원` : won(n))
 // 표 링크: 강조색 대신 밝은 중립색, 마우스를 올리면 밑줄(261116 감사: 행마다 하늘색 링크가 깔려 강조가 묻힘). 강조색은 선택된 행, 날에만
 export const LINK = 'text-neutral-100 underline-offset-2 hover:underline'
+// 날짜, 시각 표기 한 벌(261116 감사: 한 줄에 「2026-11-09」와 「2026. 11. 16. 오전 7:01」이 섞임). 날짜는 2026-11-16, 시각은 2026-11-16 07:01, 모두 KST
+export const at = (t: string | number | Date) => new Date(new Date(t).getTime() + 9 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ')
 export const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '통화 미상'}`)
 
 export const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }
@@ -32,11 +35,7 @@ export function Card({ label, value, note }: { label: string; value: string; not
 export function Info({ text, align = 'left', up }: { text: string; align?: 'left' | 'right'; up?: boolean }) {
   return (
     <span tabIndex={0} aria-label={text} className="group relative inline-flex shrink-0 cursor-help align-middle text-neutral-500 outline-none hover:text-neutral-200 focus:text-neutral-200">
-      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
-        <circle cx="8" cy="8" r="6.5" />
-        <path d="M8 7.3v3.9" strokeLinecap="round" />
-        <circle cx="8" cy="4.9" r="0.7" fill="currentColor" stroke="none" />
-      </svg>
+      <InfoIcon className="h-3.5 w-3.5" aria-hidden />
       <span aria-hidden className={`pointer-events-none invisible absolute z-30 w-64 ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} whitespace-pre-line break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
         {text}
       </span>
@@ -46,12 +45,13 @@ export function Info({ text, align = 'left', up }: { text: string; align?: 'left
 
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
 
-/** 표. sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 옆 ⓘ 설명(칸 이름은 정렬, 설명은 아이콘으로 나눔), foot은 표 아래 합계 줄, groups는 머리글 위 칸 묶음 이름과 칸 수 */
-export function Table({ head, left = 1, sort, tall, tips, foot, groups, children }: { head: string[]; left?: number; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; foot?: React.ReactNode; groups?: [string, number][]; children: React.ReactNode }) {
+/** 표. cols를 주면 칸 폭 고정(table-fixed, 위아래로 쌓인 같은 구성의 표끼리 칸 위치를 맞춤), sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 옆 ⓘ 설명(칸 이름은 정렬, 설명은 아이콘으로 나눔), foot은 표 아래 합계 줄, groups는 머리글 위 칸 묶음 이름과 칸 수 */
+export function Table({ head, left = 1, sort, tall, tips, foot, groups, cols, children }: { head: string[]; left?: number; cols?: string[]; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; foot?: React.ReactNode; groups?: [string, number][]; children: React.ReactNode }) {
   const Box = tall ? FitBox : 'div'
   return (
-    <Box className={`overflow-auto rounded-xl border border-neutral-800 bg-neutral-900 ${tall ? 'sm:max-h-[calc(100dvh-16rem)]' : ''}`}>
-      <table className="w-full text-[13px] 2xl:text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:bg-neutral-900 [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-neutral-900">
+    <Box className={`tbl overflow-auto rounded-xl border border-neutral-800 bg-neutral-900 ${tall ? 'sm:max-h-[calc(100dvh-16rem)]' : ''}`}>
+      <table className={`w-full ${cols ? 'table-fixed' : ''} text-[13px] 2xl:text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:bg-neutral-900 [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-neutral-900`}>
+        {cols && <colgroup>{cols.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>}
         <thead className="sticky top-0 z-10 bg-neutral-900 text-xs text-neutral-500">
           {groups && (
             <tr>
@@ -124,7 +124,7 @@ export function Money({ n }: { n: number | null | undefined }) {
   return <td className={td} title={won(n)}>{n == null ? '-' : won2(n)}</td>
 }
 
-export function Tile({ label, value, full, delta, note, spark, side, hint }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; spark?: React.ReactNode; side?: string; hint?: string }) {
+export function Tile({ label, value, full, delta, note, side, hint }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; side?: string; hint?: string }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
       <div className="flex h-6 items-start justify-between gap-2">
@@ -132,9 +132,8 @@ export function Tile({ label, value, full, delta, note, spark, side, hint }: { l
           {label}
           {hint && <span className="ml-1"><Info text={hint} align="right" /></span>}
         </p>
-        {spark}
       </div>
-      <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={full}>
+      <p className="text-2xl font-semibold text-neutral-50" title={full}>
         {value}
         {side && <span className="ml-2 text-base font-medium text-neutral-300">{side}</span>}
       </p>
@@ -149,13 +148,14 @@ export function Tile({ label, value, full, delta, note, spark, side, hint }: { l
 
 export function Panel({ id, title, sub, action, children }: { id?: string; title: string; sub: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section id={id} className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+    // 패널 안 표는 반경 4px(261116 감사: 같은 반경 12px 테두리가 겹쳐 이중 상자로 보임)
+    <section id={id} className="space-y-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5 [&_.tbl]:rounded-[4px]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <h2 className="text-sm font-semibold text-neutral-100">{title}</h2>
           <p className="mt-0.5 text-xs text-neutral-500">{sub}</p>
         </div>
-        {action}
+        {action && <div className="shrink-0 whitespace-nowrap">{action}</div>}
       </div>
       {children}
     </section>

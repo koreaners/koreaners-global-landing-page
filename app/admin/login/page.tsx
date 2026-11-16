@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
       <Card className="w-full max-w-md p-6 sm:p-8 bg-card border-border">
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold">관리자 로그인</h1>
+            <h1 className="text-2xl font-semibold">관리자 로그인</h1>
             <p className="text-muted-foreground mt-2">회사 구글 계정(koreaners.com)으로 로그인하세요</p>
           </div>
           <Button type="button" variant="outline" size="lg" className="w-full gap-3" disabled={loading} onClick={handleGoogle}>
