@@ -85,7 +85,7 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
             {/* 팀(묶음) 머리: 띠와 색별 개수로 팀 사이를 확실히 가름. 표 칸에는 둥근 모서리가 안 먹어서 안쪽 div 에 줌 */}
             <tr>
               <td colSpan={99} className={gi ? 'pt-7' : 'pt-3'}>
-                <div className="flex items-center gap-3 rounded-md border-l-2 border-neutral-500 bg-neutral-800/70 px-3 py-2">
+                <div className="flex items-center gap-3 rounded-md bg-neutral-800/70 px-3 py-2">
                   <span className="text-sm font-semibold text-neutral-100">{g}</span>
                   <span className="text-xs text-neutral-500">{items.length}개</span>
                   <span className="ml-auto flex items-center gap-3 text-xs tabular-nums text-neutral-400">
