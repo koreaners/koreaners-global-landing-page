@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import { SignalLegend, SignalTable, type Item } from '@/app/admin/finance/signal-table'
+import { COLOR as C } from '@/app/admin/finance/colors'
 import type { ColorKey, Legend, Ref, Seg, WeeklyReport } from '@/lib/reports'
 
 // 보고서 의미 색 -> 어드민 다크 화면 색
 const COLOR: Record<ColorKey, string> = {
-  c1: '#3b82f6', c2: '#f97316', c3: '#525252', c4: '#a78bfa', ok: '#22c55e', bad: '#ef4444', hum: '#f59e0b',
+  c1: C.in, c2: C.out, c3: '#525252', c4: C.guess, ok: C.good, bad: C.bad, hum: C.warn,
 }
 const fill = (c?: ColorKey, o?: number) => (c ? { background: COLOR[c], opacity: o } : undefined)
 
@@ -61,7 +62,7 @@ function Refs({ refs }: { refs: Ref[] }) {
     return (
       <span key={i}>
         {i > 0 && ', '}
-        {h ? <a href={h} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">{r.text}</a> : r.text}
+        {h ? <a href={h} target="_blank" rel="noreferrer" className="text-neutral-200 underline decoration-neutral-600 underline-offset-2 hover:decoration-neutral-300">{r.text}</a> : r.text}
       </span>
     )
   })

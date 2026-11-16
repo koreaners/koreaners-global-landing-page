@@ -6,7 +6,10 @@ import type { Currency, Payout } from '@/lib/finance/model'
 // 재무 대시보드(/admin/finance)와 정산 마스터(/admin/payouts)가 함께 쓰는 표, 칸, 금액 글
 
 export const won = (n: number | null | undefined) => (n == null ? '-' : `${Math.round(n).toLocaleString('ko-KR')}원`)
-export const won2 = (n: number) => (Math.abs(n) >= 1e8 ? `${(n / 1e8).toFixed(2)}억원` : Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).toLocaleString('ko-KR')}만원` : won(n))
+// 1만 원 이상은 늘 만원 단위(1억이 넘어도 「10,300만원」). 한 칸 안에 억원과 만원이 섞여 크기 비교가 어렵던 문제(261116 감사)
+export const won2 = (n: number) => (Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).toLocaleString('ko-KR')}만원` : won(n))
+// 표 링크: 강조색 대신 밝은 중립색, 마우스를 올리면 밑줄(261116 감사: 행마다 하늘색 링크가 깔려 강조가 묻힘). 강조색은 선택된 행, 날에만
+export const LINK = 'text-neutral-100 underline-offset-2 hover:underline'
 export const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '통화 미상'}`)
 
 export const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }

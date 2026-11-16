@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AutoForm } from '../finance/auto-form'
+import { COLOR } from '../finance/colors'
 import { Card, Info, Table, td, tdl } from '../finance/ui'
 import { fixAttendance } from './actions'
 import { addMonth, ATT_FROM, dayLabel, hm, kstDate, today, view as view0, type Absent, type Att } from './time'
@@ -12,11 +13,7 @@ const ROW = 'att-row'
 const inp = 'rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200'
 
 // 자금 캘린더와 같은 색
-const GOOD = '#3fae6a'
-const ALERT = '#e66767'
-const WARN = '#e0a84f'
-const FIX = '#5aa9e6'
-const MUTED = '#a3a3a3'
+const { good: GOOD, bad: ALERT, warn: WARN, fix: FIX, due: MUTED } = COLOR
 
 /** 줄 상태: 칩 필터와 상태 칸이 함께 씀 */
 type St = 'absent' | 'missing' | 'open' | 'fixed' | 'ok'
