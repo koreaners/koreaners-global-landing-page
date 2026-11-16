@@ -80,10 +80,22 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
             <th className={`hidden w-full py-2 pl-3 text-left font-medium ${L.col}`}>기준</th>
           </tr>
         </thead>
-        {groups.map(([g, items]) => (
+        {groups.map(([g, items], gi) => (
           <tbody key={g}>
+            {/* 팀(묶음) 머리: 띠와 색별 개수로 팀 사이를 확실히 가름. 표 칸에는 둥근 모서리가 안 먹어서 안쪽 div 에 줌 */}
             <tr>
-              <td colSpan={99} className="border-b border-neutral-800 pb-1.5 pt-5 text-xs font-semibold text-neutral-300">{g}</td>
+              <td colSpan={99} className={gi ? 'pt-7' : 'pt-3'}>
+                <div className="flex items-center gap-3 rounded-md border-l-2 border-neutral-500 bg-neutral-800/70 px-3 py-2">
+                  <span className="text-sm font-semibold text-neutral-100">{g}</span>
+                  <span className="text-xs text-neutral-500">{items.length}개</span>
+                  <span className="ml-auto flex items-center gap-3 text-xs tabular-nums text-neutral-400">
+                    {(['red', 'yellow', 'green'] as const).map((c) => {
+                      const k = items.filter((x) => x.row?.light === c).length
+                      return k ? <span key={c} className="inline-flex items-center gap-1.5"><Dot light={c} />{k}</span> : null
+                    })}
+                  </span>
+                </div>
+              </td>
             </tr>
             {items.map(({ label, code, row: r }) => {
               const [big, sub] = r && !off(r) ? split(r.value) : ['', '']
