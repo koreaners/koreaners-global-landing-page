@@ -5,7 +5,8 @@ import { addMonth, bundleDay, CLOSED, creatorKey, grossPayoutKrw, nameKey, lates
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
-import { hit, Info, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
+import { COLOR } from '../finance/colors'
+import { hit, Info, LINK, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
 
 // 정산 마스터: 노션 지급내역 DB 전체 행을 회차, 크리에이터, 행 단위로 (관리자 전용, proxy가 exec를 막음)
 export const dynamic = 'force-dynamic'
@@ -178,7 +179,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         const d = slots.get(p.id)!.date
         return (
           <tr key={p.id}>
-            <td className={tdl}><a href={notionUrl(p.id)} target="_blank" className="text-sky-300 hover:underline" title="노션 행 열기">{p.pid ?? '열기'}</a></td>
+            <td className={tdl}><a href={notionUrl(p.id)} target="_blank" className={LINK} title="노션 행 열기">{p.pid ?? '열기'}</a></td>
             <td className={tdl}><Link href={go({ sel: p.name })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
             <td className={tdl}><span className="block max-w-[9rem] truncate" title={c?.code}>{c ? c.brand || c.code || '-' : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</span></td>
             <td className={td}>{p.status}</td>
@@ -186,7 +187,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             <td className={td}>{p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '미상'}`}</td>
             <td className="px-2 py-2 text-right text-xs">{p.deduction ? `${p.deduction}${p.deduction === '세금계산서' && p.vat ? ` (VAT ${p.vat})` : ''}` : '-'}</td>
             <td className={td}>{won(netPayoutKrw(p, rates))}</td>
-            <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}{d && p.status !== DONE && p.dueManual && d === p.dueOn && <span style={{ color: '#a78bfa' }}> 임의</span>}</td>
+            <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}{d && p.status !== DONE && p.dueManual && d === p.dueOn && <span style={{ color: COLOR.guess }}> 임의</span>}</td>
             <td className={td}>{p.reqDate ?? '-'}</td>
           </tr>
         )
@@ -271,7 +272,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
                   <td className="px-2 py-2 text-left text-xs text-neutral-400">{FIX[k] ?? HUMAN_FIX}</td>
                   <td className={td}>{n}</td>
                   <Money n={total(notDone.filter((p) => p.blocked.includes(k)), rates).krw} />
-                  <td className={td}><Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-sky-300 hover:underline">행 보기 →</Link></td>
+                  <td className={td}><Link href={go({ v: 'rows', bl: k, st: OPEN })} className={LINK}>행 보기 →</Link></td>
                 </tr>
               ))}
             </Table>
@@ -310,7 +311,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               return (
                 <tr key={m ?? 'none'} className={m === cycle ? 'bg-sky-950/40' : ''}>
                   <td className={`${tdl} whitespace-nowrap ${m === cycle ? 'bg-[#10212b]!' : ''}`}>
-                    <Link href={go({ v: 'rows', cy: m ?? 'none' })} className="text-sky-300 hover:underline">{m ? `${m} (${payday(m).slice(5)})` : '미정 (날짜를 정할 수 없는 행)'}</Link>
+                    <Link href={go({ v: 'rows', cy: m ?? 'none' })} className={LINK}>{m ? `${m} (${payday(m).slice(5)})` : '미정 (날짜를 정할 수 없는 행)'}</Link>
                     {m === cycle && <span className="ml-2 rounded bg-sky-900/60 px-1.5 text-xs text-sky-200">이번 회차</span>}
                   </td>
                   <td className={td}>{t.n}</td>
@@ -331,7 +332,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             {cRows.map((x) => (
               <tr key={x.name}>
                 <td className={tdl}>
-                  <Link href={go({ sel: x.name })} className="block max-w-[14rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
+                  <Link href={go({ sel: x.name })} className={`block max-w-[14rem] truncate whitespace-nowrap ${LINK}`} title={x.name}>{x.name}</Link>
                 </td>
                 <td className={td}>{x.n}</td>
                 <Money n={x.done} />
@@ -398,7 +399,7 @@ function CreatorPanel({ name, k, xs, back, rates, reason }: { name: string; k: s
   return (
     <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={back} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
+        <Link href={back} className={`text-sm ${LINK}`}>← 크리에이터 목록</Link>
         <Link href={`/admin/finance?tab=creators&y=all&sel=${encodeURIComponent(k)}`} className="text-sm text-neutral-400 hover:text-neutral-200">재무에서 매출, 마진 보기 →</Link>
       </div>
       <h2 className="text-base font-semibold text-neutral-50">{name}</h2>

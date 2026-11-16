@@ -2,13 +2,14 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { REPORTS_BUCKET, TREND_KEY, parseReportKey, type FunnelTrend, type WeeklyReport } from '@/lib/reports'
 import { TrendChart, type TrendPoint } from './charts'
+import { COLOR } from './colors'
 import { Info, won2 } from './ui'
 import { Dot, SignalLegend, SignalTable, plain, split, type Row } from './signal-table'
 
 // 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
-const C1 = '#3b82f6'
-const C2 = '#ea580c' // C1 과 다크 표면에서 dataviz 검증 통과(밝기, 색각 이상 구분)
-const C3 = '#a3a3a3' // 셋째 계열은 무채색(C1, C2 와 색상으로 겹치지 않게)
+const C1 = COLOR.in
+const C2 = COLOR.out
+const C3 = COLOR.due // 셋째 계열은 무채색(C1, C2 와 색상으로 겹치지 않게)
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
 // 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다

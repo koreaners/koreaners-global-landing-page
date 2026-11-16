@@ -9,7 +9,8 @@ import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, ownersOf, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
-import { Card, CUR_NAME, CURS, hit, Info, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
+import { COLOR } from './colors'
+import { Card, CUR_NAME, CURS, hit, Info, LINK, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -153,9 +154,9 @@ const curSplit = (o: ByCur) => {
   return xs.length > 1 ? xs.map((k) => `${CUR_NAME[k]} ${won2(o[k] ?? 0)}`).join(', ') : ''
 }
 
-const REV = '#3987e5' // 매출 쪽 계열(받을 돈 포함)
-const SET = '#d95926' // 정산 쪽 계열(줄 돈 포함)
-const ALERT = '#e66767'
+const REV = COLOR.in // 매출 쪽 계열(받을 돈 포함)
+const SET = COLOR.out // 정산 쪽 계열(줄 돈 포함)
+const ALERT = COLOR.bad
 const ym = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`
 
 export type Labels = { cur: string; prev: string | null }
@@ -167,8 +168,8 @@ function Delta({ cur, prev, good }: { cur: number; prev: number | null; good: bo
   if (prev == null || thin(cur, prev)) return null // 비교 기간 기록이 없거나 너무 적으면 증감을 쓰지 않음
   const r = (cur - prev) / Math.abs(prev)
   const up = r >= 0
-  const color = good == null ? 'text-neutral-300' : up === good ? 'text-[#0ca30c]' : 'text-[#e66767]'
-  return <span className={`font-medium ${color}`}>{up ? '▲' : '▼'} {Math.abs(r * 100).toFixed(1)}%</span>
+  const color = good == null ? undefined : up === good ? COLOR.good : COLOR.bad
+  return <span className="font-medium text-neutral-300" style={{ color }}>{up ? '▲' : '▼'} {Math.abs(r * 100).toFixed(1)}%</span>
 }
 
 function Spark({ values, color }: { values: number[]; color: string }) {
@@ -511,7 +512,7 @@ function OverdueTable({ model, today, allHref, bankError }: { model: Model; toda
               <td className={tdl}>
                 {x.c.source === 'sheet'
                   ? <span title={x.c.code}>{x.c.code} <span className="rounded bg-neutral-800 px-1 text-[10px] text-neutral-400">시트</span></span>
-                  : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
+                  : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className={LINK} title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
               </td>
               <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}{bankError && x.label === '부가세(고객사)' && <span className="text-amber-200/90"> 원장 없어 확인 불가</span>}</td>
               <td className={td}>{x.c.owner || '미지정'}</td>
@@ -572,7 +573,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
       )}
       {o && (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href={q({ tab: 'owners' })} className="text-sm text-sky-300 hover:underline">← 담당자 목록</Link>
+          <Link href={q({ tab: 'owners' })} className={`text-sm ${LINK}`}>← 담당자 목록</Link>
           <span className="text-sm text-neutral-200">담당자 {o}의 안건</span>
           <Link href={q({ o: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
         </div>
@@ -591,8 +592,8 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
             <td className={tdl}>
               <span className="flex max-w-[11rem] items-center gap-1 2xl:max-w-[13rem]">
                 {x.c.source === 'sheet'
-                  ? <Link href={q({ sel: x.c.id })} className="min-w-0 truncate text-sky-300 hover:underline" title={x.c.code}>{x.c.code}</Link>
-                  : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className="min-w-0 truncate text-sky-300 hover:underline" title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
+                  ? <Link href={q({ sel: x.c.id })} className={`min-w-0 truncate ${LINK}`} title={x.c.code}>{x.c.code}</Link>
+                  : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className={`min-w-0 truncate ${LINK}`} title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
                 {x.c.source === 'sheet' && <span className="inline-flex shrink-0 items-center gap-0.5"><span className="rounded bg-neutral-800 px-1 text-[10px] text-neutral-400">시트</span><Info text="노션 계약 DB에 없어 운영 대시보드 시트에서 읽은 계약" /></span>}
               </span>
             </td>
@@ -606,13 +607,13 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
             <td className={td} title={won(x.received)}>{x.supply == null ? '-' : `${won2(x.received)}${x.estimated ? ' (어림)' : ''}`}</td>
             <td className={td}>{x.open ? (x.due ?? <span className="text-neutral-500">예정일 없음</span>) : '-'}</td>
             <td className={`${td}${x.overdue && !x.c.twikr ? ' font-semibold text-red-400' : ''}`}>{!x.overdue ? '-' : x.c.twikr ? <span className="text-neutral-500">트위커 수금</span> : `${x.overdue}일`}</td>
-            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : <Link href={q({ sel: x.c.id })} className="text-sky-300 hover:underline">{won2(x.cost)}</Link>}</td>
+            <td className={td} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.cost)}>{x.c.source === 'sheet' ? '-' : <Link href={q({ sel: x.c.id })} className={LINK}>{won2(x.cost)}</Link>}</td>
             <td className={`${td}${(x.margin ?? 0) < 0 ? ' font-semibold text-red-400' : ''}`} title={x.c.source === 'sheet' ? '지급 연결 전(시트 계약)' : won(x.margin)}>
               {x.margin == null ? '-' : won2(x.margin)}
               <span className="block text-xs text-neutral-500">{x.c.source !== 'sheet' && x.supply != null && !x.payouts.length ? '지급 연결 없음' : pct(x.rate)}</span>
               <CostNote f={x.costFlag} />
             </td>
-            <td className={td}>{x.c.link ? <a href={x.c.link} target="_blank" className="text-sky-300 hover:underline">열기</a> : '-'}</td>
+            <td className={td}>{x.c.link ? <a href={x.c.link} target="_blank" className={LINK}>열기</a> : '-'}</td>
           </tr>
         ))}
       </Table>
@@ -642,7 +643,7 @@ function Insta({ urls }: { urls?: Set<string> }) {
   return (
     <span className="inline-flex flex-wrap gap-x-2 text-sm font-normal">
       {[...urls].map((u) => (
-        <a key={u} href={u} target="_blank" className="whitespace-nowrap text-neutral-400 hover:text-sky-300 hover:underline">
+        <a key={u} href={u} target="_blank" className="whitespace-nowrap text-neutral-400 hover:text-neutral-100 hover:underline">
           @{u.replace(/[?#].*$/, '').replace(/\/+$/, '').split('/').pop()}
         </a>
       ))}
@@ -699,7 +700,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between gap-3">
-          <Link href={q({ sel: undefined })} className="text-sm text-sky-300 hover:underline">← 크리에이터 목록</Link>
+          <Link href={q({ sel: undefined })} className={`text-sm ${LINK}`}>← 크리에이터 목록</Link>
           <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
         </div>
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
@@ -745,7 +746,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
         {rows.map((x) => (
           <tr key={x.key}>
             <td className={tdl}>
-              <Link href={q({ sel: x.key })} className="block max-w-[11rem] truncate whitespace-nowrap text-sky-300 hover:underline" title={x.name}>{x.name}</Link>
+              <Link href={q({ sel: x.key })} className={`block max-w-[11rem] truncate whitespace-nowrap ${LINK}`} title={x.name}>{x.name}</Link>
               {igs.get(x.key)?.size ? <span className="block max-w-[11rem] truncate text-xs"><Insta urls={igs.get(x.key)} /></span> : null}
             </td>
             <td className={td}>{x.currencies.join(', ') || '-'}</td>
@@ -795,7 +796,7 @@ function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partia
         {rows.map((o) => (
           <tr key={o.owner}>
             <td className={tdl}>
-              <Link href={q({ tab: 'contracts', o: o.owner })} className="text-sky-300 hover:underline">{o.owner}</Link>
+              <Link href={q({ tab: 'contracts', o: o.owner })} className={LINK}>{o.owner}</Link>
             </td>
             <td className={td}>{o.count}</td>
             <Money n={o.supply} />
@@ -821,13 +822,13 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
     ['공급가가 없는 수입 계약(합계에서 빠짐)', `${g.noSupply}건`],
     ['날짜(계약일자, 시작일, 입금일)가 없는 수입 계약', `${g.noDay}건`],
     ['선금, 잔금 금액을 읽지 못해 반반으로 나눈 계약', `${g.estimatedSplit}건`],
-    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', <Link key="u" href="/admin/payouts?v=rows&nc=none" className="text-sky-300 hover:underline">{g.unlinked.count}행, {won(g.unlinked.krw)} →</Link>],
+    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', <Link key="u" href="/admin/payouts?v=rows&nc=none" className={LINK}>{g.unlinked.count}행, {won(g.unlinked.krw)} →</Link>],
     ['송금일 없이 신청일로 센 송금 완료(정산 어림)', `${g.doneByReq.count}행, ${won(g.doneByReq.krw)}`],
     ['송금일, 신청일 모두 없는 송금 완료(정산에서 빠짐)', `${g.doneNoDate.count}행, ${won(g.doneNoDate.krw)}`],
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],
     ['통화나 지급액이 없어 환산하지 못한 지급', `${g.noRate}행`],
     ['매출 단가 합이 공급가를 넘는 계약(크리에이터 매출 몫을 단가 비율로 줄임)', `${g.overPriced}건`],
-    [`원가 지급이 덜 붙었을 수 있는 계약(고른 기간, 마진율 ${HIGH_MARGIN * 100}% 이상, 체험단 ${HIGH_MARGIN_TRIAL * 100}% 이상, 예상 원가(원)가 있으면 지급 합계가 그 90% 미만)`, <Link key="c" href={q({ tab: 'contracts', st: 'cost' })} className="text-sky-300 hover:underline">누락 의심 {g.highMargin.missing}건 →</Link>],
+    [`원가 지급이 덜 붙었을 수 있는 계약(고른 기간, 마진율 ${HIGH_MARGIN * 100}% 이상, 체험단 ${HIGH_MARGIN_TRIAL * 100}% 이상, 예상 원가(원)가 있으면 지급 합계가 그 90% 미만)`, <Link key="c" href={q({ tab: 'contracts', st: 'cost' })} className={LINK}>누락 의심 {g.highMargin.missing}건 →</Link>],
     ['같은 조건이지만 고객 입금 전이거나 마지막 입금분 송금 회차 전인 계약(원가 미확정, 송금 신청 전일 수 있음)', `${g.highMargin.pending}건`],
     ['종결이거나 비고 맨 윗줄에 해제 금지가 적힌 지급(마진, 매출 몫에서 뺌)', `${g.dead.count}행, ${won(g.dead.krw)}`],
   ]
@@ -883,15 +884,14 @@ const CAL_STATE: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
   in: { done: '입금됨', flight: '-', due: '입금 예정', wait: '-', late: '입금 예정일 지남', guess: '입금 예정(정산일 임의)', unsigned: '입금 예정(서명 전)', docs: '-' },
   out: { done: '송금 완료', flight: '송금 진행 중', due: '송금 가능(고객사 입금 완료)', wait: '고객사 입금 전', late: '출금 예정일 지남', guess: '고객사 입금 전(정산일 임의)', unsigned: '-', docs: '서류·계좌 대기(고객사 입금 완료)' },
 }
-// 들어옴: 들어온 돈 초록, 예정 회색, 예정일 지났는데 안 들어온 돈 빨강 / 나감: 정산해서 나간 돈 파랑, 나갈 돈 주황, 예정일 지남 빨강
-const GOOD = '#3fae6a'
-const DUE = '#a3a3a3'
-const GUESS = '#a78bfa' // 정산일을 몰라 임의로 넣은 날(계약 비고 「정산일 임의」)
-const UNSIGNED = '#5fb3b3' // 봇 광고주 계약 서명 전(코드 없음)
+// 개요와 같은 뜻: 들어온 돈 파랑, 나간 돈 주황, 예정은 입출금 모두 회색(칸의 +, − 부호로 구분), 예정일 지남 빨강(261116 감사, 전엔 입금 초록, 출금 파랑)
+const DUE = COLOR.due
+const GUESS = COLOR.guess
+const UNSIGNED = COLOR.unsigned
 const CAL_COLOR: Record<CalItem['kind'], Record<CalItem['state'], string>> = {
-  in: { done: GOOD, flight: DUE, due: DUE, wait: DUE, late: ALERT, guess: GUESS, unsigned: UNSIGNED, docs: DUE },
+  in: { done: REV, flight: DUE, due: DUE, wait: DUE, late: ALERT, guess: GUESS, unsigned: UNSIGNED, docs: DUE },
   // 출금 예정은 송금 준비 상태(입금 전, 서류·계좌 대기 등)를 색으로 나누지 않음, 구분은 목록 상태 칸에만(Leo 261107 「경영 가시성에 도움 안 됨」)
-  out: { done: REV, flight: SET, due: SET, wait: SET, late: ALERT, guess: GUESS, unsigned: DUE, docs: SET },
+  out: { done: SET, flight: DUE, due: DUE, wait: DUE, late: ALERT, guess: GUESS, unsigned: DUE, docs: DUE },
 }
 const CAL_LINES: [CalItem['kind'], CalItem['state'][], string][] = [
   ['in', ['done'], '입금'], ['in', ['due'], '입금 예정'], ['in', ['late'], '입금 예정일 지남'], ['in', ['guess'], '입금 예정(정산일 임의)'], ['in', ['unsigned'], '입금 예정(서명 전)'],
@@ -905,10 +905,10 @@ const Overdue = ({ show, short }: { show: boolean; short?: boolean }) => (show ?
 const notion = (id: string) => `https://www.notion.so/${id.replace(/-/g, '')}`
 /** 안건 칸 이름: 입금은 계약 노션(시트 행은 계약 탭), 출금은 크리에이터 상세 + 지급 ID(지급내역 노션) */
 function CalTitle({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
-  if (x.kind === 'in' && x.notionId) return <a href={notion(x.notionId)} target="_blank" className="text-sky-300 hover:underline" title="노션 열기">{x.title}</a>
+  if (x.kind === 'in' && x.notionId) return <a href={notion(x.notionId)} target="_blank" className={LINK} title="노션 열기">{x.title}</a>
   const href = x.kind === 'out' ? q({ tab: 'creators', y: 'all', m: undefined, sel: x.creator ?? x.title }) : x.contractId ? q({ tab: 'contracts', y: 'all', m: undefined, sel: x.contractId }) : null
-  const name = href ? <Link href={href} className="text-sky-300 hover:underline">{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
-  return x.pay ? <>{name} <a href={notion(x.pay.id)} target="_blank" className="text-xs text-sky-300/80 hover:underline" title="지급내역 노션 열기">#{x.pay.pid ?? '지급'}</a></> : name
+  const name = href ? <Link href={href} className={LINK}>{x.title}</Link> : <span className="text-neutral-200">{x.title}</span>
+  return x.pay ? <>{name} <a href={notion(x.pay.id)} target="_blank" className="text-xs text-neutral-400 underline-offset-2 hover:text-neutral-200 hover:underline" title="지급내역 노션 열기">#{x.pay.pid ?? '지급'}</a></> : name
 }
 /** 안건 칸 회색 줄: 계약 코드(누르면 계약 노션, 시트 행은 계약 탭), 예외 메모. 상태는 상태 칸에 */
 function CalSub({ x, q }: { x: CalItem; q: (o: Partial<Search>) => string }) {
@@ -954,8 +954,8 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
           <Link href={go(ny, nm)} aria-label="다음 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">›</Link>
         </div>
         <div className="space-y-1 text-xs">
-          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">입금</span><Legend items={[['입금', GOOD], ['입금 예정', DUE], ['서명 전 계약', UNSIGNED]]} /></div>
-          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">출금</span><Legend items={[['출금', REV], ['출금 예정', SET]]} /></div>
+          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">입금</span><Legend items={[['입금', REV], ['입금 예정', DUE], ['서명 전 계약', UNSIGNED]]} /></div>
+          <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">출금</span><Legend items={[['출금', SET], ['출금 예정', DUE]]} /></div>
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">공통</span><Legend items={[['예정일 지남', ALERT], ['정산일 임의', GUESS]]} /><span className="inline-flex items-center gap-1 text-neutral-300"><span aria-hidden className="inline-block h-px w-3 bg-neutral-500" />잔고<Info align="right" text="날짜 칸 아래 줄. 월초 0원에서 그날까지 입금 − 출금 누적입니다(통장 잔액 아님). 예정일 지남, 정산일 임의, 서명 전 계약은 빼고 셉니다." /></span></div>
           <p className="text-neutral-500">날짜를 누르면 아래에 그날 안건이 나옵니다</p>
         </div>

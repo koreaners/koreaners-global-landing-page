@@ -126,9 +126,14 @@ footer {
     /* 루트 16px: 모바일 본문 최소 14px 기준 (text-sm=14px) */
     font-size: 16px;
   }
-  /* iOS focus zoom guard */
-  input:not([type=checkbox]):not([type=radio]), textarea, select {
+  /* iOS focus zoom guard: 공개 사이트는 늘, 어드민([data-admin])은 터치 화면 폭(1024px 이하)에서만. 넓은 어드민에서 입력칸만 16px 이라 옆 버튼과 크기가 어긋나던 문제(261116 감사) */
+  :is(input:not([type=checkbox]):not([type=radio]), textarea, select):not([data-admin] *) {
     font-size: 16px !important;
+  }
+  @media (max-width: 1024px) {
+    input:not([type=checkbox]):not([type=radio]), textarea, select {
+      font-size: 16px !important;
+    }
   }
   html, body {
     overflow-x: hidden;
