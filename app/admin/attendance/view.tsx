@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { AutoForm } from '../finance/auto-form'
 import { COLOR } from '../finance/colors'
 import { Card, Info, Table, td, tdl } from '../finance/ui'
@@ -12,8 +13,8 @@ const EDIT = 'att-edit'
 const ROW = 'att-row'
 const inp = 'rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200'
 
-// 자금 캘린더와 같은 색
-const { good: GOOD, bad: ALERT, warn: WARN, fix: FIX, due: MUTED } = COLOR
+// 자금 캘린더와 같은 색. 색은 미출근과 퇴근 누락에만, 정상과 정정은 중립색(261116 감사: 정상 110줄 초록, 정정 36줄 파랑에 퇴근 누락이 묻힘)
+const { bad: ALERT, warn: WARN, due: MUTED } = COLOR
 
 /** 줄 상태: 칩 필터와 상태 칸이 함께 씀 */
 type St = 'absent' | 'missing' | 'open' | 'fixed' | 'ok'
@@ -21,8 +22,8 @@ const ST: [St, string, string][] = [
   ['absent', '미출근', ALERT],
   ['missing', '퇴근 누락', WARN],
   ['open', '근무 중', MUTED],
-  ['fixed', '정정', FIX],
-  ['ok', '정상', GOOD],
+  ['fixed', '정정', 'var(--color-neutral-500)'],
+  ['ok', '정상', 'var(--color-neutral-200)'],
 ]
 const stLabel = (s: St) => ST.find((x) => x[0] === s)!
 
@@ -84,7 +85,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
     .filter((x) => !st || state(x) === st)
     .sort((a, b) => ('taps' in a ? 0 : 1) - ('taps' in b ? 0 : 1) || ('taps' in a ? 0 : name(a.slack_id).localeCompare(name(b.slack_id), 'ko')))
     .sort((a, b) => b.workday.localeCompare(a.workday))
-  const chip = (on: boolean) => `rounded-full border px-2 py-0.5 ${on ? 'border-neutral-400 text-neutral-100' : 'border-neutral-800 text-neutral-400 hover:text-neutral-200'}`
+  const chip = (on: boolean) => `rounded-full border px-2 py-0.5 ${on ? 'border-neutral-800 bg-neutral-800 text-neutral-100' : 'border-neutral-800 text-neutral-400 hover:text-neutral-200'}`
 
   // 고치는 줄
   const [es, ed] = edit?.e?.split(':') ?? []
@@ -143,12 +144,12 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {m > ATT_FROM.slice(0, 7) ? (
-              <Link href={link({ m: addMonth(m, -1), st: undefined })} aria-label="이전 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">‹</Link>
+              <Link href={link({ m: addMonth(m, -1), st: undefined })} aria-label="이전 달" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"><ChevronLeft className="h-4 w-4" aria-hidden /></Link>
             ) : (
-              <span className="px-2 py-0.5 text-neutral-700">‹</span>
+              <span className="inline-flex h-8 w-8 items-center justify-center text-neutral-700"><ChevronLeft className="h-4 w-4" aria-hidden /></span>
             )}
             <h2 className="text-base font-semibold text-neutral-100">{y}년 {mo}월</h2>
-            <Link href={link({ m: addMonth(m, 1), st: undefined })} aria-label="다음 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">›</Link>
+            <Link href={link({ m: addMonth(m, 1), st: undefined })} aria-label="다음 달" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"><ChevronRight className="h-4 w-4" aria-hidden /></Link>
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex flex-wrap items-center gap-x-2">
@@ -215,9 +216,9 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
           </div>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             <Link href={link({ d: day, st: undefined }, `#${LIST}`)} className={chip(!st)}>상태 전체 {pool.length}</Link>
-            {ST.map(([s, label, color]) => {
+            {ST.map(([s, label]) => {
               const n = count(pool, s)
-              return n > 0 && <Link key={s} href={link({ d: day, st: st === s ? undefined : s }, `#${LIST}`)} className={chip(st === s)} style={{ color }}>{label} {n}</Link>
+              return n > 0 && <Link key={s} href={link({ d: day, st: st === s ? undefined : s }, `#${LIST}`)} className={chip(st === s)}>{label} {n}</Link>
             })}
           </div>
 

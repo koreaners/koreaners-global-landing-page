@@ -1,12 +1,12 @@
 import Link from 'next/link'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { getFinance } from '@/lib/finance/data'
 import { getRates } from '@/lib/finance/fx'
 import { addMonth, bundleDay, CLOSED, creatorKey, grossPayoutKrw, nameKey, latestName, needsLink, netPayoutKrw, payday, payoutDue, type Contract, type Payout, type Rates } from '@/lib/finance/model'
 import { refreshFinance } from '../finance/actions'
 import { RefreshButton } from '../finance/refresh-button'
 import { CleanForm } from '../finance/auto-form'
-import { COLOR } from '../finance/colors'
-import { hit, Info, LINK, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
+import { at, hit, Info, LINK, Money, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from '../finance/ui'
 
 // 정산 마스터: 노션 지급내역 DB 전체 행을 회차, 크리에이터, 행 단위로 (관리자 전용, proxy가 exec를 막음)
 export const dynamic = 'force-dynamic'
@@ -19,8 +19,6 @@ const OPEN = '송금 완료 제외'
 const DONE = '송금 완료'
 const IN_FLIGHT = ['송금 가능', '모인 접수', '원화 이체 대기']
 const STATUSES = ['대기', '송금 가능', '모인 접수', '원화 이체 대기', '송금 완료', '보류']
-
-const md = (d: string) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`
 
 /** 행이 속한 회차(달)와 표에 쓸 날짜. 송금 완료: 송금일(없으면 요청일)의 달, 그 밖: payoutDue(자금 캘린더와 같은 규칙, 노션 송금 예정일 우선).
  * 계약 맵을 넘기지 않아 송금 예정일 없는 대기와 보류는 미정(null) */
@@ -173,7 +171,9 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
   const late = planned.filter((p) => (slots.get(p.id)!.month ?? '9999') < cycle)
 
   const RowsTable = ({ xs, tall }: { xs: Payout[]; tall?: boolean }) => (
-    <Table head={['지급 ID', '영문이름', '안건', '상태', '막힌 사유', '지급액', '공제', '실지급액(원화)', '송금 예정일, 송금일', '송금 요청일']} left={3} tall={tall}>
+    // 칸 폭 고정: 이번 회차에 단계별로 쌓인 표끼리 상태, 지급액 칸 위치를 맞춤(261116 감사). 합 71.5rem, 1440px 화면 패널 안에 들어감
+    <Table head={['지급 ID', '영문이름', '안건', '상태', '막힌 사유', '지급액', '공제', '실지급액(원화)', '송금 예정일, 송금일', '송금 요청일']} left={3} tall={tall}
+      cols={['3.5rem', '9rem', '9rem', '6.5rem', '7.5rem', '7.5rem', '8.5rem', '6.5rem', '7.5rem', '6rem']}>
       {xs.map((p) => {
         const c = p.contractId ? byId.get(p.contractId) : undefined
         const d = slots.get(p.id)!.date
@@ -187,7 +187,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             <td className={td}>{p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '미상'}`}</td>
             <td className="px-2 py-2 text-right text-xs">{p.deduction ? `${p.deduction}${p.deduction === '세금계산서' && p.vat ? ` (VAT ${p.vat})` : ''}` : '-'}</td>
             <td className={td}>{won(netPayoutKrw(p, rates))}</td>
-            <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}{d && p.status !== DONE && p.dueManual && d === p.dueOn && <span style={{ color: COLOR.guess }}> 임의</span>}</td>
+            <td className={td}>{d ?? (p.status === DONE ? '-' : '미정')}{d && p.status !== DONE && p.dueManual && d === p.dueOn && <span className="text-neutral-500"> 임의</span>}</td>
             <td className={td}>{p.reqDate ?? '-'}</td>
           </tr>
         )
@@ -218,7 +218,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1 text-xs text-neutral-500">
-            {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신
+            {at(data.fetchedAt)} 갱신
             <Info text="5분마다 자동으로도 다시 읽습니다" align="right" />
           </span>
           <form action={refreshFinance}>
@@ -229,7 +229,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
 
       {view === 'creator' ? null : view === 'todo' ? (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label="이번 회차 송금일" value={md(payday(cycle))} full={payday(cycle)} note={`묶음 생성일 ${md(bundleDay(cycle))}${rolled && cycle === thisYm ? `, 묶음 생성 뒤라 송금 가능은 다음 회차 ${md(payday(addMonth(thisYm, 1)))}` : ''}`} />
+        <Tile label="이번 회차 송금일" value={payday(cycle)} full={payday(cycle)} note={`묶음 생성일 ${bundleDay(cycle)}${rolled && cycle === thisYm ? `, 묶음 생성 뒤라 송금 가능은 다음 회차 ${payday(addMonth(thisYm, 1))}` : ''}`} />
         <Tile label="송금 진행 중 (모든 회차, 부가세 포함)" value={won2(plan.krw)} full={won(plan.krw)} note={`${plan.n}건(송금 가능 ${ready.length}건 포함), ${curText(plan)}`} />
         <Tile label="미정 (대기, 보류, 부가세 포함)" value={won2(openSum.krw)} full={won(openSum.krw)} note={`${openSum.n}건(보류 ${open.filter((p) => p.status === '보류').length}건), ${curText(openSum)}`} />
         <Tile label={`${year}년 송금 완료 누적 (부가세 포함)`} value={won2(doneYear.krw)} full={won(doneYear.krw)} note={`${doneYear.n}건, ${curText(doneYear)}`} />
@@ -245,7 +245,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
       </div>
       ) : (
         <p className="text-xs text-neutral-400">
-          이번 회차 {md(payday(cycle))}, 금액은 부가세 포함, 송금 진행 중(모든 회차) {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
+          이번 회차 {payday(cycle)}, 금액은 부가세 포함, 송금 진행 중(모든 회차) {won2(plan.krw)}({plan.n}건), 미정 {won2(openSum.krw)}({openSum.n}건), {year}년 송금 완료 {won2(doneYear.krw)}({doneYear.n}건)
           {reasons.length > 0 && <>, 막힌 사유 {reasons.map(([k, n], i) => <span key={k}>{i ? ', ' : ''}<Link href={go({ v: 'rows', bl: k, st: OPEN })} className="text-neutral-300 underline hover:text-neutral-100">{k} {n}</Link></span>)}</>}
         </p>
       )}
@@ -272,12 +272,12 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
                   <td className="px-2 py-2 text-left text-xs text-neutral-400">{FIX[k] ?? HUMAN_FIX}</td>
                   <td className={td}>{n}</td>
                   <Money n={total(notDone.filter((p) => p.blocked.includes(k)), rates).krw} />
-                  <td className={td}><Link href={go({ v: 'rows', bl: k, st: OPEN })} className={LINK}>행 보기 →</Link></td>
+                  <td className={td}><Link href={go({ v: 'rows', bl: k, st: OPEN })} className={`inline-flex items-center gap-1 ${LINK}`}>행 보기 <ArrowRight className="h-4 w-4" aria-hidden /></Link></td>
                 </tr>
               ))}
             </Table>
           </Panel>
-          <Panel title={`이번 회차: ${md(payday(cycle))} 송금 (진행 중 ${thisCycle.length}건, ${won2(total(thisCycle, rates).krw)})`} sub={`송금일이 오늘이거나 아직 오지 않은 가장 가까운 정기 송금일의 회차입니다. 송금일이 지나면 다음 달 회차로 넘어갑니다. 이 회차 송금 완료 ${doneThis.length}건은 회차별 탭에`}>
+          <Panel title={`이번 회차: ${payday(cycle)} 송금 (진행 중 ${thisCycle.length}건, ${won2(total(thisCycle, rates).krw)})`} sub={`송금일이 오늘이거나 아직 오지 않은 가장 가까운 정기 송금일의 회차입니다. 송금일이 지나면 다음 달 회차로 넘어갑니다. 이 회차 송금 완료 ${doneThis.length}건은 회차별 탭에`}>
             {thisCycle.length ? STEP.map(([st, step]) => {
               const xs = thisCycle.filter((p) => p.status === st)
               return xs.length > 0 && (
@@ -399,8 +399,8 @@ function CreatorPanel({ name, k, xs, back, rates, reason }: { name: string; k: s
   return (
     <div className="space-y-3 rounded-xl border border-sky-900 bg-neutral-900 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={back} className={`text-sm ${LINK}`}>← 크리에이터 목록</Link>
-        <Link href={`/admin/finance?tab=creators&y=all&sel=${encodeURIComponent(k)}`} className="text-sm text-neutral-400 hover:text-neutral-200">재무에서 매출, 마진 보기 →</Link>
+        <Link href={back} className={`inline-flex items-center gap-1 text-sm ${LINK}`}><ArrowLeft className="h-4 w-4" aria-hidden />크리에이터 목록</Link>
+        <Link href={`/admin/finance?tab=creators&y=all&sel=${encodeURIComponent(k)}`} className="inline-flex items-center gap-1 text-sm text-neutral-400 hover:text-neutral-200">재무에서 매출, 마진 보기<ArrowRight className="h-4 w-4" aria-hidden /></Link>
       </div>
       <h2 className="text-base font-semibold text-neutral-50">{name}</h2>
       <p className="text-sm text-neutral-300">

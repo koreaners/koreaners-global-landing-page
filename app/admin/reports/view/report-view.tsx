@@ -1,14 +1,18 @@
 import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { SignalLegend, SignalTable, type Item } from '@/app/admin/finance/signal-table'
 import { COLOR as C } from '@/app/admin/finance/colors'
+import { at } from '@/app/admin/finance/ui'
 import type { ColorKey, Legend, Ref, Seg, WeeklyReport } from '@/lib/reports'
 
 // 보고서 의미 색 -> 어드민 다크 화면 색
 const COLOR: Record<ColorKey, string> = {
   c1: C.in, c2: C.out, c3: '#525252', c4: C.guess, ok: C.good, bad: C.bad, hum: C.warn,
 }
-const fill = (c?: ColorKey, o?: number) => (c ? { background: COLOR[c], opacity: o } : undefined)
+// 쌓인 막대와 범례는 첫 구간만 의미 색, 나머지는 순서대로 회색 단계. 데이터의 농도(o)는 쓰지 않음(261116 감사: 같은 파랑 여러 농도라 주인공이 안 읽힘)
+const GRAY = ['#737373', '#525252', '#404040'] // neutral-500, 600, 700
+// 같은 색을 흐린 농도(o < 1)로 나눠 칠하던 칸만 회색 단계로. 다른 색(입금 초록, 미입금 주황 등)은 상태 뜻이라 그대로
+const fill = (c?: ColorKey, o = 1) => (c ? { background: o >= 1 ? COLOR[c] : GRAY[o >= 0.6 ? 0 : o >= 0.35 ? 1 : 2] } : undefined)
 
 // 링크는 같은 사이트 경로나 http(s)만. 데이터는 잡이 만들지만 화면에 그대로 꽂으므로 여기서 거른다
 const safe = (h?: string | null) => (h && ((h.startsWith('/') && !h.startsWith('//')) || /^https?:\/\//.test(h)) ? h : undefined)
@@ -38,7 +42,7 @@ function Bar({ segs }: { segs: Seg[] }) {
 function Legends({ items }: { items: Legend[] }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-neutral-400">
-      {items.map((x) => (
+      {items.map((x, i) => (
         <span key={x.t} className="inline-flex items-center gap-1.5">
           <i className="block h-2.5 w-2.5 rounded-sm" style={fill(x.c, x.o)} />
           {x.t}
@@ -50,7 +54,7 @@ function Legends({ items }: { items: Legend[] }) {
 
 function Lines({ items }: { items: string[] }) {
   return items.length ? (
-    <ul className="list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-neutral-300">
+    <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-neutral-300">
       {items.map((t) => <li key={t}>{t}</li>)}
     </ul>
   ) : null
@@ -102,57 +106,59 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
         {back}
         <h1 className="text-xl font-semibold text-neutral-50">{r.title}</h1>
         <p className="text-sm text-neutral-500">
-          {r.period.start} ~ {r.period.end} · 만든 시각 {new Date(r.generated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' })}
+          {r.period.start} ~ {r.period.end} · 만든 시각 {at(r.generated_at)}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-        {r.tiles.map((t) => (
-          <Go key={t.label} href={t.href} className={`flex flex-col gap-4 rounded-xl border p-5 ${t.alert ? 'border-red-900 bg-red-950/40' : 'border-neutral-800 bg-neutral-900'}`}>
-            <span className="text-sm text-neutral-400">{t.label}</span>
-            <div className={`min-h-[3.25rem] text-lg font-semibold leading-snug tabular-nums ${t.alert ? 'text-red-300' : 'text-neutral-50'}`}>
-              {t.value.map((v) => <div key={v}>{v}</div>)}
-              {t.sub && <span className="text-sm font-normal text-neutral-500">{t.sub}</span>}
-            </div>
-            <div className="mt-auto space-y-1.5">{t.bars.map((b, i) => <Bar key={i} segs={b} />)}</div>
-            <Legends items={t.legend} />
-          </Go>
-        ))}
+        {/* 지표 카드: 라벨, 큰 숫자 하나, 흐린 줄 하나. 미니 막대와 범례는 뺌, 둘째 값부터는 흐린 줄로(261116 감사) */}
+        {r.tiles.map((t) => {
+          const note = [...t.value.slice(1), t.sub].filter(Boolean).join(' · ')
+          return (
+            <Go key={t.label} href={t.href} className={`flex flex-col gap-1 rounded-xl border p-5 ${t.alert ? 'border-red-900 bg-red-950/40' : 'border-neutral-800 bg-neutral-900'}`}>
+              <span className="text-sm text-neutral-400">{t.label}</span>
+              <span className={`text-xl font-semibold tabular-nums ${t.alert ? 'text-red-300' : 'text-neutral-50'}`}>{t.value[0]}</span>
+              {note && <span className="text-[13px] text-neutral-500">{note}</span>}
+            </Go>
+          )
+        })}
       </div>
 
       {r.funnel && <Funnel f={r.funnel} />}
 
+      {/* 자금 카드가 주 차트: 왼쪽 두 칸 폭, 영업과 사람은 오른쪽에 좁게 쌓음(261116 감사: 같은 폭 카드 3장) */}
       <div className="grid gap-4 lg:grid-cols-3">
         <section className={`${card} space-y-5`}>
           <div className="space-y-1">
             <H2>영업: 협의 중인 큰 건</H2>
             <p className="text-sm text-neutral-500">예산 규모(원)</p>
           </div>
+          {r.sales.bars.length === 0 ? <p className="text-sm text-neutral-500">근거에 예산이 적힌 건 없음</p> : (
           <div className="grid h-48 grid-cols-[8rem_1fr_4.5rem] content-center items-center gap-x-3 gap-y-5 text-sm">
-            {r.sales.bars.length === 0 && <span className="col-span-3 text-neutral-500">근거에 예산이 적힌 건 없음</span>}
             {r.sales.bars.map((b) => (
               <div key={b.label} className="contents">
                 <span className="truncate text-neutral-300">{b.label}</span>
                 <span className="h-3 rounded-sm bg-neutral-800">
                   <i className="block h-full rounded-sm" style={{ width: `${(b.v / smax) * 100}%`, ...fill('c1') }} />
                 </span>
-                <span className="text-right font-semibold tabular-nums text-neutral-100">{b.text}</span>
+                <span className="text-right tabular-nums text-neutral-100">{b.text}</span>
               </div>
             ))}
           </div>
+          )}
           <Lines items={r.sales.lines} />
         </section>
 
-        <section className={`${card} space-y-5`}>
+        <section className={`${card} flex flex-col gap-5 lg:col-span-2 lg:row-span-2 lg:row-start-1`}>
           <div className="space-y-1">
-            <H2><Link href="/admin/finance#receivables" className="hover:underline">자금: 매출채권 회수 일정 →</Link></H2>
+            <H2><Link href="/admin/finance#receivables" className="inline-flex items-center gap-1 hover:underline">자금: 매출채권 회수 일정 <ArrowRight className="h-4 w-4" /></Link></H2>
             <p className="text-sm text-neutral-500">입금 예정 금액(원), 노션 계약 기준</p>
           </div>
-          <div className="flex h-48 items-end gap-3 border-b border-neutral-700 px-1">
+          <div className="flex h-48 items-end gap-3 border-b border-neutral-700 px-1 lg:h-auto lg:min-h-48 lg:flex-1">
             {r.funds.bars.map((b) => (
               <div key={b.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1 text-sm">
-                <span className="font-semibold tabular-nums text-neutral-100">{b.text}</span>
-                <span className="w-3/4 rounded-t-sm" style={{ height: `${(b.v / fmax) * 80}%`, ...fill(b.late ? 'bad' : 'c1') }} />
+                <span className="tabular-nums text-neutral-100">{b.text}</span>
+                <span className="w-3/4 max-w-16 rounded-t-sm" style={{ height: `${(b.v / fmax) * 80}%`, ...fill(b.late ? 'bad' : 'c1') }} />
               </div>
             ))}
           </div>
@@ -176,9 +182,9 @@ export function ReportView({ r, back }: { r: WeeklyReport; back: React.ReactNode
                 const tot = b.parts.reduce((a, s) => a + s.v, 0) || 1
                 return (
                   <div key={b.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1 text-sm">
-                    <span className="font-semibold tabular-nums text-neutral-100">{b.text}</span>
+                    <span className="tabular-nums text-neutral-100">{b.text}</span>
                     <span className="flex w-3/4 flex-col-reverse overflow-hidden rounded-t-sm" style={{ height: `${(b.v / pmax) * 80}%` }}>
-                      {b.parts.map((s, i) => <i key={i} className="block" style={{ height: `${(s.v / tot) * 100}%`, ...fill(s.c) }} />)}
+                      {b.parts.map((s, i) => <i key={i} className="block" style={{ height: `${(s.v / tot) * 100}%`, ...fill(s.c, s.o) }} />)}
                     </span>
                   </div>
                 )

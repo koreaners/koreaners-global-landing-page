@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import { getFinance } from '@/lib/finance/data'
 import { refreshFinance } from './actions'
 import { RefreshButton } from './refresh-button'
@@ -10,7 +11,7 @@ import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { COLOR } from './colors'
-import { Card, CUR_NAME, CURS, hit, Info, LINK, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
+import { at, Card, CUR_NAME, CURS, hit, Info, LINK, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -89,7 +90,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </div>
         <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500">
-          {new Date(data.fetchedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신
+          {at(data.fetchedAt)} 갱신
           <Info text="5분마다 자동으로도 다시 읽습니다" align="right" />
         </span>
         <form action={refreshFinance}>
@@ -172,19 +173,9 @@ function Delta({ cur, prev, good }: { cur: number; prev: number | null; good: bo
   return <span className="font-medium text-neutral-300" style={{ color }}>{up ? '▲' : '▼'} {Math.abs(r * 100).toFixed(1)}%</span>
 }
 
-function Spark({ values, color }: { values: number[]; color: string }) {
-  const w = 72
-  const h = 24
-  const max = Math.max(1, ...values)
-  const pts = values.map((v, i) => [(i / Math.max(1, values.length - 1)) * (w - 6) + 3, h - 4 - (v / max) * (h - 8)])
-  const last = pts[pts.length - 1]
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden className="min-w-0 shrink">
-      <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#525252" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-      {last && <circle cx={last[0]} cy={last[1]} r={4} fill={color} stroke="#171717" strokeWidth={2} />}
-    </svg>
-  )
-}
+// 텍스트 화살표 대신 lucide 아이콘(261116 감사). 링크에 inline-flex items-center gap-1 whitespace-nowrap 을 같이 줘 줄바꿈되지 않게
+const Arrow = () => <ArrowRight aria-hidden className="h-4 w-4 shrink-0" />
+const MORE = 'inline-flex items-center gap-1 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-200'
 
 /** 입금은 됐는데 크리에이터 지급이 하나도 연결되지 않은 계약(계약 단위 마진에서 빠짐), 안건 탭 st=nolink.
  * 개요 할 일 카드로는 쓰지 않음: 크리에이터 비용이 원래 없는 계약(월 정액 운영, 정부사업, 통과금)과 구분할 칸이 계약 DB에 없어 대부분 잡음(인혁 261113) */
@@ -244,14 +235,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
   const byMonth = new Map(all.monthly.map((r) => [r.month, r]))
   const thisYear = Number(today.slice(0, 4))
   const thisMonth = Number(today.slice(5, 7))
-  // 차트는 고른 해의 1~12월(전체면 올해), 스파크라인은 기간 끝 달까지 12개월
+  // 차트는 고른 해의 1~12월(전체면 올해)
   const cy = year ?? thisYear
-  const endY = cy
-  const endM = month ?? (cy === thisYear ? thisMonth : 12)
-  const last12 = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(endY, endM - 12 + i, 1)
-    return byMonth.get(ym(d.getFullYear(), d.getMonth() + 1))
-  })
   const flow = Array.from({ length: 12 }, (_, i) => {
     const r = byMonth.get(ym(cy, i + 1))
     const v = { in: r?.revenue ?? 0, out: r?.settled ?? 0 }
@@ -308,12 +293,12 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           <h2 className="text-sm font-semibold text-neutral-100">지금 볼 것 <span className="ml-1 text-xs font-normal text-neutral-500">손이 필요한 항목, 누르면 해당 목록으로</span></h2>
           <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${['', 'xl:grid-cols-1', 'xl:grid-cols-2', 'xl:grid-cols-3', 'xl:grid-cols-4', 'xl:grid-cols-5'][todo.length]}`}>
             {todo.map(([title, count, krw, href, alert]) => (
-              <Link key={title} href={href} className={`flex flex-col justify-between gap-3 rounded-xl border bg-neutral-900 p-4 hover:bg-neutral-800/60 ${alert ? 'border-[#e66767]/60' : 'border-neutral-800'}`}>
+              <Link key={title} href={href} className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4 hover:bg-neutral-800/60">
                 <p className={`text-xs ${alert ? 'text-[#e66767]' : 'text-neutral-400'}`}>{title}</p>
-                <p className="text-2xl font-semibold tracking-tight text-neutral-50" title={won(krw)}>{won2(krw)}</p>
-                <p className="flex justify-between text-xs text-neutral-500">
+                <p className="text-2xl font-semibold text-neutral-50" title={won(krw)}>{won2(krw)}</p>
+                <p className="flex items-center justify-between text-xs text-neutral-500">
                   <span>{count}</span>
-                  <span aria-hidden>→</span>
+                  <Arrow />
                 </p>
               </Link>
             ))}
@@ -322,8 +307,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} spark={<Spark values={last12.map((r) => r?.revenue ?? 0)} color={REV} />} />
-        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} note={`${payGap ? `${cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} spark={<Spark values={last12.map((r) => r?.settled ?? 0)} color={SET} />} />
+        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} note={[vs(s.revenue, p?.revenue, cb ? '공급가 전액, 계약일의 달' : '공급가, 입금된 달'), curSplit(s.revenueByCur)].filter(Boolean).join('. ')} />
+        <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} note={`${payGap ? `${cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} />
         <Tile label={cb ? '마진 (계약 단위)' : '마진 (현금, 전체)'} value={won2(net)} full={won(net)} delta={<Delta cur={net} prev={payGap || !p ? null : cb ? p.margin : p.revenue - p.settled} good />} side={`마진율 ${pct(cb ? s.marginRate : s.revenue ? net / s.revenue : null)}`} hint={cb ? marginHint(true) : NET_HINT} note={`${cb ? `지급 연결된 계약 ${s.marginN}건(매출의 ${cover}), 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}` : `매출 ${won2(s.revenue)} − 정산 ${won2(s.settled)}. 계약 단위 ${pct(s.marginRate)}(매출의 ${cover}만 지급 연결)`}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : ''}`} />
         <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint="입금 전 회차의 합계(부가세 포함)에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다. 수출바우처는 기관 공급가와 고객사 부가세를 따로 셉니다." note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint="세금계산서 VAT 포함은 지급액, VAT 별도는 부가세 10%를 더한 금액, 사업소득은 원천세 공제 전 금액입니다." note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
@@ -354,7 +339,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           </Panel>
         </div>
 
-        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.filter((o) => !o.label).length}건 + 고객사 부가세 ${model.receivables.open.filter((o) => o.label).length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className="text-xs text-neutral-400 hover:text-neutral-200">안건 전체 →</Link>}>
+        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.filter((o) => !o.label).length}건 + 고객사 부가세 ${model.receivables.open.filter((o) => o.label).length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className={MORE}>안건 전체 <Arrow /></Link>}>
           <div className="space-y-2.5">
             {buckets.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={bMax} color={b.alert ? ALERT : REV} aside={`${b.count}건`} />
@@ -376,7 +361,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 부가세 포함(세금계산서 VAT 별도는 10% 더함), 원천세 공제 전, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link><Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">크리에이터 전체 →</Link></span>}>
+        <Panel id="payables" title="미지급금 상태" sub="송금 완료가 아닌 지급내역, 부가세 포함(세금계산서 VAT 별도는 10% 더함), 원천세 공제 전, 원화 환산" action={<span className="flex shrink-0 gap-3"><Link href="/admin/payouts" className={MORE}>정산 마스터에서 보기 <Arrow /></Link><Link href={q({ tab: 'creators' })} className={MORE}>크리에이터 전체 <Arrow /></Link></span>}>
           <div className="space-y-2.5">
             {model.payables.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={pMax} color={b.alert ? ALERT : SET} aside={`${b.count}행`} />
@@ -396,7 +381,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           )}
         </Panel>
 
-        <Panel title="크리에이터 매출 몫 상위" sub={`${labels.cur}, 계약 공급가를 지급액 비율로 나눈 몫${cb ? ', 계약일 기준' : ', 입금된 회차만'}`} action={<Link href={q({ tab: 'creators' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
+        <Panel title="크리에이터 매출 몫 상위" sub={`${labels.cur}, 계약 공급가를 지급액 비율로 나눈 몫${cb ? ', 계약일 기준' : ', 입금된 회차만'}`} action={<Link href={q({ tab: 'creators' })} className={MORE}>전체 <Arrow /></Link>}>
           <div className="space-y-2.5">
             {topCreators.map((c) => (
               <BarRow key={c.key} label={c.name} value={c.revenue} max={cMax} color={REV} aside={`정산 ${won2(c.paid)}`} href={q({ tab: 'creators', sel: c.key })} />
@@ -405,7 +390,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           </div>
         </Panel>
 
-        <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율, 여러 명이 맡은 계약은 n분의 1`} action={<Link href={q({ tab: 'owners' })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 →</Link>}>
+        <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율, 여러 명이 맡은 계약은 n분의 1`} action={<Link href={q({ tab: 'owners' })} className={MORE}>전체 <Arrow /></Link>}>
           <div className="space-y-2.5">
             {topOwners.map((o) => (
               <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${o.count}건, ${ownerRate(o, model)}`} />
@@ -701,7 +686,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
       <div className="space-y-4">
         <div className="flex flex-wrap justify-between gap-3">
           <Link href={q({ sel: undefined })} className={`text-sm ${LINK}`}>← 크리에이터 목록</Link>
-          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
+          <Link href={`/admin/payouts?sel=${encodeURIComponent(picked.key)}`} className="inline-flex items-center gap-1 whitespace-nowrap text-sm text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 <Arrow /></Link>
         </div>
         <div className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h2 className="text-base font-semibold text-neutral-50">{picked.name}{picked.aliases.length > 0 && <span className="ml-2 text-xs font-normal text-neutral-500">다른 이름 {picked.aliases.join(', ')}</span>} <Insta urls={igs.get(picked.key)} /></h2>
@@ -738,7 +723,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox q={q} f={f} n={rows.length} total={model.creators.length} placeholder="크리에이터 이름" />
-        <Link href="/admin/payouts" className="text-xs text-neutral-400 hover:text-neutral-200">정산 마스터에서 보기 →</Link>
+        <Link href="/admin/payouts" className={MORE}>정산 마스터에서 보기 <Arrow /></Link>
       </div>
       <Table head={['이름, 인스타', '통화', '매출 몫', '매출 건수', '건당 평균 매출', '원가', '마진', '건당 평균 마진', '마진율', '정산 합계', '정산 건수', '건당 평균 정산', '송금 완료', '진행 중', '미지급, 보류']} tall tips={CREATOR_TIPS}
         groups={[['', 2], ['수익성', 7], ['지급 현황', 6]]}
@@ -822,13 +807,13 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
     ['공급가가 없는 수입 계약(합계에서 빠짐)', `${g.noSupply}건`],
     ['날짜(계약일자, 시작일, 입금일)가 없는 수입 계약', `${g.noDay}건`],
     ['선금, 잔금 금액을 읽지 못해 반반으로 나눈 계약', `${g.estimatedSplit}건`],
-    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', <Link key="u" href="/admin/payouts?v=rows&nc=none" className={LINK}>{g.unlinked.count}행, {won(g.unlinked.krw)} →</Link>],
+    ['수입 계약에 연결되지 않은 지급(매출 몫, 마진에서 빠짐)', <Link key="u" href="/admin/payouts?v=rows&nc=none" className={`${LINK} inline-flex items-center gap-1 whitespace-nowrap`}>{g.unlinked.count}행, {won(g.unlinked.krw)} <Arrow /></Link>],
     ['송금일 없이 신청일로 센 송금 완료(정산 어림)', `${g.doneByReq.count}행, ${won(g.doneByReq.krw)}`],
     ['송금일, 신청일 모두 없는 송금 완료(정산에서 빠짐)', `${g.doneNoDate.count}행, ${won(g.doneNoDate.krw)}`],
     ['원화 청구액 없는 외화 송금 완료(환율로 환산)', `${g.fxNoBilled}행`],
     ['통화나 지급액이 없어 환산하지 못한 지급', `${g.noRate}행`],
     ['매출 단가 합이 공급가를 넘는 계약(크리에이터 매출 몫을 단가 비율로 줄임)', `${g.overPriced}건`],
-    [`원가 지급이 덜 붙었을 수 있는 계약(고른 기간, 마진율 ${HIGH_MARGIN * 100}% 이상, 체험단 ${HIGH_MARGIN_TRIAL * 100}% 이상, 예상 원가(원)가 있으면 지급 합계가 그 90% 미만)`, <Link key="c" href={q({ tab: 'contracts', st: 'cost' })} className={LINK}>누락 의심 {g.highMargin.missing}건 →</Link>],
+    [`원가 지급이 덜 붙었을 수 있는 계약(고른 기간, 마진율 ${HIGH_MARGIN * 100}% 이상, 체험단 ${HIGH_MARGIN_TRIAL * 100}% 이상, 예상 원가(원)가 있으면 지급 합계가 그 90% 미만)`, <Link key="c" href={q({ tab: 'contracts', st: 'cost' })} className={`${LINK} inline-flex items-center gap-1 whitespace-nowrap`}>누락 의심 {g.highMargin.missing}건 <Arrow /></Link>],
     ['같은 조건이지만 고객 입금 전이거나 마지막 입금분 송금 회차 전인 계약(원가 미확정, 송금 신청 전일 수 있음)', `${g.highMargin.pending}건`],
     ['종결이거나 비고 맨 윗줄에 해제 금지가 적힌 지급(마진, 매출 몫에서 뺌)', `${g.dead.count}행, ${won(g.dead.krw)}`],
   ]
@@ -853,7 +838,7 @@ function Basis({ model, rates, basis, src, q }: { model: Model; rates: Rates; ba
             <ul className="mt-1 list-[circle] space-y-1 pl-5">
               <li>입금: 실제 입금 예상액(합계 칸: 공급가 + 부가세, 영세율과 엔화는 부가세 없음, 엔화는 환율 환산. 합계가 빈 계약은 공급가로 대신하고 「합계 없음」 표시)을 회차로 나눠, 입금된 회차는 입금일, 아직이면 정산일(입금 예정일)에 은행 원장 일부 입금을 뺀 남은 금액으로 둡니다. 수출바우처는 기관 입금을 공급가로, 고객사 부가세를 따로 「부가세(고객사)」로 둡니다.</li>
               <li>출금 날짜: 지급 예정일 규칙(송금 완료는 송금일, 모인 접수와 원화 이체 대기는 송금 요청일이고 정기 묶음(송금일 3영업일 전에 만듦)이면 그 달 송금일(마지막 평일), 송금 가능은 이번 달 말일, 대기는 수입 계약 입금 예정일(지났으면 오늘)이 든 달의 다음 달 말일(노션 송금 예정일과 같은 규칙). 말일이 주말이면 그 전 금요일, 공휴일은 따지지 않음)입니다. 모인 접수와 원화 이체 대기는 「송금 진행 중」이라 날짜가 지나도 지남으로 보지 않습니다.</li>
-              <li>색 구분: 달력의 출금 예정은 송금 가능, 송금 진행 중, 대기(고객사 입금 전), 서류·계좌 대기를 한 줄(주황)로 합쳐 보여 주고, 이 구분은 아래 안건별 목록의 상태 칸에만 둡니다. 계약 비고에 「정산일 임의」가 있는 계약(정산일을 몰라 임의로 넣은 날, 수출바우처는 계약월 +2달 말일)은 그 입금 예정과 그 날짜를 따르는 대기 출금을 보라로 따로 보여 주고, 날이 지나도 지남으로 보지 않습니다. 봇 광고주 계약이 서명 전(코드 없음)이면 그 정산일에 청록으로 따로 보여 주고 입금 예정 합계에서 뺍니다. 대기 지급 가운데 연결 계약 입금이 끝났는데 서류나 계좌로 막힌 행은 「서류·계좌 대기」로 둡니다. 출금 날짜는 노션 지급내역 「송금 예정일」이 있으면 그 날(비고에 「송금 예정일 임의」가 있으면 목록에 표시), 없으면 이번 달 말일(주말이면 그 전 금요일)입니다.</li>
+              <li>색 구분: 달력의 출금 예정은 송금 가능, 송금 진행 중, 대기(고객사 입금 전), 서류·계좌 대기를 한 줄(회색)로 합쳐 보여 주고, 이 구분은 아래 안건별 목록의 상태 칸에만 둡니다. 계약 비고에 「정산일 임의」가 있는 계약(정산일을 몰라 임의로 넣은 날, 수출바우처는 계약월 +2달 말일)은 그 입금 예정과 그 날짜를 따르는 대기 출금을 진한 회색으로 따로 보여 주고, 날이 지나도 지남으로 보지 않습니다. 봇 광고주 계약이 서명 전(코드 없음)이면 그 정산일에 회색으로 따로 보여 주고 입금 예정 합계에서 뺍니다. 대기 지급 가운데 연결 계약 입금이 끝났는데 서류나 계좌로 막힌 행은 「서류·계좌 대기」로 둡니다. 출금 날짜는 노션 지급내역 「송금 예정일」이 있으면 그 날(비고에 「송금 예정일 임의」가 있으면 목록에 표시), 없으면 이번 달 말일(주말이면 그 전 금요일)입니다.</li>
               <li>빠지는 것: 달력에 잡히는 대기는 수입 계약에 입금 안 된 회차가 있는 행뿐입니다. 보류, 예정일을 정할 수 없는 행, 송금일 없는 송금 완료는 빠집니다. 입금 약속일 칸은 아직 없습니다.</li>
               <li>잔고: 칸 아래 줄은 월초 잔액을 0으로 두고 그날까지 입금에서 출금을 뺀 누적입니다(통장 잔액 아님, 달마다 0에서 다시 시작). 입금은 입금됨과 입금 예정을, 출금은 달력에 잡힌 것을 넣고, 예정일 지남과 정산일 임의(입금, 출금 모두), 서명 전 계약은 넣지 않습니다. 검색과 필터와 관계없이 그 달 전체로 셉니다.</li>
               <li>출금 금액: 실지급액(원화 사업소득 3.3% 행은 공제 뒤, 외화는 모인 원화 청구액이나 환율 환산, 세금계산서 행은 VAT 별도면 부가세를 더하고, VAT 칸이 비면 지급액 그대로)이고, 공제한 원천세를 세무서에 내는 출금은 달력에 없습니다.</li>
@@ -943,7 +928,8 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
   // 합계는 보이는 행(검색, 필터 적용) 기준. 입금과 출금은 따로 더함
   const tot = (kind: CalItem['kind']) => { const xs = rows.filter((x) => x.kind === kind); return { n: xs.length, krw: xs.reduce((a, x) => a + x.krw, 0) } }
   const [tin, tout] = [tot('in'), tot('out')]
-  const chip = (on: boolean) => `rounded-full border px-2 py-0.5 ${on ? 'border-neutral-400 text-neutral-100' : 'border-neutral-800 text-neutral-400 hover:text-neutral-200'}`
+  // 칩 글자는 중립색, 고른 칩만 표면 한 단계(261116 감사: 상태 칩마다 다른 색이라 강조가 묻힘)
+  const chip = (on: boolean) => `rounded-full border border-neutral-800 px-2 py-0.5 ${on ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-400 hover:text-neutral-200'}`
   const states = [...new Map(byKind.map((x) => [sk(x), x])).values()]
   return (
     <div className="space-y-4">
@@ -1012,7 +998,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
           <span className="mx-1 text-neutral-700">|</span>
           <Link href={here({ st: undefined })} className={chip(!st)}>상태 전체</Link>
           {states.map((x) => (
-            <Link key={sk(x)} href={here({ st: st === sk(x) ? undefined : sk(x) })} className={chip(st === sk(x))} style={{ color: CAL_COLOR[x.kind][x.state] }}>
+            <Link key={sk(x)} href={here({ st: st === sk(x) ? undefined : sk(x) })} className={chip(st === sk(x))}>
               {CAL_STATE[x.kind][x.state]} {byKind.filter((r) => sk(r) === sk(x)).length}
             </Link>
           ))}
@@ -1022,13 +1008,13 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
             {rows.map((x, i) => (
               <li key={i} className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
                 <div className="min-w-0">
-                  <span className="block text-xs tabular-nums text-neutral-500">{x.date.slice(5).replace('-', '/')} {x.kind === 'in' ? '입금' : '출금'}</span>
+                  <span className="block text-xs tabular-nums text-neutral-500">{x.date} {x.kind === 'in' ? '입금' : '출금'}</span>
                   <CalTitle x={x} q={q} />
                   <CalSub x={x} q={q} />
                 </div>
                 <div className="shrink-0 text-right">
                   <span className="block tabular-nums text-neutral-100">{x.kind === 'in' ? '+' : '−'}{won(x.krw)}</span>
-                  <span className="block text-xs" style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state].replace(/\(.*\)/, '')}<Overdue show={ODD.includes(x.state) && x.date < today} /></span>
+                  <span className="block text-xs text-neutral-400"><span style={x.state === 'late' ? { color: ALERT } : undefined}>{CAL_STATE[x.kind][x.state].replace(/\(.*\)/, '')}</span><Overdue show={ODD.includes(x.state) && x.date < today} /></span>
                 </div>
               </li>
             ))}
@@ -1051,14 +1037,15 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
             {rows.map((x, i) => (
               <tr key={i}>
                 <td className={`${tdl} whitespace-nowrap tabular-nums`}>
-                  <Link href={`${go(y, m, x.date)}#${LIST}`} className="text-neutral-400 hover:text-neutral-100">{x.date.slice(5).replace('-', '/')}</Link>
+                  <Link href={`${go(y, m, x.date)}#${LIST}`} className="text-neutral-400 hover:text-neutral-100">{x.date}</Link>
                 </td>
                 <td className={tdl}>
                   <CalTitle x={x} q={q} />
                   <CalSub x={x} q={q} />
                 </td>
                 <td className={td}>{x.kind === 'in' ? '입금' : '출금'}</td>
-                <td className={td} style={{ color: CAL_COLOR[x.kind][x.state] }}>{CAL_STATE[x.kind][x.state]}<Overdue show={ODD.includes(x.state) && x.date < today} /></td>
+                {/* 상태 칸은 중립색, 예정일 지남만 빨강(261116 감사) */}
+                <td className={`${td} text-neutral-400`}><span style={x.state === 'late' ? { color: ALERT } : undefined}>{CAL_STATE[x.kind][x.state]}</span><Overdue show={ODD.includes(x.state) && x.date < today} /></td>
                 <td className={td}>{won(x.krw)}</td>
               </tr>
             ))}

@@ -10,7 +10,7 @@ export default async function ReportViewPage({ searchParams }: { searchParams: P
   const { name = '' } = await searchParams
   const back = (
     <Link href="/admin/reports" className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300">
-      <ArrowLeft className="h-3 w-3" /> 보고서 목록
+      <ArrowLeft className="h-4 w-4" /> 보고서 목록
     </Link>
   )
   let r: WeeklyReport | null = null

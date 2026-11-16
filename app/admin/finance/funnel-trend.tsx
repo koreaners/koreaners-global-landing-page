@@ -1,9 +1,10 @@
 import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { REPORTS_BUCKET, TREND_KEY, parseReportKey, type FunnelTrend, type WeeklyReport } from '@/lib/reports'
 import { TrendChart, type TrendPoint } from './charts'
 import { COLOR } from './colors'
-import { Info, won2 } from './ui'
+import { at, Info, won2 } from './ui'
 import { Dot, SignalLegend, SignalTable, plain, split, type Row } from './signal-table'
 
 // 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
@@ -13,8 +14,6 @@ const C3 = COLOR.due // 셋째 계열은 무채색(C1, C2 와 색상으로 겹�
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
 // 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
-const EDGE = { green: 'border-emerald-500/50', yellow: 'border-amber-400/60', red: 'border-red-500/60' } as const
-const worst = (rs: Row[]) => (['red', 'yellow', 'green'] as const).find((c) => rs.some((r) => r.light === c))
 
 // 카드 머리의 신호등 값. 한 줄이면 제목과 같은 지표라 이름을 빼고 크게, 여러 줄이면 2칸 격자. 높이를 맞춰 아래 차트 시작선이 카드끼리 같게
 function Stats({ rows, title }: { rows: Row[]; title: string }) {
@@ -46,23 +45,22 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
   )
 }
 
-// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(테두리는 가장 나쁜 색).
-// note 는 차트 아래(설명 길이가 달라도 차트 시작선이 같게). 카드에 overflow-hidden 을 두지 않는다(ⓘ 말풍선이 잘림)
-function Panel({ title, note, info, href, rows = [], children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; children: React.ReactNode }) {
-  const w = worst(rows)
+// 카드 하나. href 가 있으면 카드 전체가 그 상세 화면 링크(상세 화면이 있는 지표만), info 는 제목 옆 ⓘ 설명, rows 는 신호등(카드 안 점으로만, 테두리는 다른 카드와 같은 헤어라인. 261116 감사).
+// note 는 차트 아래(설명 길이가 달라도 차트 시작선이 같게). 카드에 overflow-hidden 을 두지 않는다(ⓘ 말풍선이 잘림). className 은 격자 칸(넓은 카드)용
+function Panel({ title, note, info, href, rows = [], className = '', children }: { title: string; note: string; info?: string; href?: string; rows?: Row[]; className?: string; children: React.ReactNode }) {
   const card = (
-    <section className={`flex h-full flex-col gap-4 rounded-xl bg-neutral-900 p-5 ${w ? `border-2 ${EDGE[w]}` : 'border border-neutral-800'}${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ''}`}>
+    <section className={`flex h-full flex-col gap-4 rounded-xl border border-neutral-800 bg-neutral-900 p-5${href ? ' transition-colors group-hover/card:bg-neutral-800/40' : ` ${className}`}`}>
       <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
         {title}
         {info && <Info text={info} />}
-        {href && <span className="ml-auto text-xs font-normal text-neutral-500 group-hover/card:text-neutral-200">자세히 →</span>}
+        {href && <span className="ml-auto inline-flex items-center gap-1 whitespace-nowrap text-xs font-normal text-neutral-500 group-hover/card:text-neutral-200">자세히 <ArrowRight aria-hidden className="h-4 w-4 shrink-0" /></span>}
       </h2>
       <Stats rows={rows} title={title} />
       {children}
       <p className="mt-auto border-t border-neutral-800 pt-3 text-xs leading-relaxed text-neutral-500">{note}</p>
     </section>
   )
-  return href ? <Link href={href} className="group/card block h-full">{card}</Link> : card
+  return href ? <Link href={href} className={`group/card block h-full ${className}`}>{card}</Link> : card
 }
 
 // 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
@@ -126,8 +124,6 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
   const pts = (f: (i: number) => Omit<TrendPoint, 'label'>) => t.months.map((_, i) => ({ label: label(i), title: full(i), ...f(i) }))
   const d = t.deals
   const leads = t.leads ? Object.entries(t.leads) : null
-  const g = new Date(t.generated_at).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }) // 2026-11-10 10:09:00, 칩의 다른 날짜(11/8)와 같은 M/D 로
-  const calc = `${+g.slice(5, 7)}/${+g.slice(8, 10)} ${g.slice(11, 16)}`
 
   return (
     <div className="space-y-6">
@@ -136,19 +132,19 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           지표 모니터링
           <Info text={`경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움${period ? '. 신호등은 최신 경영진 보고서 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달' : ''}`} />
         </h1>
-        <div className="flex flex-wrap gap-1.5 text-xs text-neutral-400 sm:ml-auto">
-          {period && <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-1">신호등: {period} 보고서</span>}
-          <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-1">
-            {calc} 계산{closed ? '' : `, 이번 달은 ${upto}까지`}
-          </span>
-          <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2.5 py-1">매주 월 07:00 갱신</span>
-        </div>
+        {/* 갱신 정보는 다른 탭처럼 흐린 평문 한 줄(261116 감사: 테두리 알약 3개) */}
+        <p className="flex flex-wrap gap-x-3 text-xs text-neutral-500 sm:ml-auto">
+          {period && <span>신호등: {period} 보고서</span>}
+          <span>{at(t.generated_at)} 계산{closed ? '' : `, 이번 달은 ${t.today}까지`}</span>
+          <span>매주 월 07:00 갱신</span>
+        </p>
       </div>
 
       <TeamLights rows={rows} />
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <Panel title="안건 수" href="/admin/finance?tab=contracts" rows={pick('안건 수')} note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
+      {/* 주 차트(안건 수)는 한 줄 전체, 나머지는 격자. lg 2열에서 마지막 카드가 홀로 남으면(첫 카드 빼고 홀수 장) 두 칸을 채움(261116 감사) */}
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 lg:max-xl:[&>:last-child:nth-child(even)]:col-span-2">
+        <Panel className="col-span-full" title="안건 수" href="/admin/finance?tab=contracts" rows={pick('안건 수')} note={`계약 기준일(계약일자, 없으면 시작일, 없으면 첫 입금일)의 달. 목표 ${d.goal}건은 신규 ${+(d.goal - d.repeat_goal).toFixed(1)}건과 재계약 ${d.repeat_goal}건(4~9월 평균 유지 가정)`}>
           <TrendChart
             unit="건"
             goal={d.goal}
