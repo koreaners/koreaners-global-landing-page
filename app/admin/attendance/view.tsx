@@ -7,7 +7,7 @@ import { fixAttendance } from './actions'
 import { addMonth, ATT_FROM, dayLabel, hm, kstDate, today, view as view0, type Absent, type Att } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
-const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
+const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
 const LIST = 'att-list'
 const EDIT = 'att-edit'
 const ROW = 'att-row'
@@ -17,9 +17,10 @@ const inp = 'rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-
 const { bad: ALERT, warn: WARN, due: MUTED } = COLOR
 
 /** 줄 상태: 칩 필터와 상태 칸이 함께 씀 */
-type St = 'absent' | 'missing' | 'open' | 'fixed' | 'ok'
+type St = 'absent' | 'noin' | 'missing' | 'open' | 'fixed' | 'ok'
 const ST: [St, string, string][] = [
   ['absent', '미출근', ALERT],
+  ['noin', '출근 누락', WARN],
   ['missing', '퇴근 누락', WARN],
   ['open', '근무 중', MUTED],
   ['fixed', '정정', 'var(--color-neutral-500)'],
@@ -52,7 +53,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
   const state = (r: Att | Absent): St => {
     if (!('taps' in r)) return 'absent'
     const v = view(r)
-    return v.missing ? 'missing' : v.open ? 'open' : v.fixed ? 'fixed' : 'ok'
+    return v.noIn ? 'noin' : v.missing ? 'missing' : v.open ? 'open' : v.fixed ? 'fixed' : 'ok'
   }
   const mine = u ? rows.filter((r) => r.slack_id === u) : rows
   const missed = absents && absents.filter((a) => !u || a.slack_id === u)
@@ -93,7 +94,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
   const tv = target ? view(target) : null
   const editLink = (slack: string, wd: string, hash = EDIT) => link({ d: day, e: `${slack}:${wd}` }, `#${hash}`)
   const editing = (x: Att | Absent) => edit && target !== undefined && x.slack_id === es && x.workday === ed
-  const firstDef = tv ? hm(tv.first) : '09:00'
+  const firstDef = tv ? (tv.first ? hm(tv.first) : '') : '09:00'
   const lastDef = tv && !tv.missing && !tv.open ? hm(tv.last) : '18:00'
   // 모바일 패널과 표 줄 확인 폼이 함께 씀
   const hidden = edit && [['slack_id', es], ['workday', ed], ['email', edit.emails[es] ?? target?.member_email ?? ''], ['m', m], ['u', u ?? ''], ['d', day ?? '']].map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)
@@ -166,7 +167,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <Card label="출근 기록" value={`${mine.length}건`} note="이 달 출근이 찍힌 날(정정, 자동 채움 포함)" />
           <Card label="미출근" value={missed ? `${missed.length}건` : '-'} note="자정이 지난 평일 중 기록도 휴가도 없는 날" />
-          <Card label="퇴근 누락" value={`${count(mine, 'missing')}건`} note="자정이 지나도 퇴근 기록이 없는 날" />
+          <Card label="출퇴근 누락" value={`${count(mine, 'missing') + count(mine, 'noin')}건`} note="자정이 지나도 퇴근 기록이 없거나 16시 뒤 첫 기록이라 출근 기록이 없는 날" />
           <Card label="정정" value={`${count(mine, 'fixed')}건`} note="고친 날(자동 8시간 채움 포함)" />
         </div>
 
@@ -228,7 +229,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
               <form id={EDIT} action={fixAttendance} className="scroll-mt-4 space-y-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm sm:hidden">
                 <p className="font-medium text-neutral-100">
                   {name(es)} {dayLabel(ed)} 정정{' '}
-                  <span className="font-normal text-neutral-400">{target ? `지금 출근 ${time(tv!.first, ed)}, 퇴근 ${tv!.missing ? '누락' : tv!.open ? '아직 없음' : time(tv!.last, ed)}` : '기록 없음(새 줄을 만듭니다)'}</span>
+                  <span className="font-normal text-neutral-400">{target ? `지금 출근 ${tv!.first ? time(tv!.first, ed) : '없음'}, 퇴근 ${tv!.missing ? '누락' : tv!.open ? '아직 없음' : time(tv!.last, ed)}` : '기록 없음(새 줄을 만듭니다)'}</span>
                 </p>
                 {edit.err && <p className="text-red-300">{edit.err}</p>}
                 {hidden}
@@ -263,7 +264,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                       <div className="min-w-0">
                         <span className="block text-xs tabular-nums text-neutral-500">{dayLabel(x.workday)}</span>
                         <span className="block text-neutral-100">{name(x.slack_id)}</span>
-                        {v && <span className="block text-xs tabular-nums text-neutral-400">{time(v.first, x.workday)} ~ {v.missing || v.open ? '' : time(v.last, x.workday)}{v.worked ? `, ${v.worked}` : ''}</span>}
+                        {v && <span className="block text-xs tabular-nums text-neutral-400">{v.first ? time(v.first, x.workday) : '—'} ~ {v.missing || v.open ? '' : time(v.last, x.workday)}{v.worked ? `, ${v.worked}` : ''}</span>}
                       </div>
                       <div className="shrink-0 text-right text-xs">
                         {stCell(x)}
@@ -288,7 +289,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
                           <Link href={link({ d: x.workday }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">{dayLabel(x.workday)}</Link>
                         </td>
                         <td className={tdl}>{name(x.slack_id)}</td>
-                        <td className={td}>{on ? tIn('first', firstDef, '출근') : v ? time(v.first, x.workday) : '—'}</td>
+                        <td className={td}>{on ? tIn('first', firstDef, '출근') : v?.first ? time(v.first, x.workday) : '—'}</td>
                         <td className={td}>{on ? tIn('last', lastDef, '퇴근') : v && !v.missing && !v.open ? time(v.last, x.workday) : '—'}</td>
                         <td className={td}>{v?.worked ?? '—'}</td>
                         <td className={td}>{'taps' in x ? x.taps : 0}</td>

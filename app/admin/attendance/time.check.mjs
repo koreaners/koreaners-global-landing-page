@@ -12,7 +12,7 @@ assert.equal(worked(20), '20분')
 assert.equal(worked(0), '0분')
 
 const row = (first_at, last_at, fix = {}) => ({ slack_id: 'U1', member_email: 'a@koreaners.com', workday: '2026-11-05', first_at, last_at, taps: 2, source: 'nfc', fix_first_at: null, fix_last_at: null, fix_by: null, fix_note: null, ...fix })
-assert.deepEqual(view(row('2026-11-05T09:00:00+09:00', '2026-11-05T18:10:59+09:00')), { first: '2026-11-05T09:00:00+09:00', last: '2026-11-05T18:10:59+09:00', missing: false, open: false, worked: '8시간 10분', fixed: false })
+assert.deepEqual(view(row('2026-11-05T09:00:00+09:00', '2026-11-05T18:10:59+09:00')), { first: '2026-11-05T09:00:00+09:00', last: '2026-11-05T18:10:59+09:00', missing: false, noIn: false, open: false, worked: '8시간 10분', fixed: false })
 // 퇴근 누락은 그날 자정이 지나야: 11/05 23:59 KST 는 근무 중, 11/06 00:00 KST 부터 누락
 const solo = row('2026-11-05T09:00:00+09:00', '2026-11-05T09:00:00+09:00')
 const at = (iso) => { const v = view(solo, Date.parse(iso)); return [v.missing, v.open] }
@@ -26,10 +26,16 @@ const fixed = view(row('2026-11-05T09:00:00+09:00', '2026-11-05T09:00:00+09:00',
 assert.equal(fixed.missing, false)
 assert.equal(fixed.worked, '8시간')
 assert.equal(fixed.fixed, true)
+// 16시 뒤 첫 탭: 출근 누락(바로), 마지막 탭이 퇴근. 15:59 는 출근. 정정하면 정정값(인혁 2026-11-16)
+const late = view(row('2026-11-05T09:17:00.12345Z', '2026-11-05T09:34:00Z'), Date.parse('2026-11-05T10:00:00Z'))
+assert.deepEqual([late.first, late.last, late.noIn, late.missing, late.open], [null, '2026-11-05T09:34:00Z', true, false, false])
+assert.equal(view(row('2026-11-05T15:59:00+09:00', '2026-11-05T19:00:00+09:00')).noIn, false)
+assert.equal(view(row('2026-11-06T00:30:00+09:00', '2026-11-06T00:30:00+09:00')).noIn, true) // 05:00 전 새벽도 같은 근무일
+assert.equal(view(row('2026-11-05T20:12:00+09:00', '2026-11-05T20:12:00+09:00', { fix_first_at: '2026-11-05T09:00:00+09:00', fix_last_at: '2026-11-05T20:12:00+09:00', fix_by: 'U9' })).noIn, false)
 
 assert.equal(hm('2026-11-05T00:30:00Z'), '09:30')
 assert.equal(hm('2026-11-05T15:00:00Z'), '00:00') // 24:00 아님
-assert.equal(dayLabel('2026-11-05'), '11/05(목)')
+assert.equal(dayLabel('2026-11-05'), '2026-11-05(목)')
 assert.equal(thisMonth(Date.parse('2026-11-30T19:59:00Z')), '2026-11') // 12/1 04:59 KST는 아직 11월 근무일
 assert.equal(thisMonth(Date.parse('2026-11-30T20:00:00Z')), '2026-12')
 assert.equal(addMonth('2026-12', 1), '2027-01')
