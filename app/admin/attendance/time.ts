@@ -45,6 +45,8 @@ export const HOLIDAYS = new Set(
 export const SKIP = new Set(['U0B0V3089LY', 'U09MDN55T0A', 'U09JPJAR74H', 'U09N5EQKJ82', 'U0BML0DQ6LS', 'U09HV7MGS4F', 'U09HV7N1UDV', 'U09HV7MD3AT'])
 /** nfc.py ATT_FROM 기본값: NFC 기록이 출퇴근 정본이 된 날 */
 export const ATT_FROM = '2026-11-09'
+/** nfc.py LATE: 근무일 이 시각 뒤 첫 탭은 퇴근(출근 기록 없음, 인혁 2026-11-16) */
+export const LATE = '16:00'
 
 /** 노션 구성원(결재 조직도) 재직자 */
 export type Member = { slack: string; name: string; email: string; joined: string | null }
@@ -103,12 +105,15 @@ export function worked(stay: number) {
   return h && m ? `${h}시간 ${m}분` : h ? `${h}시간` : `${m}분`
 }
 
-/** 한 줄의 화면 값: 정정값이 있으면 정정값. 출근과 마지막 기록이 1시간 안이면 그날 자정 전은 근무 중(open), 지나면 퇴근 누락 */
-export function view(r: Att, now = Date.now()) {
+/** 한 줄의 화면 값: 정정값이 있으면 정정값. 정정 안 된 줄의 첫 탭이 LATE 뒤면 출근 누락(noIn, 바로 표시, 마지막 탭이 퇴근).
+ * 아니면 출근과 마지막 기록이 1시간 안일 때 그날 자정 전은 근무 중(open), 지나면 퇴근 누락 */
+export function view(r: Att, now = Date.now()): { first: string | null; last: string; missing: boolean; noIn: boolean; open: boolean; worked: string | null; fixed: boolean } {
+  if (!r.fix_by && r.taps > 0 && Date.parse(r.first_at) >= Date.parse(`${r.workday}T${LATE}:00+09:00`))
+    return { first: null, last: r.last_at, missing: false, noIn: true, open: false, worked: null, fixed: false }
   const first = r.fix_first_at ?? r.first_at
   const last = r.fix_last_at ?? r.last_at
   const stay = Math.floor((Date.parse(last) - Date.parse(first)) / 60_000)
   const short = stay < 60
   const missing = short && ended(r.workday, now)
-  return { first, last, missing, open: short && !missing, worked: short ? null : worked(stay), fixed: !!r.fix_by }
+  return { first, last, missing, noIn: false, open: short && !missing, worked: short ? null : worked(stay), fixed: !!r.fix_by }
 }
