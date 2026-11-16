@@ -135,7 +135,8 @@ export function Tile({ label, value, full, delta, note, side, hint }: { label: s
       </div>
       <p className="text-2xl font-semibold text-neutral-50" title={full}>
         {value}
-        {side && <span className="ml-2 text-base font-medium text-neutral-300">{side}</span>}
+        {/* 「마진율 31.9%」가 갈라져 숫자만 다음 줄로 떨어지지 않게 한 덩어리로(261116) */}
+        {side && <span className="ml-2 inline-block whitespace-nowrap text-base font-medium text-neutral-300">{side}</span>}
       </p>
       <p className="mt-auto text-xs text-neutral-500">
         {delta}
