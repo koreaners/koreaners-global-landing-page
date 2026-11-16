@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { ArrowUpRight, ChevronDown } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
+import { SignalLegend, SignalTable, type Item } from '@/app/admin/finance/signal-table'
 import type { ColorKey, Legend, Ref, Seg, WeeklyReport } from '@/lib/reports'
 
 // 보고서 의미 색 -> 어드민 다크 화면 색
@@ -68,108 +69,20 @@ function Refs({ refs }: { refs: Ref[] }) {
 
 const card = 'rounded-xl border border-neutral-800 bg-neutral-900 p-5'
 
-const LIGHT = { green: ['bg-emerald-500', '초록'], yellow: ['bg-amber-400', '노랑'], red: ['bg-red-500', '빨강'] } as const
-
-// 잡이 문장을 ". " 로 이어 붙이므로 그 자리에서 끊어 불렛으로 (소수점 뒤엔 띄어쓰기가 없다)
-const sentences = (s?: string) => (s ? s.split(/\.\s+/).filter(Boolean) : [])
-
-function Bullets({ title, items, className }: { title: string; items: string[]; className: string }) {
-  return items.length ? (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-neutral-500">{title}</p>
-      <ul className={`list-disc space-y-1 pl-4 marker:text-neutral-600 ${className}`}>
-        {items.map((t) => <li key={t}>{t}</li>)}
-      </ul>
-    </div>
-  ) : null
-}
-
-type FunnelRow = NonNullable<WeeklyReport['funnel']>['rows'][number]
-
-// 닫힌 카드는 칸마다 자리를 잡아 둬서 내용이 비거나 길어도 같은 줄 카드의 높이가 같다
-function FunnelCard({ x, mtdMonth, weeks }: { x: FunnelRow; mtdMonth: string; weeks?: { label: string }[] }) {
-  const l = x.light ? LIGHT[x.light] : null
-  const imply = sentences(x.imply)
-  const define = sentences(x.define)
-  return (
-    <details className="group rounded-lg border border-neutral-800 bg-neutral-950/40 open:border-neutral-600">
-      <summary className="flex cursor-pointer list-none flex-col gap-2.5 p-4 [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center gap-2 text-sm text-neutral-300">
-          <i className={`block h-2.5 w-2.5 shrink-0 rounded-full ${l ? l[0] : 'bg-neutral-600'}`} aria-label={l ? l[1] : '색 없음'} />
-          <span className="truncate">{x.label}</span>
-          {(imply.length > 0 || define.length > 0) && (
-            <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-neutral-600 transition-transform group-open:rotate-180" />
-          )}
-        </span>
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="text-2xl font-semibold tabular-nums text-neutral-50">{x.value}</span>
-          {x.weeks ? (
-            x.week && <span className="shrink-0 text-xs tabular-nums text-neutral-400">이번 주 {x.week}</span>
-          ) : (
-            x.mtd && <span className="shrink-0 text-xs tabular-nums text-neutral-500">{mtdMonth} {x.mtd}</span>
-          )}
-        </span>
-        <div className={`h-1.5 overflow-hidden rounded-full bg-neutral-800 ${x.rate === null ? 'invisible' : ''}`}>
-          <i className={`block h-full rounded-full ${l ? l[0] : 'bg-neutral-500'}`} style={{ width: `${Math.min(x.rate ?? 0, 100)}%` }} />
-        </div>
-        <span className="flex justify-between gap-2 text-[13px] tabular-nums text-neutral-400">
-          <span className="min-w-0">{x.target ? `목표 ${x.target}` : ' '}</span>
-          {x.rate !== null && <span className="shrink-0 whitespace-nowrap text-neutral-200">달성 {x.rate}%</span>}
-        </span>
-        {weeks && (
-          <span className="min-h-[2lh] text-xs leading-snug tabular-nums text-neutral-400">
-            {x.weeks?.map((v, i) => `${weeks[i]?.label ?? ''} ${v}`).join(' · ')}
-          </span>
-        )}
-        <span className="line-clamp-2 min-h-[2lh] text-xs leading-snug text-neutral-500">{x.note}</span>
-      </summary>
-      {(imply.length > 0 || define.length > 0) && (
-        <div className="space-y-3 border-t border-neutral-800 px-4 pb-4 pt-3 text-[13px] leading-relaxed">
-          <Bullets title="함의" items={imply} className="text-neutral-200" />
-          <Bullets title="정의" items={define} className="text-neutral-400" />
-          {weeks && x.mtd && <Bullets title="비교" items={[`${mtdMonth} ${x.mtd}`]} className="text-neutral-400" />}
-        </div>
-      )}
-    </details>
-  )
-}
-
+// 퍼널 신호등: 지표 모니터링 「팀별 관리지표」와 같은 표. 머리 문장은 첫 문장만(뒤 문장은 옛 카드 배치 설명이라 표에선 머리글이 대신함)
 function Funnel({ f }: { f: NonNullable<WeeklyReport['funnel']> }) {
-  const groups = [...new Set(f.rows.map((x) => x.group))].map((g) => ({ g, rows: f.rows.filter((x) => x.group === g) }))
-  // 넓은 화면에선 이웃 묶음을 카드 5장까지 한 줄에 붙여 빈 칸을 없앤다(안건 3 + 현금 2). 4장 미만 줄은 빈 몫을 둬서 카드 폭을 맞춘다
-  const lines: (typeof groups)[] = []
-  for (const x of groups) {
-    const last = lines.at(-1)
-    if (last && last.reduce((a, y) => a + y.rows.length, 0) + x.rows.length <= 5) last.push(x)
-    else lines.push([x])
-  }
-  const mtdMonth = f.weeks ? f.mtd : f.mtd.split(' ')[0] // 주차가 있으면 비교 칸 머리(「9월 같은 기간(9/1~9/25)」) 전체
+  const groups = [...new Set(f.rows.map((x) => x.group))].map((g): [string, Item[]] => [g, f.rows.filter((x) => x.group === g).map((row) => ({ label: row.label, row }))])
   return (
-    <section className={`${card} space-y-6 p-6`}>
-      <div className="space-y-1">
-        <H2>퍼널 신호등</H2>
-        <p className="text-sm text-neutral-500">{f.head ?? `색은 ${f.month} 마감 기준, 값 옆 작은 숫자는 ${f.mtd}`}. 카드를 누르면 함의와 정의{f.weeks ? `, ${f.mtd} 비교` : ''}가 펼쳐집니다</p>
+    <section className={`${card} space-y-2 p-6`}>
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+        <div className="space-y-1">
+          <H2>퍼널 신호등</H2>
+          <p className="text-sm text-neutral-500">{(f.head ?? `색은 ${f.month} 마감 기준`).split(/\.\s/)[0]}. 지표 옆 ⓘ에 정의와 함의</p>
+        </div>
+        <SignalLegend className="sm:ml-auto" />
       </div>
-      {lines.map((line) => {
-        const n = line.reduce((a, y) => a + y.rows.length, 0)
-        const cols = [...line.map((y) => `${y.rows.length}fr`), ...(n < 4 ? [`${4 - n}fr`] : [])].join(' ')
-        return (
-          <div key={line[0].g} className="grid gap-x-3 gap-y-6 xl:grid-cols-[var(--cols)]" style={{ '--cols': cols } as React.CSSProperties}>
-            {line.map(({ g, rows }) => (
-              <div key={g} className="space-y-2">
-                <p className="text-xs font-medium text-neutral-500">{g}</p>
-                <div
-                  className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(var(--n),minmax(0,1fr))]"
-                  style={{ '--n': Math.min(rows.length, 4) } as React.CSSProperties} // 5장 넘는 묶음(영업)은 4장씩 줄바꿈해 이름이 잘리지 않게
-                >
-                  {rows.map((x) => <FunnelCard key={x.label} x={x} mtdMonth={mtdMonth} weeks={f.weeks} />)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      })}
-      <ul className="list-disc space-y-1 border-t border-neutral-800 pl-5 pt-4 text-[13px] leading-relaxed text-neutral-500">
+      <SignalTable groups={groups} weeks={f.weeks} mtd={f.mtd} />
+      <ul className="list-disc space-y-1 pl-5 pt-4 text-[13px] leading-relaxed text-neutral-500">
         {f.lines.map((t) => <li key={t}>{t}</li>)}
       </ul>
     </section>

@@ -34,7 +34,7 @@ export function Info({ text, align = 'left', up }: { text: string; align?: 'left
         <path d="M8 7.3v3.9" strokeLinecap="round" />
         <circle cx="8" cy="4.9" r="0.7" fill="currentColor" stroke="none" />
       </svg>
-      <span aria-hidden className={`pointer-events-none invisible absolute z-30 w-64 ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} whitespace-normal break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
+      <span aria-hidden className={`pointer-events-none invisible absolute z-30 w-64 ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} whitespace-pre-line break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
         {text}
       </span>
     </span>

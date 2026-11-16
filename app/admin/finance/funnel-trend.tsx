@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { REPORTS_BUCKET, TREND_KEY, parseReportKey, type FunnelTrend, type WeeklyReport } from '@/lib/reports'
 import { TrendChart, type TrendPoint } from './charts'
 import { Info, won2 } from './ui'
+import { Dot, SignalLegend, SignalTable, plain, split, type Row } from './signal-table'
 
 // 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
 const C1 = '#3b82f6'
@@ -11,26 +12,8 @@ const C3 = '#a3a3a3' // 셋째 계열은 무채색(C1, C2 와 색상으로 겹�
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
 // 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
-type Row = NonNullable<WeeklyReport['funnel']>['rows'][number]
-const DOT = { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500' } as const
 const EDGE = { green: 'border-emerald-500/50', yellow: 'border-amber-400/60', red: 'border-red-500/60' } as const
 const worst = (rs: Row[]) => (['red', 'yellow', 'green'] as const).find((c) => rs.some((r) => r.light === c))
-// 색 기준은 brain-weekly light(): 달성률 100% 이상 초록, 80~99% 노랑, 80% 미만 빨강(설계 문서 「신호등 규칙」)
-const LEGEND = [['green', '100% 이상'], ['yellow', '80~99%'], ['red', '80% 미만']] as const
-const PENDING = '원천 칸 신설 전'
-
-// 값은 있는데 색이 없는 줄(표본 20곳 미만 코호트, 분모 없음 등 brain-weekly lit=False): 빈 점. 값 자체가 없는 줄(원천 칸 신설 전, 미상)은 회색 점(261113 감사 #33)
-const plain = (r?: Row) => !!r && !r.light && r.value !== PENDING && r.value !== '미상'
-
-function Dot({ light, hollow = false, className = '' }: { light?: Row['light']; hollow?: boolean; className?: string }) {
-  return <i className={`block h-2 w-2 shrink-0 rounded-full ${light ? DOT[light] : hollow ? 'border border-neutral-400' : 'bg-neutral-600'} ${className}`} />
-}
-
-// 「3/20곳 (15%)」는 15% 를 크게, 3/20곳 을 작게. 모양이 다르면 그대로
-const split = (v: string) => {
-  const m = /^(.+?) \((.+)\)$/.exec(v)
-  return m ? [m[2], m[1]] : [v, '']
-}
 
 // 카드 머리의 신호등 값. 한 줄이면 제목과 같은 지표라 이름을 빼고 크게, 여러 줄이면 2칸 격자. 높이를 맞춰 아래 차트 시작선이 카드끼리 같게
 function Stats({ rows, title }: { rows: Row[]; title: string }) {
@@ -98,64 +81,10 @@ function TeamLights({ rows }: { rows: Row[] }) {
           팀별 관리지표
           <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 목표 근거는 각 지표 ⓘ와 경영진 보고서 해설. 회색 점은 원천 칸이 아직 없거나 읽지 못해 값이 없는 지표(목표는 잠정), 빈 점은 값은 있지만 표본이 작은 코호트(20곳 미만) 등으로 색을 매기지 않은 참고 값" />
         </h2>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 sm:ml-auto">
-          <span>목표 달성률</span>
-          {LEGEND.map(([c, t]) => (
-            <span key={c} className="inline-flex items-center gap-1.5"><Dot light={c} />{t}</span>
-          ))}
-          <span className="inline-flex items-center gap-1.5"><Dot hollow />색 없음(참고 값)</span>
-          <span className="inline-flex items-center gap-1.5"><Dot />값 없음</span>
-        </div>
+        <SignalLegend className="sm:ml-auto" />
       </div>
-      {/* 3열: 영업팀(11줄) | PM팀(5줄) | 전략실+경영지원(4+3줄). 홈페이지 문의 신규 리드는 SEO, GEO 담당인 전략실. 4열이면 이름이 두 줄로 꺾임. 넓은 화면에서만 열을 나눠 ⓘ 말풍선이 화면 밖으로 나가지 않게 */}
-      <div className="grid gap-x-10 gap-y-6 p-5 lg:grid-cols-3">
-        {[[TEAMS[0]], [TEAMS[1]], [TEAMS[2], TEAMS[3]]].map((col, ci) => (
-          <div key={ci} className="min-w-0 space-y-6">
-            {col.map(([team, items]) => (
-              <div key={team}>
-                <h3 className="border-b border-neutral-800 pb-2 text-xs font-semibold text-neutral-300">{team}</h3>
-                {/* 값과 목표를 한 칸에 위아래로 둬 값이 늘 오른쪽 끝에 맞음(목표 유무로 값 자리가 흔들리지 않게) */}
-                <table className="w-full text-[13px]">
-                  <tbody className="divide-y divide-neutral-800/60">
-                    {items.map(([code, label]) => {
-                      const r = by.get(label)
-                      const off = !r || r.value === PENDING
-                      return (
-                        <tr key={label} className="align-top">
-                          <td className="py-2 pr-3">
-                            <span className="flex items-start gap-2">
-                              <Dot light={r?.light} hollow={plain(r)} className="mt-1.5" />
-                              <span className={off ? 'text-neutral-500' : 'text-neutral-200'}>
-                                {code && <span className="mr-1 font-mono text-[11px] text-neutral-500">{code}</span>}
-                                {label}
-                                {r?.define && <span className="ml-1 inline-flex align-[-2px]"><Info text={r.define} align={ci === 2 ? 'right' : 'left'} /></span>}
-                              </span>
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap py-2 text-right tabular-nums">
-                            {off ? (
-                              <>
-                                <span className="text-xs text-neutral-500">{r ? PENDING : '다음 주간 리포트부터'}</span>
-                                {r?.target && <span className="block text-[11px] text-neutral-500">목표 {r.target}</span>}
-                              </>
-                            ) : (
-                              <>
-                                <span className="font-medium text-neutral-50">{r.value}</span>
-                                {r.target && <span className="block text-[11px] text-neutral-500">목표 {r.target}</span>}
-                              </>
-                            )}
-                            {/* 기준 달, 3개월 합 같은 보고서 줄 설명(정본 줄은 10월 값이라 11월로 읽히지 않게, 261113 감사). 길어서 칸 안에서 줄바꿈 */}
-                            {r?.note && <span className="ml-auto block max-w-[12rem] whitespace-normal text-[11px] text-neutral-500">{r.note}</span>}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        ))}
+      <div className="px-5 pb-4">
+        <SignalTable groups={TEAMS.map(([team, items]) => [team, items.map(([code, label]) => ({ code, label, row: by.get(label) }))])} missing="다음 주간 리포트부터" />
       </div>
     </section>
   )
