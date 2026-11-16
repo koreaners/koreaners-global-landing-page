@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getFinance } from '@/lib/finance/data'
 import { refreshFinance } from './actions'
 import { RefreshButton } from './refresh-button'
@@ -935,9 +935,9 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={go(py, pm)} aria-label="이전 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">‹</Link>
+          <Link href={go(py, pm)} aria-label="이전 달" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"><ChevronLeft className="h-4 w-4" aria-hidden /></Link>
           <h2 className="text-base font-semibold text-neutral-100">{y}년 {m}월</h2>
-          <Link href={go(ny, nm)} aria-label="다음 달" className="rounded-md px-2 py-0.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100">›</Link>
+          <Link href={go(ny, nm)} aria-label="다음 달" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"><ChevronRight className="h-4 w-4" aria-hidden /></Link>
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex flex-wrap items-center gap-x-2"><span className="w-8 text-neutral-500">입금</span><Legend items={[['입금', REV], ['입금 예정', DUE], ['서명 전 계약', UNSIGNED]]} /></div>
