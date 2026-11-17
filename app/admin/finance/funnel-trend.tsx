@@ -89,6 +89,115 @@ function TeamLights({ rows }: { rows: Row[] }) {
   )
 }
 
+// 하이라키 지도: 영업이익에서 빨간 점을 따라 팀 지표까지 내려가며 원인을 찾는 구조도(설계: 볼트 work/261116-설계-어드민-하이라키-지도).
+// 금액 칸은 추이 파일 tree(정본 마지막 달), 나머지는 최신 보고서 신호등 줄. 값과 색은 brain-weekly 그대로.
+// 칸마다 기준이 다르다(이번 달 누적 계약 기준, 정본 달 입금 기준). 그래서 칸끼리 곱하거나 더하는 표기를 두지 않는다
+type Node = { label: string; book?: boolean; basis?: string; owner?: string; metrics?: string[]; kids?: Node[] }
+const MAP: Node = {
+  label: '영업이익', book: true, kids: [
+    { label: '공헌이익', book: true, kids: [
+      { label: '안건 수', basis: '계약 기준', kids: [
+        { label: '신규 고객 첫 계약', basis: '계약 기준', metrics: ['신규 리드: 아웃바운드 영업', '신규 리드: 크리에이터 경유', '신규 리드: 홈페이지 문의', '견적 발송률: 아웃바운드 영업', '견적 발송률: 크리에이터 경유', '견적 발송률: 홈페이지 문의', '수주율: 아웃바운드 영업', '수주율: 크리에이터 경유', '수주율: 홈페이지 문의', '단계 체류'] },
+        { label: '재계약', basis: '계약 기준', metrics: ['3개월 내 재계약률', '재계약 금액'] },
+      ] },
+      { label: '건당 매출', book: true, basis: '입금 기준 안건', metrics: ['수주 질', '300만 원 미만 계약 비중'] },
+      { label: '공헌이익률', book: true, metrics: ['변동비율'] },
+    ] },
+    { label: '고정비', book: true, kids: [
+      { label: '인건비', book: true, metrics: ['인건비 ÷ 공헌이익', '인당 매출', '인당 처리 안건'] },
+      { label: '기타 고정비', book: true, owner: '경영지원' },
+    ] },
+  ],
+}
+const TEAM_OF = new Map(TEAMS.flatMap(([team, items]) => items.map(([, label]) => [label, team] as const)))
+const flat = (n: Node): Node[] => [n, ...(n.kids ?? []).flatMap(flat)]
+
+function MapNode({ n, by, cur, root = false }: { n: Node; by: Map<string, Row>; cur: string; root?: boolean }) {
+  const r = by.get(n.label)
+  const [big, sub] = r ? split(r.value) : ['다음 주간 리포트부터', '']
+  const book = n.book ? /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1] : null
+  const tag = [n.book ? (book ? `${book}월 정본` : '정본') : `${cur}월 누적`, n.basis].filter(Boolean).join(', ')
+  const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`].filter(Boolean).join('\n')
+  const avg = /3개월 (평균|합) (.+)$/.exec(r?.note ?? '')
+  // 팀 지표는 팀별로 묶음(같은 칸 아래 여러 팀일 수 있음)
+  const teams = new Map<string, string[]>()
+  for (const m of n.metrics ?? []) {
+    const team = TEAM_OF.get(m) ?? ''
+    teams.set(team, [...(teams.get(team) ?? []), m])
+  }
+  return (
+    <li className={root ? '' : 'relative before:absolute before:-left-4 before:top-[0.9rem] before:h-px before:w-3 before:bg-neutral-700'}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1">
+        <span className="flex items-center gap-2 self-center">
+          <Dot light={r?.light} hollow={plain(r)} />
+          <span className="text-sm font-medium text-neutral-100">{n.label}</span>
+          {tip && <Info text={tip} />}
+        </span>
+        <span className="text-base font-semibold tabular-nums text-neutral-50">
+          {big}
+          {sub && <span className="ml-1.5 text-xs font-normal text-neutral-500">{sub}</span>}
+        </span>
+        {r?.target && <span className="text-xs text-neutral-500">목표 {r.target}</span>}
+        {r?.mtd && n.book && <span className="text-xs tabular-nums text-neutral-500">{r.mtd}</span>}
+        {avg && <span className="text-xs tabular-nums text-neutral-500">3개월 {avg[1]} {avg[2]}</span>}
+        <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[11px] text-neutral-400">{tag}</span>
+        {n.owner && <span className="text-xs text-neutral-400">{n.owner}</span>}
+      </div>
+      {teams.size > 0 && (
+        <div className="mb-1 space-y-1 pl-4">
+          {[...teams].map(([team, ms]) => (
+            <div key={team} className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="w-14 shrink-0 text-neutral-400">{team}</span>
+              {ms.map((m) => {
+                const x = by.get(m)
+                const [v] = x ? split(x.value) : ['']
+                return (
+                  <span key={m} className="inline-flex items-center gap-1.5 rounded border border-neutral-800 px-2 py-0.5 text-neutral-400">
+                    <Dot light={x?.light} hollow={plain(x)} />
+                    {m.replace(': ', ' ')}
+                    {v && x?.value !== '원천 칸 신설 전' && x?.value !== '미상' && <span className="tabular-nums text-neutral-200">{v}</span>}
+                  </span>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+      {n.kids && (
+        <ul className="ml-1 border-l border-neutral-700 pl-4">
+          {n.kids.map((k) => <MapNode key={k.label} n={k} by={by} cur={cur} />)}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: string }) {
+  const by = new Map([...rows, ...tree].map((r) => [r.label, r]))
+  const red = flat(MAP).filter((n) => by.get(n.label)?.light === 'red').map((n) => n.label)
+  const ratio = by.get('고정비 ÷ 공헌이익')
+  return (
+    <section className="rounded-xl border border-neutral-800 bg-neutral-900">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
+          하이라키 지도
+          <Info text={'영업이익에서 빨간 점을 따라 내려가면 원인이 되는 팀 지표가 나옵니다.\n금액 칸은 월간파이낸스 정본의 마지막 달 값(현금 기준이라 달마다 출렁여 3개월 평균을 함께 적음). 안건 칸은 이번 달 누적이고 건수 목표는 경과일 비례.\n칸마다 기준이 달라 안건 수와 건당 매출을 곱해도 공헌이익이 되지 않습니다'} />
+        </h2>
+        <SignalLegend className="sm:ml-auto" />
+      </div>
+      <div className="space-y-3 px-5 py-4">
+        <p className="text-sm text-neutral-300">
+          {red.length ? <>빨간 칸: <span className="text-neutral-50">{red.join(', ')}</span></> : '빨간 칸 없음'}
+          {ratio && <span className="ml-3 text-xs text-neutral-500">보조: 고정비 ÷ 공헌이익 {ratio.value} (목표 {ratio.target})</span>}
+        </p>
+        <ul>
+          <MapNode root n={MAP} by={by} cur={String(+today.slice(5, 7))} />
+        </ul>
+      </div>
+    </section>
+  )
+}
+
 const CASH_TIMING ='공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)'
 
 export async function FunnelTrendTab() {
@@ -139,6 +248,8 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
           <span>매주 월 07:00 갱신</span>
         </p>
       </div>
+
+      {t.tree && <HierarchyMap tree={t.tree} rows={rows} today={t.today} />}
 
       <TeamLights rows={rows} />
 
