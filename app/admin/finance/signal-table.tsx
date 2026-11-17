@@ -116,7 +116,8 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
                       </span>
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                  {/* 좁은 상자(@md 아래)에선 값 칸도 줄바꿈: 안 그러면 「목표, 달성」 줄 폭만큼 지표 이름 칸이 찌그러짐 */}
+                  <td className="px-3 py-2 text-right tabular-nums @md:whitespace-nowrap">
                     {off(r) ? (
                       <span className="text-xs text-neutral-500">{r ? r.value : missing}</span>
                     ) : (

@@ -211,8 +211,9 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
         {missing && <span className="ml-2 text-neutral-500">{mo(missing)} 자료가 아직 없어 {mo(sel.month)}을 보여 줍니다</span>}
         <a href="https://app.notion.com/p/41b01ca3e480814bb72cfb48dd29748e" target="_blank" rel="noreferrer" className="ml-auto text-neutral-400 underline-offset-2 hover:text-neutral-200 hover:underline">액션 기록하기(노션)</a>
       </div>
-      <div className="px-5 py-4">
-        <div className="relative" style={{ height: MAP_H }}>
+      {/* 칸 위치가 % 라 좁은 화면에서는 칸이 찌그러짐. lg 아래는 데스크톱 폭 그대로 두고 가로 스크롤 */}
+      <div className="px-5 py-4 max-lg:overflow-x-auto">
+        <div className="relative max-lg:w-[1200px]" style={{ height: MAP_H }}>
           {([[0, '팀별 관리지표'], [1, '구성요소'], [4, '결과']] as const).map(([c, t]) => (
             <p key={t} className="absolute top-0 text-xs font-medium text-neutral-500" style={{ left: `${COL[c].x}%` }}>{t}</p>
           ))}
