@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import Navigation from '@/components/navigation'
 import { MainContent } from '@/components/main-content'
-import { getLatestPortfolios } from '@/lib/supabase/static'
-
-export const revalidate = 3600 // 1시간 ISR
 import { getTranslation } from '@/lib/translations'
 
 // 일본어 공개 주소. 로케일은 LocaleProvider 가 /ja 경로를 보고 고정한다.
@@ -19,11 +16,11 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function JaPage() {
+export default function JaPage() {
   return (
     <main className="min-h-screen bg-background w-full max-w-full overflow-x-hidden">
       <Navigation />
-      <MainContent portfolios={await getLatestPortfolios()} />
+      <MainContent />
     </main>
   )
 }

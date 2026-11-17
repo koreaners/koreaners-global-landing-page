@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import Navigation from '@/components/navigation'
 import { MainContent } from '@/components/main-content'
-import { getLatestPortfolios } from '@/lib/supabase/static'
-
-export const revalidate = 3600 // 1시간 ISR
 
 export const metadata: Metadata = {
   title: '코리너스 | 크로스보더 인플루언서 마케팅 전문 대행사',
@@ -11,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/', languages: { ko: '/', ja: '/ja', 'x-default': '/' } },
 }
 
-export default async function Page() {
+export default function Page() {
   const faqJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -80,7 +77,7 @@ export default async function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
-      <MainContent portfolios={await getLatestPortfolios()} />
+      <MainContent />
     </main>
   )
 }

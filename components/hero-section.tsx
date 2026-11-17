@@ -1,82 +1,53 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState } from 'react'
 import { useLocale } from '@/contexts/locale-context'
 import { getTranslation } from '@/lib/translations'
-import { getPortfolioTitle } from '@/lib/localized-content'
-import type { Portfolio } from '@/lib/supabase'
+import { SectionTag } from '@/components/ui/section-tag'
+import { ShaderBackdrop } from '@/components/ui/shader-backdrop'
 import { InquirySheet } from '@/components/ui/inquiry-sheet'
-import { CaseCaption, caseHeadline } from '@/components/case-caption'
 
-export default function HeroSection({ portfolios }: { portfolios: Portfolio[] }) {
+export default function HeroSection() {
   const { locale } = useLocale()
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key)
   const [inquiryOpen, setInquiryOpen] = useState(false)
-  const frames = portfolios.filter((p) => p.thumbnail_url).slice(0, 3)
 
   return (
-    <section className="flex min-h-[100svh] items-center bg-[var(--kn-dark)] px-6 pb-24 pt-32 lg:px-24 lg:pt-40">
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-16 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
-        <div>
-          <h1 className="heading-kr text-balance text-4xl font-medium text-[var(--kn-light)] sm:text-5xl lg:text-[56px]"
-            // 일본어는 keep-all 이면 문장 중간에서 끊겨서 구 단위 줄바꿈으로
-            style={locale === 'ja' ? ({ wordBreak: 'auto-phrase' } as React.CSSProperties) : undefined}
+    <section className="relative min-h-screen flex items-center justify-center bg-[var(--kn-dark)] px-6 lg:px-24 hero-glow">
+      {/* absolute! — .hero-glow > * (unlayered) 가 position:relative 로 덮는 것을 되돌림 */}
+      <ShaderBackdrop variant="hero" seed={0} className="absolute!" />
+      <div className="relative z-10 text-center">
+        <SectionTag variant="dark">{t('tagline')}</SectionTag>
+
+        <h1 className="leading-[0.85] mt-8">
+          <span className="block font-display font-bold italic text-8xl md:text-9xl lg:text-[12rem] uppercase gradient-warm-text">
+            BEYOND
+          </span>
+          <span className="block font-display font-bold text-6xl md:text-7xl lg:text-[8rem] uppercase text-[var(--foreground)]">
+            AGENCY
+          </span>
+        </h1>
+
+        <p className="heading-kr mx-auto mt-6 max-w-xl text-center text-lg text-foreground/90 sm:text-xl whitespace-pre-line">
+          {t('heroValueProp')}
+        </p>
+        <p className="mt-3 text-center text-sm tracking-wide text-foreground/70">
+          {t('heroTrustLine')}
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mt-12">
+          <button
+            type="button"
+            onClick={() => setInquiryOpen(true)}
+            className="gradient-warm text-white px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-[var(--radius-sm)] hover:opacity-90 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#FF4500]/20 cursor-pointer text-center"
           >
-            {t('heroTitle')}
-          </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-[#A8A29E]">{t('heroLead')}</p>
-
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => setInquiryOpen(true)}
-              className="h-12 cursor-pointer rounded-[var(--radius-sm)] bg-[#FF4500] px-6 text-[15px] font-medium text-[var(--kn-dark)] transition-[background-color,transform] duration-150 hover:bg-[#FF5A1F] active:scale-[0.98]"
-            >
-              {t('heroCtaFreeConsult')}
-            </button>
-            <Link
-              href="/portfolio"
-              className="inline-flex h-12 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--kn-light)]/10 px-6 text-[15px] font-medium text-[var(--kn-light)] transition-colors duration-150 hover:bg-white/5"
-            >
-              {t('heroCtaViewCases')}
-            </Link>
-          </div>
-
-          <p className="mt-8 text-sm text-[#A8A29E]">
-            {t('heroTrustLine')}
-          </p>
+            {t('heroCtaFreeConsult')}
+          </button>
+          <Link href="/portfolio" className="bg-transparent text-[var(--foreground)] px-8 py-4 text-sm font-bold uppercase tracking-wider border border-[#A8A29E]/30 rounded-[var(--radius-sm)] hover:border-[#FF4500]/60 hover:bg-white/5 transition-all duration-300 cursor-pointer text-center">
+            {t('heroCtaViewCases')}
+          </Link>
         </div>
-
-        {frames.length > 0 && (
-          <div>
-            <p className="text-sm text-[#A8A29E]">{t('heroRecentCases')}</p>
-            <div className="mt-4 grid grid-cols-3 items-start gap-3 lg:gap-4">
-              {frames.map((p, i) => (
-                <Link key={p.id} href={`/portfolio/${p.id}`} className={`group block ${i === 1 ? 'mt-8 lg:mt-12' : ''}`}>
-                  <div className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/[0.08] bg-[#292524]">
-                    <Image
-                      src={p.thumbnail_url!}
-                      alt={getPortfolioTitle(p, locale)}
-                      fill
-                      sizes="(min-width: 1024px) 200px, 33vw"
-                      className="object-cover"
-                      priority={i === 0}
-                    />
-                  </div>
-                  <CaseCaption portfolio={p} className="mt-3" />
-                  {/* 포트폴리오 제목은 한국어만 있어 ja 첫 화면에서는 브랜드·카테고리만 */}
-                  {locale === 'ko' && (
-                  <p className="mt-1 hidden text-sm leading-5 text-[#A8A29E] transition-colors duration-150 line-clamp-3 group-hover:text-[var(--kn-light)] sm:block">
-                    {caseHeadline(getPortfolioTitle(p, locale))}
-                  </p>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <InquirySheet open={inquiryOpen} onOpenChange={setInquiryOpen} />
