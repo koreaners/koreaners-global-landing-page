@@ -2,9 +2,6 @@
 
 import { useLocale } from '@/contexts/locale-context'
 import { getTranslation } from '@/lib/translations'
-import { CountUp } from '@/components/ui/count-up'
-import { FadeIn, StaggerContainer, StaggerItem } from '@/components/ui/fade-in'
-import { SectionTag } from '@/components/ui/section-tag'
 
 // 검증 수치 화이트리스트(verified_numbers.json ad_safe_claims)만 사용 — /contact 노출값과 동일 트리오
 const stats = [
@@ -18,34 +15,24 @@ export function FinalCTA() {
   const t = (key: Parameters<typeof getTranslation>[1]) => getTranslation(locale, key)
 
   return (
-    <section className="bg-[var(--kn-light)] py-24 md:py-32 lg:py-40 px-6 lg:px-24">
-      <div className="max-w-7xl mx-auto">
-        <FadeIn>
-          <SectionTag variant="light">RESULTS</SectionTag>
-          <h2 className="font-display font-bold text-4xl lg:text-6xl uppercase mt-6 leading-[0.9] text-[var(--kn-dark)]">
-            {t('finalCtaTitle1')}<br />
-            {t('finalCtaTitle2')}
-          </h2>
-        </FadeIn>
+    <section className="bg-[var(--kn-light)] px-6 py-24 lg:px-24 lg:py-32">
+      <div className="mx-auto max-w-7xl">
+        <h2 className="heading-kr text-3xl font-medium text-[var(--kn-dark)] lg:text-5xl">
+          {t('finalCtaTitle1')}<br />
+          {t('finalCtaTitle2')}
+        </h2>
 
-        {/* Stats Grid */}
-        <StaggerContainer staggerDelay={0.1} className="grid grid-cols-3 gap-4 sm:gap-8 mt-16">
-          {stats.map((stat, index) => (
-            <StaggerItem key={stat.key}>
-              <div className={`cursor-default select-none ${index < stats.length - 1 ? 'border-r border-[var(--kn-dark)]/10' : ''}`}>
-                <CountUp
-                  value={stat.value}
-                  suffix={stat.suffix(locale)}
-                  className="block font-display font-bold text-3xl sm:text-6xl lg:text-8xl gradient-warm-text leading-none whitespace-nowrap"
-                />
-                {/* 모바일은 12px·기본 자간 — 3칸 캡션이 모두 2줄 이내, JA 끝 글자 고아 줄 방지(balance) */}
-                <div className="text-xs sm:text-sm text-[#78716C] mt-3 uppercase tracking-normal sm:tracking-wider text-balance">
-                  {t(stat.key)}
-                </div>
-              </div>
-            </StaggerItem>
+        <dl className="mt-16 grid grid-cols-3 border-t border-[var(--kn-dark)]/10">
+          {stats.map((stat, i) => (
+            <div key={stat.key} className={`flex flex-col-reverse pt-6 ${i > 0 ? 'border-l border-[var(--kn-dark)]/10 pl-4 sm:pl-8' : 'pr-4'}`}>
+              <dt className="mt-3 text-balance text-xs text-[#78716C] sm:text-sm">{t(stat.key)}</dt>
+              <dd className="whitespace-nowrap text-3xl font-medium leading-none tabular-nums text-[var(--kn-dark)] sm:text-5xl lg:text-7xl">
+                {stat.value}
+                <span className="text-[#78716C]">{stat.suffix(locale)}</span>
+              </dd>
+            </div>
           ))}
-        </StaggerContainer>
+        </dl>
       </div>
     </section>
   )
