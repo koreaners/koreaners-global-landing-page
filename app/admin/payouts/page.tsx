@@ -184,7 +184,7 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
             <td className={tdl}><Link href={go({ sel: p.name })} className="block max-w-[10rem] truncate hover:underline" title={`${p.name} 지급 이력`}>{p.name}</Link></td>
             <td className={tdl}><span className="block max-w-[9rem] truncate" title={c?.code}>{c ? c.brand || c.code || '-' : <span className="text-neutral-500">{p.notContract ? '계약 아님' : '연결 없음'}</span>}</span></td>
             <td className={td}>{p.status}</td>
-            <td className={`px-2 py-2 text-right text-xs${p.blocked.length && p.status !== DONE ? ' text-amber-300' : ''}`}>{p.blocked.join(', ') || '-'}</td>
+            <td className={`px-2 py-2 text-right text-xs max-sm:whitespace-nowrap${p.blocked.length && p.status !== DONE ? ' text-amber-300' : ''}`}>{p.blocked.join(', ') || '-'}</td>
             <td className={td}>{p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '미상'}`}</td>
             <td className="px-2 py-2 text-right text-xs">{p.deduction ? `${p.deduction}${p.deduction === '세금계산서' && p.vat ? ` (VAT ${p.vat})` : ''}` : '-'}</td>
             <td className={td}>{won(netPayoutKrw(p, rates))}</td>

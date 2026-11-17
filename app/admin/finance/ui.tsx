@@ -53,7 +53,7 @@ export function Table({ head, left = 1, sort, tall, tips, foot, groups, cols, ch
       {/* 좁은 화면에선 칸 수 × 6rem 아래로 줄이지 않고 가로 스크롤(칸이 찌그러져 숫자, 날짜가 여러 줄로 꺾이던 것) */}
       <table style={{ '--tmin': `${head.length * 6}rem` } as React.CSSProperties} className={`w-full max-sm:min-w-(--tmin) ${cols ? 'table-fixed' : ''} text-[13px] 2xl:text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:bg-neutral-900 [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-neutral-900`}>
         {cols && <colgroup>{cols.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>}
-        <thead className="sticky top-0 z-10 bg-neutral-900 text-[12px] text-neutral-500">
+        <thead className="sticky top-0 z-10 bg-neutral-900 text-[12px] text-neutral-500 max-sm:[&_th]:whitespace-nowrap">
           {groups && (
             <tr>
               {groups.map(([g, n], i) => (
