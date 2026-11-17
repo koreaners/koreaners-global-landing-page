@@ -92,7 +92,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
 // 하이라키 지도: 노션 「코리너스 하이라키 지표 트리」 구조도와 같은 배치(팀별 관리지표 → 구성요소 → 영업이익)에 라이브 값과 색을 얹음
 // (설계: 볼트 work/261116-설계-어드민-하이라키-지도). 금액 칸은 추이 파일 tree(정본 마지막 달), 나머지는 최신 보고서 신호등 줄. 값과 색은 brain-weekly 그대로.
 // 가로는 상자 폭 비율(%), 세로는 px. 선은 같은 좌표의 SVG(가로만 늘어남). +, ×, − 는 구조 표시이고 칸마다 기준이 달라 실제 값끼리 계산이 맞지는 않음
-const SLOT = [140, 140, 104, 104, 104, 104, 104]
+const SLOT = [150, 150, 112, 112, 112, 112, 112]
 const TOP = 30
 const SY = SLOT.map((_, i) => TOP + SLOT.slice(0, i).reduce((a, b) => a + b, 0))
 const CY = SLOT.map((h, i) => SY[i] + h / 2)
@@ -137,7 +137,7 @@ const TEAM_BOX: [number, string, [string, string[]][]][] = [
 const none = (r?: Row) => !r || r.value === '원천 칸 신설 전' || r.value === '미상'
 
 function MapCard({ b, r, cur, foot }: { b: MapBox; r?: Row; cur: string; foot?: React.ReactNode }) {
-  const h = foot ? 128 : 90
+  const h = foot ? 140 : 100
   const book = /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1]
   const tag = [b.book ? `${book ?? '-'}월 정본` : `${cur}월 누적`, b.basis].filter(Boolean).join(', ')
   const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`, b.book && r?.mtd && `전달: ${r.mtd}`, r?.note && `기준: ${r.note}`].filter(Boolean).join('\n')
@@ -150,8 +150,8 @@ function MapCard({ b, r, cur, foot }: { b: MapBox; r?: Row; cur: string; foot?: 
         {tip && <Info text={tip} align={b.col >= 3 ? 'right' : 'left'} />}
       </p>
       <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-neutral-50">{none(r) ? <span className="text-sm font-normal text-neutral-500">값 없음</span> : split(r!.value)[0]}</p>
-      <p className="truncate text-[11px] text-neutral-500">{r?.target ? `목표 ${r.target}` : '목표 없음(참고 값)'}</p>
-      <p className="truncate text-[11px] text-neutral-600">{tag}</p>
+      <p className="truncate text-xs text-neutral-500">{r?.target ? `목표 ${r.target}` : '목표 없음(참고 값)'}</p>
+      <p className="truncate text-xs text-neutral-600">{tag}</p>
       {foot}
     </div>
   )
@@ -179,7 +179,7 @@ function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: 
             <p key={t} className="absolute top-0 text-xs font-medium text-neutral-500" style={{ left: `${COL[c].x}%` }}>{t}</p>
           ))}
           <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 100 ${MAP_H}`} preserveAspectRatio="none" aria-hidden>
-            <g fill="none" stroke="#525252" strokeWidth={1} vectorEffect="non-scaling-stroke">
+            <g fill="none" stroke="var(--color-neutral-600)" strokeWidth={1} vectorEffect="non-scaling-stroke">
               {JOIN.map(([pc, py, a, b], i) => {
                 const x0 = right(pc - 1), xm = mid(x0, COL[pc].x)
                 return <path key={i} vectorEffect="non-scaling-stroke" d={`M${x0} ${a}H${xm}M${x0} ${b}H${xm}M${xm} ${a}V${b}M${xm} ${py}H${COL[pc].x}`} />
@@ -209,7 +209,7 @@ function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: 
           {BOXES.map((b) => (
             <MapCard key={b.label} b={b} r={by.get(b.label)} cur={cur}
               foot={b.label === '영업이익' && ratio ? (
-                <div className="mt-1 border-t border-neutral-800 pt-1 text-[11px] text-neutral-500">
+                <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   <p>기준: 고정비 ÷ 공헌이익</p>
                   <p className="flex items-center gap-1.5"><Dot light={ratio.light} /><span className="text-neutral-200">{ratio.value}</span>목표 {ratio.target}</p>
                 </div>

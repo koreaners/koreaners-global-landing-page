@@ -143,7 +143,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           </div>
         </details>
       )}
-      {tab === 'receivables' && data.bankError && <p className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-2.5 text-xs text-[#e66767]">{bankWarn(data.bankError)}</p>}
+      {tab === 'receivables' && data.bankError && <p className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-2.5 text-xs text-red-400">{bankWarn(data.bankError)}</p>}
       {tab === 'receivables' && <OverdueTable model={model} today={today} bankError={data.bankError} />}
     </div>
   )
@@ -283,7 +283,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
     <div className="space-y-6">
       <p className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
         노션 계약 DB 계약만 셉니다(운영 대시보드 시트 계약은 더 이상 합치지 않음).
-        {src.bankError && <span className="text-[#e66767]"> {bankWarn(src.bankError)}</span>}
+        {src.bankError && <span className="text-red-400"> {bankWarn(src.bankError)}</span>}
         {cb ? ' 발생 기준(계약일의 달).' : ' 현금 기준(입금일, 송금일의 달).'}{' '}
         <Link href={q({ tab: 'basis' })} className="text-neutral-300 underline hover:text-neutral-100">기준 보기</Link>
       </p>
@@ -294,7 +294,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${['', 'xl:grid-cols-1', 'xl:grid-cols-2', 'xl:grid-cols-3', 'xl:grid-cols-4', 'xl:grid-cols-5'][todo.length]}`}>
             {todo.map(([title, count, krw, href, alert]) => (
               <Link key={title} href={href} className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4 hover:bg-neutral-800/60">
-                <p className={`text-xs ${alert ? 'text-[#e66767]' : 'text-neutral-400'}`}>{title}</p>
+                <p className={`text-xs ${alert ? 'text-red-400' : 'text-neutral-400'}`}>{title}</p>
                 <p className="text-2xl font-semibold text-neutral-50" title={won(krw)}>{won2(krw)}</p>
                 <p className="flex items-center justify-between text-xs text-neutral-500">
                   <span>{count}</span>
@@ -974,7 +974,7 @@ function Calendar({ items, ym: cur, today, sel, q, f, s = 'date', k, st }: { ite
                   const k = sum(xs, kind, states)
                   return k > 0 && <span key={label} className="block break-keep tabular-nums leading-snug" style={{ color: CAL_COLOR[kind][states[0]] }} title={`${label} ${won(k)}`}>{kind === 'in' ? '+' : '−'}<span className="sm:hidden">{man(k)}</span><span className="hidden sm:inline"> {won2(k)}{states.includes('guess') ? ' 임의' : states.includes('unsigned') ? ' 서명 전' : states.includes('late') ? (kind === 'in' ? ' 입금 예정일 지남' : ' 출금 예정일 지남') : ''}<Overdue show={date < today && xs.some((x) => x.kind === kind && states.includes(x.state) && ODD.includes(x.state))} short /></span></span>
                 })}
-                <span className="mt-auto block border-t border-neutral-700 pt-1 tabular-nums leading-snug" style={{ color: b < 0 ? ALERT : '#d4d4d4' }} title={`잔고(월초 0 기준) ${won(b)}`}>
+                <span className="mt-auto block border-t border-neutral-700 pt-1 tabular-nums leading-snug" style={{ color: b < 0 ? ALERT : 'var(--color-neutral-300)' }} title={`잔고(월초 0 기준) ${won(b)}`}>
                   {b < 0 ? '−' : ''}<span className="sm:hidden">{b === 0 ? '0' : man(Math.abs(b))}</span><span className="hidden sm:inline">{b === 0 ? '0원' : won2(Math.abs(b))} 잔고{(gin > 0 || gout > 0) && <> <Info up align={(lead + i) % 7 >= 4 ? 'right' : 'left'} text={`정산일 임의는 잔고에 넣지 않았습니다.${gin > 0 ? ` 입금 +${won2(gin)}` : ''}${gout > 0 ? ` 출금 −${won2(gout)}` : ''}`} /></>}</span>
                 </span>
               </Link>

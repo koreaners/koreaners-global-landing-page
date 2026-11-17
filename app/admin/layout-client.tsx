@@ -1,9 +1,9 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp, Banknote, Clock, HandCoins } from 'lucide-react'
+import { LogOut, ExternalLink, FileText, LayoutDashboard, CalendarDays, Briefcase, Users, UserCog, ListChecks, TrendingUp, Banknote, Clock, HandCoins, Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
 
 // 재무 메뉴는 /admin/finance 의 tab 쿼리. 고른 연도(y), 월(m), 집계 기준(b)은 메뉴를 옮겨도 유지
@@ -22,7 +22,7 @@ const item = (active: boolean) =>
     active ? 'bg-neutral-800/70 text-neutral-50' : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
   }`
 
-function Nav({ onSignOut, role }: { onSignOut: () => void; role?: string }) {
+function Nav({ onSignOut, role, theme, onTheme }: { onSignOut: () => void; role?: string; theme: Theme; onTheme: () => void }) {
   const pathname = usePathname()
   const sp = useSearchParams()
   const inFinance = pathname.startsWith('/admin/finance')
@@ -67,6 +67,10 @@ function Nav({ onSignOut, role }: { onSignOut: () => void; role?: string }) {
       </Link>
       </>)}
       <div className="flex gap-1 md:mt-auto md:flex-col md:border-t md:border-neutral-800 md:pt-3">
+        <button onClick={onTheme} className={item(false)}>
+          {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          {theme === 'light' ? '다크 모드' : '라이트 모드'}
+        </button>
         <Link href="/" target="_blank" className={item(false)}>
           <ExternalLink className="h-4 w-4" />
           사이트
@@ -80,9 +84,17 @@ function Nav({ onSignOut, role }: { onSignOut: () => void; role?: string }) {
   )
 }
 
-export function AdminLayoutClient({ children, role }: { children: React.ReactNode; role?: string }) {
+type Theme = 'light' | 'dark'
+
+export function AdminLayoutClient({ children, role, theme: initial = 'dark' }: { children: React.ReactNode; role?: string; theme?: Theme }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [theme, setTheme] = useState<Theme>(initial)
+  const toggle = () => {
+    const next = theme === 'light' ? 'dark' : 'light'
+    setTheme(next)
+    document.cookie = `admin-theme=${next}; path=/admin; max-age=31536000; samesite=lax`
+  }
   if (pathname === '/admin/login') {
     return <>{children}</>
   }
@@ -94,13 +106,13 @@ export function AdminLayoutClient({ children, role }: { children: React.ReactNod
 
   return (
     // 전역 css의 html, body overflow-x: hidden 때문에 sticky가 안 먹어, 화면 높이 껍데기 안에서 main만 스크롤
-    <div data-admin className="flex h-dvh flex-col overflow-hidden bg-neutral-950 [color-scheme:dark] md:flex-row">
+    <div data-admin data-theme={theme} className="flex h-dvh flex-col overflow-hidden bg-neutral-950 md:flex-row">
       <aside className="z-50 flex shrink-0 flex-col gap-3 border-b border-neutral-800 bg-neutral-950 px-3 py-3 md:w-48 md:border-b-0 2xl:w-56 md:border-r md:py-5">
         <Link href="/admin" className="px-3 text-sm font-semibold text-neutral-50">
           KOREANERS
         </Link>
         <Suspense>
-          <Nav onSignOut={handleSignOut} role={role} />
+          <Nav onSignOut={handleSignOut} role={role} theme={theme} onTheme={toggle} />
         </Suspense>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 2xl:px-8">
