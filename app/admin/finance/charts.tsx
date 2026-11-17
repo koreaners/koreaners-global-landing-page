@@ -22,7 +22,7 @@ const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`
 // 개요 탭 월별 유출입: 입금, 출금 막대와 순증감(입금 − 출금) 선. 한 축(원)
 // count: 크리에이터 월별 안건 수. 있으면 오른쪽 보조축(건)에 선으로(Leo 261028 「안건수도 라인으로」)
 export type FlowPoint = { label: string; in: number; out: number; net: number | null; count?: number }
-export const NET_COLOR = '#e5e5e5'
+export const NET_COLOR = 'var(--color-neutral-200)'
 
 export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPoint[]; inColor: string; outColor: string; names: { in: string; out: string; net: string; count?: string } }) {
   const ticks = niceTicks(Math.max(0, ...data.flatMap((d) => [d.in, d.out, d.net ?? 0])), Math.min(0, ...data.map((d) => d.net ?? 0)))
@@ -32,13 +32,13 @@ export function CashflowChart({ data, inColor, outColor, names }: { data: FlowPo
     <div className="h-72 w-full text-xs">
       <ResponsiveContainer>
         <ComposedChart data={data} barGap={2} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="#262626" />
-          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
-          <YAxis tickLine={false} axisLine={false} width={60} tick={{ fill: '#8a8a8a' }} tickFormatter={compact} ticks={ticks} domain={[ticks[0], ticks[ticks.length - 1]]} />
-          {hasCount && <YAxis yAxisId="n" orientation="right" tickLine={false} axisLine={false} width={36} allowDecimals={false} tick={{ fill: '#8a8a8a' }} tickFormatter={(n) => `${n}건`} />}
-          <ReferenceLine y={0} stroke="#525252" />
+          <CartesianGrid vertical={false} stroke="var(--color-neutral-800)" />
+          <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: 'var(--color-neutral-700)' }} tick={{ fill: 'var(--color-neutral-500)' }} />
+          <YAxis tickLine={false} axisLine={false} width={60} tick={{ fill: 'var(--color-neutral-500)' }} tickFormatter={compact} ticks={ticks} domain={[ticks[0], ticks[ticks.length - 1]]} />
+          {hasCount && <YAxis yAxisId="n" orientation="right" tickLine={false} axisLine={false} width={36} allowDecimals={false} tick={{ fill: 'var(--color-neutral-500)' }} tickFormatter={(n) => `${n}건`} />}
+          <ReferenceLine y={0} stroke="var(--color-neutral-600)" />
           <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+            cursor={{ fill: 'var(--admin-hover)' }}
             content={({ active, payload, label }) =>
               active && payload?.length ? (
                 <div className="space-y-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
@@ -96,7 +96,7 @@ export function TrendChart({ data, series, unit, goal }: { data: TrendPoint[]; s
           {/* 목표 값은 선 위 글자 대신 범례에(선 위에 두면 데이터 점과 겹침, QA 261029) */}
           {goal != null && (
             <span className="inline-flex items-center gap-1.5">
-              <i className="block w-3 border-t border-dashed border-[#737373]" />
+              <i className="block w-3 border-t border-dashed border-neutral-500" />
               목표 {fmt(goal)}
             </span>
           )}
@@ -105,14 +105,14 @@ export function TrendChart({ data, series, unit, goal }: { data: TrendPoint[]; s
       <div className="h-56 w-full text-xs">
         <ResponsiveContainer>
           <ComposedChart data={data} barGap={2} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke="#262626" />
-            <XAxis dataKey="label" interval={0} minTickGap={4} tickLine={false} axisLine={{ stroke: '#404040' }} tick={{ fill: '#8a8a8a' }} />
-            <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: '#8a8a8a' }} tickFormatter={fmt} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} />
+            <CartesianGrid vertical={false} stroke="var(--color-neutral-800)" />
+            <XAxis dataKey="label" interval={0} minTickGap={4} tickLine={false} axisLine={{ stroke: 'var(--color-neutral-700)' }} tick={{ fill: 'var(--color-neutral-500)' }} />
+            <YAxis tickLine={false} axisLine={false} width={52} tick={{ fill: 'var(--color-neutral-500)' }} tickFormatter={fmt} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} />
             {goal != null && (
-              <ReferenceLine y={goal} stroke="#737373" strokeDasharray="4 4" />
+              <ReferenceLine y={goal} stroke="var(--color-neutral-500)" strokeDasharray="4 4" />
             )}
             <Tooltip
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              cursor={{ fill: 'var(--admin-hover)' }}
               content={({ active, payload, label }) =>
                 active && payload?.length ? (
                   <div className="space-y-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2">
