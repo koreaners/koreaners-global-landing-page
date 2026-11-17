@@ -25,9 +25,9 @@ export function ClientShowcase() {
     <section className="border-t border-white/[0.08] bg-[var(--kn-dark)] px-6 py-24 lg:px-24">
       <div className="mx-auto max-w-7xl">
         <h2 className="text-[15px] text-[#A8A29E]">{getTranslation(locale, 'clientsTitle')}</h2>
-        <ul className="mt-8 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4 lg:grid-cols-6">
+        <ul className="mt-8 flex flex-wrap gap-x-4 gap-y-2 sm:grid sm:grid-cols-4 sm:gap-x-8 sm:gap-y-3 lg:grid-cols-6">
           {CLIENTS.map((name) => (
-            <li key={name} className="truncate text-[15px] leading-6 text-[var(--kn-light)]/80">
+            <li key={name} className="text-sm leading-6 text-[var(--kn-light)]/80 sm:truncate sm:text-[15px]">
               {name}
             </li>
           ))}

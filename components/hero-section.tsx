@@ -20,7 +20,10 @@ export default function HeroSection({ portfolios }: { portfolios: Portfolio[] })
     <section className="flex min-h-[100svh] items-center bg-[var(--kn-dark)] px-6 pb-24 pt-32 lg:px-24 lg:pt-40">
       <div className="mx-auto grid w-full max-w-7xl items-center gap-16 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
         <div>
-          <h1 className="heading-kr text-balance text-4xl font-medium text-[var(--kn-light)] sm:text-5xl lg:text-[56px]">
+          <h1 className="heading-kr text-balance text-4xl font-medium text-[var(--kn-light)] sm:text-5xl lg:text-[56px]"
+            // 일본어는 keep-all 이면 문장 중간에서 끊겨서 구 단위 줄바꿈으로
+            style={locale === 'ja' ? ({ wordBreak: 'auto-phrase' } as React.CSSProperties) : undefined}
+          >
             {t('heroTitle')}
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-[#A8A29E]">{t('heroLead')}</p>
@@ -63,9 +66,12 @@ export default function HeroSection({ portfolios }: { portfolios: Portfolio[] })
                     />
                   </div>
                   <CaseCaption portfolio={p} className="mt-3" />
+                  {/* 포트폴리오 제목은 한국어만 있어 ja 첫 화면에서는 브랜드·카테고리만 */}
+                  {locale === 'ko' && (
                   <p className="mt-1 hidden text-sm leading-5 text-[#A8A29E] transition-colors duration-150 line-clamp-3 group-hover:text-[var(--kn-light)] sm:block">
                     {caseHeadline(getPortfolioTitle(p, locale))}
                   </p>
+                  )}
                 </Link>
               ))}
             </div>
