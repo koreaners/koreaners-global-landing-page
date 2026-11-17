@@ -89,110 +89,133 @@ function TeamLights({ rows }: { rows: Row[] }) {
   )
 }
 
-// 하이라키 지도: 영업이익에서 빨간 점을 따라 팀 지표까지 내려가며 원인을 찾는 구조도(설계: 볼트 work/261116-설계-어드민-하이라키-지도).
-// 금액 칸은 추이 파일 tree(정본 마지막 달), 나머지는 최신 보고서 신호등 줄. 값과 색은 brain-weekly 그대로.
-// 칸마다 기준이 다르다(이번 달 누적 계약 기준, 정본 달 입금 기준). 그래서 칸끼리 곱하거나 더하는 표기를 두지 않는다
-type Node = { label: string; book?: boolean; basis?: string; owner?: string; metrics?: string[]; kids?: Node[] }
-const MAP: Node = {
-  label: '영업이익', book: true, kids: [
-    { label: '공헌이익', book: true, kids: [
-      { label: '안건 수', basis: '계약 기준', kids: [
-        { label: '신규 고객 첫 계약', basis: '계약 기준', metrics: ['신규 리드: 아웃바운드 영업', '신규 리드: 크리에이터 경유', '신규 리드: 홈페이지 문의', '견적 발송률: 아웃바운드 영업', '견적 발송률: 크리에이터 경유', '견적 발송률: 홈페이지 문의', '수주율: 아웃바운드 영업', '수주율: 크리에이터 경유', '수주율: 홈페이지 문의', '단계 체류'] },
-        { label: '재계약', basis: '계약 기준', metrics: ['3개월 내 재계약률', '재계약 금액'] },
-      ] },
-      { label: '건당 매출', book: true, basis: '입금 기준 안건', metrics: ['수주 질', '300만 원 미만 계약 비중'] },
-      { label: '공헌이익률', book: true, metrics: ['변동비율'] },
-    ] },
-    { label: '고정비', book: true, kids: [
-      { label: '인건비', book: true, metrics: ['인건비 ÷ 공헌이익', '인당 매출', '인당 처리 안건'] },
-      { label: '기타 고정비', book: true, owner: '경영지원' },
-    ] },
-  ],
-}
-const TEAM_OF = new Map(TEAMS.flatMap(([team, items]) => items.map(([, label]) => [label, team] as const)))
-const flat = (n: Node): Node[] => [n, ...(n.kids ?? []).flatMap(flat)]
+// 하이라키 지도: 노션 「코리너스 하이라키 지표 트리」 구조도와 같은 배치(팀별 관리지표 → 구성요소 → 영업이익)에 라이브 값과 색을 얹음
+// (설계: 볼트 work/261116-설계-어드민-하이라키-지도). 금액 칸은 추이 파일 tree(정본 마지막 달), 나머지는 최신 보고서 신호등 줄. 값과 색은 brain-weekly 그대로.
+// 가로는 상자 폭 비율(%), 세로는 px. 선은 같은 좌표의 SVG(가로만 늘어남). +, ×, − 는 구조 표시이고 칸마다 기준이 달라 실제 값끼리 계산이 맞지는 않음
+const SLOT = [124, 124, 104, 104, 104, 104, 104]
+const TOP = 30
+const SY = SLOT.map((_, i) => TOP + SLOT.slice(0, i).reduce((a, b) => a + b, 0))
+const CY = SLOT.map((h, i) => SY[i] + h / 2)
+const MAP_H = SY[6] + SLOT[6] + 6
+const COL = [{ x: 0, w: 27 }, { x: 30, w: 15 }, { x: 48, w: 15 }, { x: 66, w: 15 }, { x: 84, w: 16 }]
+const mid = (a: number, b: number) => (a + b) / 2
+const Y2 = { deals: mid(CY[0], CY[1]), per: mid(CY[2], CY[3]), labor: mid(CY[4], CY[5]), other: CY[6] }
+const Y3 = { cm: mid(Y2.deals, Y2.per), fixed: mid(Y2.labor, Y2.other) }
+const Y4 = mid(Y3.cm, Y3.fixed)
+type MapBox = { label: string; col: number; cy: number; book?: boolean; basis?: string }
+const BOXES: MapBox[] = [
+  { label: '신규 고객 첫 계약', col: 1, cy: CY[0], basis: '계약 기준' },
+  { label: '재계약', col: 1, cy: CY[1], basis: '계약 기준' },
+  { label: '건당 매출', col: 1, cy: CY[2], book: true, basis: '입금 기준' },
+  { label: '공헌이익률', col: 1, cy: CY[3], book: true },
+  { label: '인원', col: 1, cy: CY[4], book: true },
+  { label: '인당 인건비', col: 1, cy: CY[5], book: true },
+  { label: '안건 수', col: 2, cy: Y2.deals, basis: '계약 기준' },
+  { label: '안건당 공헌이익', col: 2, cy: Y2.per, book: true, basis: '입금 기준' },
+  { label: '인건비', col: 2, cy: Y2.labor, book: true },
+  { label: '기타 고정비', col: 2, cy: Y2.other, book: true },
+  { label: '공헌이익', col: 3, cy: Y3.cm, book: true },
+  { label: '고정비', col: 3, cy: Y3.fixed, book: true },
+  { label: '영업이익', col: 4, cy: Y4, book: true },
+]
+// [부모 열, 부모 높이, 자식 높이 둘, 기호]
+const JOIN: [number, number, number, number, string][] = [
+  [2, Y2.deals, CY[0], CY[1], '+'], [2, Y2.per, CY[2], CY[3], '×'], [2, Y2.labor, CY[4], CY[5], '×'],
+  [3, Y3.cm, Y2.deals, Y2.per, '×'], [3, Y3.fixed, Y2.labor, Y2.other, '+'], [4, Y4, Y3.cm, Y3.fixed, '−'],
+]
+// 팀 상자: [슬롯, 팀, [[줄 이름, 보고서 줄 이름들]]]. 경로별 지표는 한 줄에 아웃바운드, 크리에이터, 홈페이지 순(홈페이지 신규 리드는 전략실 몫)
+const CH = ['아웃바운드 영업', '크리에이터 경유', '홈페이지 문의']
+const TEAM_BOX: [number, string, [string, string[]][]][] = [
+  [0, '영업팀', [['S1 신규 리드', CH.map((c) => `신규 리드: ${c}`)], ['S3 견적 발송률', CH.map((c) => `견적 발송률: ${c}`)], ['S4 수주율', CH.map((c) => `수주율: ${c}`)], ['S6 단계 체류', ['단계 체류']]]],
+  [1, 'PM팀', [['3개월 내 재계약률', ['3개월 내 재계약률']], ['재계약 금액', ['재계약 금액']], ['E1 상태별 기한 준수율', ['상태별 기한 준수율']], ['E2 업로드 일정 준수율', ['업로드 일정 준수율']]]],
+  [2, '영업팀', [['S5 수주 질', ['수주 질']], ['300만 원 미만 계약 비중', ['300만 원 미만 계약 비중']]]],
+  [3, 'PM팀', [['변동비율', ['변동비율']]]],
+  [4, '전략실', [['인당 매출', ['인당 매출']], ['인당 처리 안건', ['인당 처리 안건']]]],
+  [5, '전략실', [['인건비 ÷ 공헌이익', ['인건비 ÷ 공헌이익']]]],
+  [6, '경영지원', [['고정비 대항목별 추이는 아래 차트', []]]],
+]
+const none = (r?: Row) => !r || r.value === '원천 칸 신설 전' || r.value === '미상'
 
-function MapNode({ n, by, cur, root = false }: { n: Node; by: Map<string, Row>; cur: string; root?: boolean }) {
-  const r = by.get(n.label)
-  const [big, sub] = r ? split(r.value) : ['다음 주간 리포트부터', '']
-  const book = n.book ? /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1] : null
-  const tag = [n.book ? (book ? `${book}월 정본` : '정본') : `${cur}월 누적`, n.basis].filter(Boolean).join(', ')
-  const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`].filter(Boolean).join('\n')
-  const avg = /3개월 (평균|합) (.+)$/.exec(r?.note ?? '')
-  // 팀 지표는 팀별로 묶음(같은 칸 아래 여러 팀일 수 있음)
-  const teams = new Map<string, string[]>()
-  for (const m of n.metrics ?? []) {
-    const team = TEAM_OF.get(m) ?? ''
-    teams.set(team, [...(teams.get(team) ?? []), m])
-  }
+function MapCard({ b, r, cur, foot }: { b: MapBox; r?: Row; cur: string; foot?: React.ReactNode }) {
+  const h = foot ? 128 : 90
+  const book = /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1]
+  const tag = [b.book ? `${book ?? '-'}월 정본` : `${cur}월 누적`, b.basis].filter(Boolean).join(', ')
+  const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`, b.book && r?.mtd && `전달: ${r.mtd}`, r?.note && `기준: ${r.note}`].filter(Boolean).join('\n')
   return (
-    <li className={root ? '' : 'relative before:absolute before:-left-4 before:top-[0.9rem] before:h-px before:w-3 before:bg-neutral-700'}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1">
-        <span className="flex items-center gap-2 self-center">
-          <Dot light={r?.light} hollow={plain(r)} />
-          <span className="text-sm font-medium text-neutral-100">{n.label}</span>
-          {tip && <Info text={tip} />}
-        </span>
-        <span className="text-base font-semibold tabular-nums text-neutral-50">
-          {big}
-          {sub && <span className="ml-1.5 text-xs font-normal text-neutral-500">{sub}</span>}
-        </span>
-        {r?.target && <span className="text-xs text-neutral-500">목표 {r.target}</span>}
-        {r?.mtd && n.book && <span className="text-xs tabular-nums text-neutral-500">{r.mtd}</span>}
-        {avg && <span className="text-xs tabular-nums text-neutral-500">3개월 {avg[1]} {avg[2]}</span>}
-        <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-[11px] text-neutral-400">{tag}</span>
-        {n.owner && <span className="text-xs text-neutral-400">{n.owner}</span>}
-      </div>
-      {teams.size > 0 && (
-        <div className="mb-1 space-y-1 pl-4">
-          {[...teams].map(([team, ms]) => (
-            <div key={team} className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="w-14 shrink-0 text-neutral-400">{team}</span>
-              {ms.map((m) => {
-                const x = by.get(m)
-                const [v] = x ? split(x.value) : ['']
-                return (
-                  <span key={m} className="inline-flex items-center gap-1.5 rounded border border-neutral-800 px-2 py-0.5 text-neutral-400">
-                    <Dot light={x?.light} hollow={plain(x)} />
-                    {m.replace(': ', ' ')}
-                    {v && x?.value !== '원천 칸 신설 전' && x?.value !== '미상' && <span className="tabular-nums text-neutral-200">{v}</span>}
-                  </span>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-      )}
-      {n.kids && (
-        <ul className="ml-1 border-l border-neutral-700 pl-4">
-          {n.kids.map((k) => <MapNode key={k.label} n={k} by={by} cur={cur} />)}
-        </ul>
-      )}
-    </li>
+    <div style={{ left: `${COL[b.col].x}%`, width: `${COL[b.col].w}%`, top: b.cy - h / 2, height: h }}
+      className={`absolute flex flex-col justify-center rounded-lg border bg-neutral-900 px-3 ${r?.light === 'red' ? 'border-red-500/70' : 'border-neutral-700'}`}>
+      <p className="flex items-center gap-1.5 text-xs font-medium text-neutral-300">
+        <Dot light={r?.light} hollow={plain(r)} />
+        <span className="truncate">{b.label}</span>
+        {tip && <Info text={tip} align={b.col >= 3 ? 'right' : 'left'} />}
+      </p>
+      <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-neutral-50">{none(r) ? <span className="text-sm font-normal text-neutral-500">값 없음</span> : split(r!.value)[0]}</p>
+      <p className="truncate text-[11px] text-neutral-500">{r?.target ? `목표 ${r.target}` : '목표 없음(참고 값)'}</p>
+      <p className="truncate text-[11px] text-neutral-600">{tag}</p>
+      {foot}
+    </div>
   )
 }
 
 function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: string }) {
   const by = new Map([...rows, ...tree].map((r) => [r.label, r]))
-  const red = flat(MAP).filter((n) => by.get(n.label)?.light === 'red').map((n) => n.label)
+  const red = BOXES.filter((b) => by.get(b.label)?.light === 'red').map((b) => b.label)
   const ratio = by.get('고정비 ÷ 공헌이익')
+  const cur = String(+today.slice(5, 7))
+  const right = (c: number) => COL[c].x + COL[c].w
   return (
     <section className="rounded-xl border border-neutral-800 bg-neutral-900">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
           하이라키 지도
-          <Info text={'영업이익에서 빨간 점을 따라 내려가면 원인이 되는 팀 지표가 나옵니다.\n금액 칸은 월간파이낸스 정본의 마지막 달 값(현금 기준이라 달마다 출렁여 3개월 평균을 함께 적음). 안건 칸은 이번 달 누적이고 건수 목표는 경과일 비례.\n칸마다 기준이 달라 안건 수와 건당 매출을 곱해도 공헌이익이 되지 않습니다'} />
+          <Info text={'노션 「코리너스 하이라키 지표 트리」 구조도에 지금 값을 얹은 것. 오른쪽 영업이익에서 빨간 칸을 따라 왼쪽 팀 지표로 가면 원인이 나옵니다.\n금액 칸은 월간파이낸스 정본의 마지막 달(현금 기준), 안건 칸은 이번 달 누적(건수 목표는 경과일 비례). +, ×, − 는 구조를 나타내고, 칸마다 기준이 달라 값끼리 계산하면 맞지 않습니다. 전달 값과 3개월 평균은 칸의 ⓘ'} />
         </h2>
+        <p className="text-sm text-neutral-300">{red.length ? <>빨간 칸 <span className="text-neutral-50">{red.join(', ')}</span></> : '빨간 칸 없음'}</p>
         <SignalLegend className="sm:ml-auto" />
       </div>
-      <div className="space-y-3 px-5 py-4">
-        <p className="text-sm text-neutral-300">
-          {red.length ? <>빨간 칸: <span className="text-neutral-50">{red.join(', ')}</span></> : '빨간 칸 없음'}
-          {ratio && <span className="ml-3 text-xs text-neutral-500">보조: 고정비 ÷ 공헌이익 {ratio.value} (목표 {ratio.target})</span>}
-        </p>
-        <ul>
-          <MapNode root n={MAP} by={by} cur={String(+today.slice(5, 7))} />
-        </ul>
+      <div className="px-5 py-4">
+        <div className="relative" style={{ height: MAP_H }}>
+          {([[0, '팀별 관리지표'], [1, '구성요소'], [4, '결과']] as const).map(([c, t]) => (
+            <p key={t} className="absolute top-0 text-xs font-medium text-neutral-500" style={{ left: `${COL[c].x}%` }}>{t}</p>
+          ))}
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 100 ${MAP_H}`} preserveAspectRatio="none" aria-hidden>
+            <g fill="none" stroke="#525252" strokeWidth={1} vectorEffect="non-scaling-stroke">
+              {JOIN.map(([pc, py, a, b], i) => {
+                const x0 = right(pc - 1), xm = mid(x0, COL[pc].x)
+                return <path key={i} vectorEffect="non-scaling-stroke" d={`M${x0} ${a}H${xm}M${x0} ${b}H${xm}M${xm} ${a}V${b}M${xm} ${py}H${COL[pc].x}`} />
+              })}
+              {CY.map((y, i) => <path key={i} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" d={`M${right(0)} ${y}H${COL[i < 6 ? 1 : 2].x}`} />)}
+            </g>
+          </svg>
+          {JOIN.map(([pc, py, , , op], i) => (
+            <span key={i} style={{ left: `${mid(right(pc - 1), COL[pc].x)}%`, top: py }} className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-600 bg-neutral-900 text-xs text-neutral-300">{op}</span>
+          ))}
+          {TEAM_BOX.map(([slot, team, lines]) => (
+            <div key={slot} style={{ left: 0, width: `${COL[0].w}%`, top: SY[slot] + 6, height: SLOT[slot] - 12 }} className="absolute rounded-lg border border-neutral-800 px-3 py-2">
+              <p className="text-xs font-semibold text-neutral-200">{team}{slot === 0 && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
+              {lines.map(([name, labels]) => (
+                <p key={name} className="mt-1 flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate text-neutral-400">{name}</span>
+                  <span className="flex shrink-0 items-center gap-2.5 tabular-nums">
+                    {labels.map((l) => {
+                      const x = by.get(l)
+                      return <span key={l} className="inline-flex items-center gap-1 text-neutral-200"><Dot light={x?.light} hollow={plain(x)} />{none(x) ? <span className="text-neutral-600">-</span> : split(x!.value)[0]}</span>
+                    })}
+                  </span>
+                </p>
+              ))}
+            </div>
+          ))}
+          {BOXES.map((b) => (
+            <MapCard key={b.label} b={b} r={by.get(b.label)} cur={cur}
+              foot={b.label === '영업이익' && ratio ? (
+                <div className="mt-1 border-t border-neutral-800 pt-1 text-[11px] text-neutral-500">
+                  <p>기준: 고정비 ÷ 공헌이익</p>
+                  <p className="flex items-center gap-1.5"><Dot light={ratio.light} /><span className="text-neutral-200">{ratio.value}</span>목표 {ratio.target}</p>
+                </div>
+              ) : undefined} />
+          ))}
+        </div>
       </div>
     </section>
   )
