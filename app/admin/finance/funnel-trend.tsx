@@ -152,18 +152,18 @@ function MapCard({ b, r, cur, cmp, acts = [], foot }: { b: MapBox; r?: Row; cur:
         <Dot light={r?.light} hollow={plain(r)} />
         <span className="truncate">{b.label}</span>
         {tip && <Info text={tip} align={right} />}
-      </p>
-      <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-neutral-50">{none(r) ? <span className="text-sm font-normal text-neutral-500">값 없음</span> : split(r!.value)[0]}</p>
-      <p className="truncate text-xs text-neutral-500">{r?.target ? `목표 ${r.target}` : '목표 없음(참고 값)'}</p>
-      <p className="truncate text-xs text-neutral-300">{cmp || ' '}</p>
-      <p className="flex items-center gap-1.5 text-xs text-neutral-600">
-        <span className="truncate">{tag}</span>
         {acts.length > 0 && (
           <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded bg-sky-950 px-1.5 text-sky-200">
             액션 {acts.length}
             <Info align={right} up text={acts.map((a) => `[${a.team || '팀 미정'}${a.who ? `, ${a.who}` : ''}] ${a.title}${a.text ? `\n  ${a.text}` : ''}`).join('\n')} />
           </span>
         )}
+      </p>
+      <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-neutral-50">{none(r) ? <span className="text-sm font-normal text-neutral-500">값 없음</span> : split(r!.value)[0]}</p>
+      <p className="truncate text-xs text-neutral-500">{r?.target ? `목표 ${r.target}` : '목표 없음(참고 값)'}</p>
+      <p className="truncate text-xs text-neutral-300">{cmp || ' '}</p>
+      <p className="flex items-center gap-1.5 text-xs text-neutral-600">
+        <span className="truncate">{tag}</span>
       </p>
       {foot}
     </div>
