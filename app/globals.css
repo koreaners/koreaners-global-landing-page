@@ -891,6 +891,9 @@ main p {
   --color-neutral-700: #555555;
   --color-neutral-800: #363636;
   --admin-hover: rgba(255, 255, 255, 0.04);
+  --admin-due: #a3a3a3;
+  --admin-guess: #808080;
+  --admin-unsigned: #c4c4c4;
 }
 [data-admin][data-theme='light'] {
   color-scheme: light;
@@ -921,6 +924,10 @@ main p {
   --color-sky-900: #bae6fd;
   --color-sky-950: #f0f9ff;
   --admin-hover: rgba(0, 0, 0, 0.04);
+  /* 다크와 같은 강약 순서(서명 전이 가장 진함, 임의가 가장 옅음)를 흰 바탕 기준으로 */
+  --admin-due: #626262;
+  --admin-guess: #858585;
+  --admin-unsigned: #3d3d3d;
 }
 /* 사이트 공통 base(body, 제목, 문단 흰 글자)를 어드민에선 테마 글자색으로. base 레이어라 Tailwind 글자색 클래스가 그대로 이김 */
 @layer base {
