@@ -833,7 +833,10 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     }
   }
   for (const p of payouts) {
-    if (p.status !== DONE && p.blocked.includes('출금 확인 필요')) continue // 이미 나갔는지 모르는 행은 출금 예정에서 뺌(보류처럼, 인혁 261117). 사유가 지워지면 다시 잡힘
+    // 이미 나갔는지 모르는 행(출금 확인 필요)과 사람이 풀어야 하는 사유(계약서, 문서, 업로드, 계좌 등)로 막힌 대기, 송금 가능 행은
+    // 출금 예정에서 뺌(보류처럼, 인혁 261117). 고객사 입금, 송금 예정일만 기다리는 대기는 그대로. 사유가 지워지면 다시 잡힘
+    const humanBlock = p.blocked.some((b) => b !== '수금 미완료' && b !== '송금 예정일 전')
+    if (p.status !== DONE && (p.blocked.includes('출금 확인 필요') || ((p.status === '대기' || p.status === '송금 가능') && humanBlock))) continue
     const date = payoutDue(p, byId, today)
     if (!date?.startsWith(ym)) continue
     const c = p.contractId ? byId.get(p.contractId) : undefined
