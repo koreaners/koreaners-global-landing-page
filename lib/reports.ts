@@ -71,6 +71,8 @@ export type FunnelTrend = {
   health: { label: string; unit: '%' | '원'; goal: number; low: boolean; v: (number | null)[]; adj?: (number | null)[] }[] | null
   // 11/9 이후: 인건비를 뺀 고정비 대항목별 달별 금액(정본 「비용구성추이」 탭). 정본 읽기 실패면 null
   fixed_items?: Record<string, (number | null)[]> | null
+  // 11/17 이후: 하이라키 지도 금액 칸(영업이익, 공헌이익, 고정비, 인건비, 공헌이익률, 건당 매출). 보고서 신호등 줄과 같은 모양, 정본 마지막 달 값
+  tree?: NonNullable<WeeklyReport['funnel']>['rows'] | null
   // 10/29 이후: 리포트 주 끝에서 거슬러 월~일 13주. 송금은 그 주 일요일 시점 값, leads 는 Lead Status 읽기 실패면 null
   weeks?: {
     start: string[]
