@@ -833,6 +833,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     }
   }
   for (const p of payouts) {
+    if (p.status !== DONE && p.blocked.includes('출금 확인 필요')) continue // 이미 나갔는지 모르는 행은 출금 예정에서 뺌(보류처럼, 인혁 261117). 사유가 지워지면 다시 잡힘
     const date = payoutDue(p, byId, today)
     if (!date?.startsWith(ym)) continue
     const c = p.contractId ? byId.get(p.contractId) : undefined
