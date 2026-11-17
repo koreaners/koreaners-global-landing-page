@@ -1,7 +1,7 @@
 import { notion } from '@/lib/notion/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { absent, addMonth, ATT_FROM, editorOf, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
+import { absent, addMonth, ATT_FROM, editorOf, hourMarks, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
 import { AttendanceView } from './view'
 
 // 근태: Supabase hr_attendance(슬랙 출퇴근 봇이 씀, RLS로 service_role만 읽음) 조회 전용 (관리자 전용, proxy가 exec를 막음)
@@ -55,12 +55,27 @@ async function roster(): Promise<Member[]> {
 async function leaves(m: string): Promise<Leave[]> {
   const { data, error } = await createAdminClient()
     .from('hr_leave_uses')
-    .select('member_email, type_code, start_date, end_date')
+    .select('member_email, type_code, start_date, end_date, days, request_id')
     .in('status', ['reserved', 'used'])
     .lt('start_date', `${addMonth(m, 1)}-01`)
     .gte('end_date', `${m}-01`)
   if (error) throw new Error(`휴가 기록 조회 실패: ${error.message}`)
   return (data ?? []) as Leave[]
+}
+
+// 시간 연차 신청의 시각(hr_requests.fields from, to). 못 읽으면 시간만 표시
+async function spans(ls: Leave[]): Promise<Record<number, string>> {
+  const ids = [...new Set(ls.filter((l) => l.type_code === 'annual_hour' && l.request_id != null).map((l) => l.request_id!))]
+  if (!ids.length) return {}
+  const { data, error } = await createAdminClient().from('hr_requests').select('id, fields').in('id', ids)
+  if (error) {
+    console.error('[attendance] hour leave spans failed', error.message)
+    return {}
+  }
+  const out: Record<number, string> = {}
+  for (const r of (data ?? []) as { id: number; fields: { from?: string; to?: string } | null }[])
+    if (r.fields?.from && r.fields?.to) out[r.id] = `${r.fields.from}~${r.fields.to}`
+  return out
 }
 
 type SlackUser = { id: string; name?: string; real_name?: string; profile?: { display_name?: string; real_name?: string } }
@@ -113,7 +128,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const [slack, absents, user] = await Promise.all([
     slackNames(),
     Promise.all([roster(), leaves(m)]).then(
-      ([ms, ls]) => ({ list: absent(ms, rows, ls, m), ms }),
+      ([ms, ls]) => spans(ls).then((sx) => ({ list: absent(ms, rows, ls, m), ms, hours: hourMarks(ms, ls, sx) })),
       (e) => {
         console.error('[attendance] absent failed', e)
         return null
@@ -129,5 +144,5 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const missed: Absent[] | null = absents?.list ?? null
   const emails = Object.fromEntries((absents?.ms ?? []).map((p) => [p.slack, p.email]))
   const edit = editorOf(user?.email) ? { e: sp.e, err: sp.err, emails } : undefined
-  return <AttendanceView m={m} u={sp.u || undefined} d={d} st={sp.st || undefined} rows={rows} absents={missed} names={names} edit={edit} />
+  return <AttendanceView m={m} u={sp.u || undefined} d={d} st={sp.st || undefined} rows={rows} absents={missed} names={names} hours={absents?.hours ?? {}} edit={edit} />
 }

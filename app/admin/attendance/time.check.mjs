@@ -1,6 +1,6 @@
 // 근태 시간 계산 점검: node app/admin/attendance/time.check.mjs
 import assert from 'node:assert/strict'
-import { absent, editorOf, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
+import { absent, editorOf, hourMarks, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
 
 assert.equal(worked(550), '8시간 10분') // 09:00~18:10, 휴게 1시간
 assert.equal(worked(300), '4시간') // 5시간 머묾, 휴게 1시간
@@ -51,6 +51,13 @@ const leaves = [
 const now = Date.parse('2026-11-13T20:30:00Z') // 11/14(토) 05:30 KST
 const got = absent(members, att, leaves, '2026-11', now).map((x) => `${x.slack_id} ${x.workday.slice(8)}`)
 assert.deepEqual(got.sort(), ['A 10', 'A 11', 'A 12', 'A 13', 'B 12', 'B 13', 'C 09', 'C 12', 'C 13'].sort())
+// 시차 표시: 시각 있으면 시각, 없으면 시간, 명단 밖 메일과 다른 휴가는 뺌(인혁 2026-11-17)
+assert.deepEqual(hourMarks(members, [
+  { member_email: 'A@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-16', end_date: '2026-11-16', days: 0.5, request_id: 7 },
+  { member_email: 'b@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-10', end_date: '2026-11-10', days: 0.25, request_id: null },
+  { member_email: 'x@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-10', end_date: '2026-11-10', days: 0.5 },
+  ...leaves.slice(0, 1),
+], { 7: '10:00~15:00' }), { 'A 2026-11-16': '시차 10:00~15:00', 'B 2026-11-10': '시차 2시간' })
 // 자정 전 날은 뺌: 11/12 23:59 KST 엔 11/12 제외, 11/13 00:00 KST 부터 포함
 assert.ok(!absent(members, att, [], '2026-11', Date.parse('2026-11-12T14:59:00Z')).some((x) => x.workday >= '2026-11-12'))
 assert.ok(absent(members, att, [], '2026-11', Date.parse('2026-11-12T15:00:00Z')).some((x) => x.workday === '2026-11-12'))

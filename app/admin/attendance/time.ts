@@ -51,7 +51,7 @@ export const LATE = '16:00'
 /** 노션 구성원(결재 조직도) 재직자 */
 export type Member = { slack: string; name: string; email: string; joined: string | null }
 /** hr_leave_uses(예약, 사용) */
-export type Leave = { member_email: string; type_code: string; start_date: string; end_date: string }
+export type Leave = { member_email: string; type_code: string; start_date: string; end_date: string; days?: number | null; request_id?: number | null }
 export type Absent = { slack_id: string; workday: string }
 
 /** 근무일 기준 오늘 YYYY-MM-DD(하루 경계 KST 05:00) */
@@ -76,6 +76,19 @@ export function absent(members: Member[], rows: Att[], leaves: Leave[], m: strin
     }
   }
   return out.reverse()
+}
+
+/** 시간 연차(시차) 표시: 「slack 날짜」 → '시차 10:00~15:00'. 신청에 시각이 없으면 '시차 4시간'(인혁 2026-11-17 「시차는 근무가 아니라 시차」).
+ * spans: hr_requests id → 'HH:MM~HH:MM'. 시간 연차는 하루짜리라 시작일에만 붙임 */
+export function hourMarks(members: Member[], leaves: Leave[], spans: Record<number, string>): Record<string, string> {
+  const slack = Object.fromEntries(members.map((p) => [p.email.toLowerCase(), p.slack]))
+  const out: Record<string, string> = {}
+  for (const l of leaves) {
+    const s = slack[l.member_email.toLowerCase()]
+    if (l.type_code !== 'annual_hour' || !s) continue
+    out[`${s} ${l.start_date}`] = `시차 ${(l.request_id != null && spans[l.request_id]) || `${(l.days ?? 0) * 8}시간`}`
+  }
+  return out
 }
 
 /** 근태를 고칠 수 있는 어드민 계정(로그인 메일 → 정정자로 남길 슬랙 ID): 인혁, 건우(인혁 2026-11-09).

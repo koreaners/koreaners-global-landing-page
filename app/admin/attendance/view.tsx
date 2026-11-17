@@ -7,7 +7,7 @@ import { fixAttendance } from './actions'
 import { addMonth, ATT_FROM, dayLabel, hm, kstDate, today, view as view0, type Absent, type Att } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
-const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다.'
+const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다. 시차: 그날 시간 연차 시각이며 근무 시간에 넣지 않습니다.'
 const LIST = 'att-list'
 const EDIT = 'att-edit'
 const ROW = 'att-row'
@@ -46,7 +46,7 @@ function Legend({ items }: { items: [string, string][] }) {
 
 type Edit = { e?: string; err?: string; emails: Record<string, string> }
 
-export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = Date.now() }: { m: string; u?: string; d?: string; st?: string; rows: Att[]; absents: Absent[] | null; names: Record<string, string>; edit?: Edit; at?: number }) {
+export function AttendanceView({ m, u, d, st, rows, absents, names, hours = {}, edit, at = Date.now() }: { m: string; u?: string; d?: string; st?: string; rows: Att[]; absents: Absent[] | null; names: Record<string, string>; hours?: Record<string, string>; edit?: Edit; at?: number }) {
   // auto8: 봇이 빠진 평일을 8시간 근무로 채운 줄(인혁, 건우, 보람, 사야카, 리카). '시간 연차': 연차 시작을 퇴근으로 채운 줄(봇 nfc.leave_fill)
   const name = (id: string) => (id === 'auto8' ? '자동(8시간)' : names[id] ?? id)
   const view = (r: Att) => view0(r, at)
@@ -119,6 +119,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, edit, at = D
       <span className="inline-flex items-center justify-end gap-1.5" style={{ color }}>
         {label}
         {s === 'fixed' && 'taps' in x && <Info text={fixTip(x)} align="right" />}
+        {hours[`${x.slack_id} ${x.workday}`] && <span className="whitespace-nowrap text-xs text-neutral-500">{hours[`${x.slack_id} ${x.workday}`]}</span>}
       </span>
     )
   }
