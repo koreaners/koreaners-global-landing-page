@@ -296,7 +296,7 @@ export async function FunnelTrendTab({ y, m }: { y?: string; m?: string } = {}) 
     tree: t.tree_months?.[mm] ?? (mm === cur ? t.tree ?? [] : []),
   })
   const nextM = months[months.indexOf(selM) + 1]
-  const map = t.tree ? { sel: await mapOf(selM), next: nextM ? await mapOf(nextM) : undefined, months, missing: want !== selM ? want : undefined, actions: t.actions?.[selM] ?? [] } : null
+  const map = t.tree ? { sel: await mapOf(selM), next: nextM ? { ...(await mapOf(nextM)), tree: t.tree_months?.[nextM] ?? [] } : undefined /* 비교 줄의 정본 값은 그 달 정본이 생겨야(이번 달 지도의 최신 tree 는 앞 달 값) */, months, missing: want !== selM ? want : undefined, actions: t.actions?.[selM] ?? [] } : null
   return <FunnelTrendView t={t} rows={rows} map={map} period={latest ? parseReportKey(latest)!.title.replace('주간 경영 리포트 ', '') : null} />
 }
 
