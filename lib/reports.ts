@@ -73,6 +73,9 @@ export type FunnelTrend = {
   fixed_items?: Record<string, (number | null)[]> | null
   // 11/17 이후: 하이라키 지도 금액 칸(영업이익, 공헌이익, 고정비, 인건비, 공헌이익률, 건당 매출). 보고서 신호등 줄과 같은 모양, 정본 마지막 달 값
   tree?: NonNullable<WeeklyReport['funnel']>['rows'] | null
+  // 11/17 이후: 달별 금액 칸(정본에 있는 달마다, 'YYYY-MM' → 줄)과 노션 「하이라키 액션」 달별 기록
+  tree_months?: Record<string, NonNullable<WeeklyReport['funnel']>['rows']> | null
+  actions?: Record<string, { box: string; team: string; title: string; text: string; who: string }[]> | null
   // 10/29 이후: 리포트 주 끝에서 거슬러 월~일 13주. 송금은 그 주 일요일 시점 값, leads 는 Lead Status 읽기 실패면 null
   weeks?: {
     start: string[]

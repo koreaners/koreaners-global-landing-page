@@ -92,7 +92,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
 // 하이라키 지도: 노션 「코리너스 하이라키 지표 트리」 구조도와 같은 배치(팀별 관리지표 → 구성요소 → 영업이익)에 라이브 값과 색을 얹음
 // (설계: 볼트 work/261116-설계-어드민-하이라키-지도). 금액 칸은 추이 파일 tree(정본 마지막 달), 나머지는 최신 보고서 신호등 줄. 값과 색은 brain-weekly 그대로.
 // 가로는 상자 폭 비율(%), 세로는 px. 선은 같은 좌표의 SVG(가로만 늘어남). +, ×, − 는 구조 표시이고 칸마다 기준이 달라 실제 값끼리 계산이 맞지는 않음
-const SLOT = [150, 150, 112, 112, 112, 112, 112]
+const SLOT = [160, 160, 124, 124, 124, 124, 124]
 const TOP = 30
 const SY = SLOT.map((_, i) => TOP + SLOT.slice(0, i).reduce((a, b) => a + b, 0))
 const CY = SLOT.map((h, i) => SY[i] + h / 2)
@@ -136,32 +136,61 @@ const TEAM_BOX: [number, string, [string, string[]][]][] = [
 ]
 const none = (r?: Row) => !r || r.value === '원천 칸 신설 전' || r.value === '미상'
 
-function MapCard({ b, r, cur, foot }: { b: MapBox; r?: Row; cur: string; foot?: React.ReactNode }) {
-  const h = foot ? 140 : 100
+type Act = NonNullable<FunnelTrend['actions']>[string][number]
+
+// cmp: 비교 한 줄(지난달을 보면 다음 달 값, 이번 달이면 전달 값). acts: 그 달 이 칸의 액션(노션 「하이라키 액션」)
+function MapCard({ b, r, cur, cmp, acts = [], foot }: { b: MapBox; r?: Row; cur: string; cmp?: string; acts?: Act[]; foot?: React.ReactNode }) {
+  const h = foot ? 150 : 112
   const book = /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1]
   const tag = [b.book ? `${book ?? '-'}월 정본` : `${cur}월 누적`, b.basis].filter(Boolean).join(', ')
-  const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`, b.book && r?.mtd && `전달: ${r.mtd}`, r?.note && `기준: ${r.note}`].filter(Boolean).join('\n')
+  const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`, r?.note && `기준: ${r.note}`].filter(Boolean).join('\n')
+  const right = b.col >= 3 ? 'right' : 'left'
   return (
     <div style={{ left: `${COL[b.col].x}%`, width: `${COL[b.col].w}%`, top: b.cy - h / 2, height: h }}
       className={`absolute flex flex-col justify-center rounded-lg border bg-neutral-900 px-3 ${r?.light === 'red' ? 'border-red-500/70' : 'border-neutral-700'}`}>
       <p className="flex items-center gap-1.5 text-xs font-medium text-neutral-300">
         <Dot light={r?.light} hollow={plain(r)} />
         <span className="truncate">{b.label}</span>
-        {tip && <Info text={tip} align={b.col >= 3 ? 'right' : 'left'} />}
+        {tip && <Info text={tip} align={right} />}
       </p>
       <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-neutral-50">{none(r) ? <span className="text-sm font-normal text-neutral-500">값 없음</span> : split(r!.value)[0]}</p>
       <p className="truncate text-xs text-neutral-500">{r?.target ? `목표 ${r.target}` : '목표 없음(참고 값)'}</p>
-      <p className="truncate text-xs text-neutral-600">{tag}</p>
+      <p className="truncate text-xs text-neutral-300">{cmp || ' '}</p>
+      <p className="flex items-center gap-1.5 text-xs text-neutral-600">
+        <span className="truncate">{tag}</span>
+        {acts.length > 0 && (
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded bg-sky-950 px-1.5 text-sky-200">
+            액션 {acts.length}
+            <Info align={right} up text={acts.map((a) => `[${a.team || '팀 미정'}${a.who ? `, ${a.who}` : ''}] ${a.title}${a.text ? `\n  ${a.text}` : ''}`).join('\n')} />
+          </span>
+        )}
+      </p>
       {foot}
     </div>
   )
 }
 
-function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: string }) {
-  const by = new Map([...rows, ...tree].map((r) => [r.label, r]))
+// 한 달 지도에 쓰는 값: 그 달 보고서 신호등 줄과 그 달 정본 금액 칸
+export type MapMonth = { month: string; rows: Row[]; tree: Row[] }
+
+function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; next?: MapMonth; months: string[]; missing?: string; actions: Act[] }) {
+  const by = new Map([...sel.rows, ...sel.tree].map((r) => [r.label, r]))
+  // 정본 칸의 다음 달 값은 그 달 정본(tree)에서만. 보고서 줄의 정본 값은 그보다 앞선 달이라 섞지 않음
+  const nx = next && new Map(next.rows.map((r) => [r.label, r]))
+  const nxBook = next && new Map(next.tree.map((r) => [r.label, r]))
+  const mo = (m: string) => `${+m.slice(5)}월`
+  // 지난달을 보면 다음 달 값(액션 뒤 어떻게 변했나), 이번 달이면 전달 값. 다음 달 금액 칸은 그 달 정본이 생겨야 나옴
+  const cmp = (b: MapBox) => {
+    const r = by.get(b.label)
+    if (nx) {
+      const n = (b.book ? nxBook! : nx).get(b.label)
+      return n && !none(n) ? `→ ${mo(next!.month)} ${split(n.value)[0]}${b.book ? '' : ' (누적)'}` : `→ ${mo(next!.month)} 아직 없음`
+    }
+    return r?.mtd ? (b.book ? `전달 ${r.mtd}` : `지난달 같은 기간 ${r.mtd}`) : ''
+  }
   const red = BOXES.filter((b) => by.get(b.label)?.light === 'red').map((b) => b.label)
   const ratio = by.get('고정비 ÷ 공헌이익')
-  const cur = String(+today.slice(5, 7))
+  const cur = String(+sel.month.slice(5))
   const right = (c: number) => COL[c].x + COL[c].w
   return (
     <section className="rounded-xl border border-neutral-800 bg-neutral-900">
@@ -173,22 +202,31 @@ function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: 
         <p className="text-sm text-neutral-300">{red.length ? <>빨간 칸 <span className="text-neutral-50">{red.join(', ')}</span></> : '빨간 칸 없음'}</p>
         <SignalLegend className="sm:ml-auto" />
       </div>
+      {/* 월 선택: 재무 탭 공통 y, m 쿼리. 그 달 마감(마지막 주간 보고서) 지도와 다음 달 값, 그 달 액션 */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-800 px-5 py-2.5 text-xs">
+        {months.map((m) => (
+          <Link key={m} href={`/admin/finance?tab=funnel&y=${m.slice(0, 4)}&m=${+m.slice(5)}`}
+            className={`rounded-md px-2.5 py-1 ${m === sel.month ? 'bg-neutral-800 font-semibold text-neutral-50' : 'text-neutral-400 hover:bg-neutral-800/60 hover:text-neutral-200'}`}>{mo(m)}</Link>
+        ))}
+        {missing && <span className="ml-2 text-neutral-500">{mo(missing)} 자료가 아직 없어 {mo(sel.month)}을 보여 줍니다</span>}
+        <a href="https://app.notion.com/p/41b01ca3e480814bb72cfb48dd29748e" target="_blank" rel="noreferrer" className="ml-auto text-neutral-400 underline-offset-2 hover:text-neutral-200 hover:underline">액션 기록하기(노션)</a>
+      </div>
       <div className="px-5 py-4">
         <div className="relative" style={{ height: MAP_H }}>
           {([[0, '팀별 관리지표'], [1, '구성요소'], [4, '결과']] as const).map(([c, t]) => (
             <p key={t} className="absolute top-0 text-xs font-medium text-neutral-500" style={{ left: `${COL[c].x}%` }}>{t}</p>
           ))}
           <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 100 ${MAP_H}`} preserveAspectRatio="none" aria-hidden>
-            <g fill="none" stroke="var(--color-neutral-600)" strokeWidth={1} vectorEffect="non-scaling-stroke">
+            <g fill="none" stroke="var(--color-neutral-500)" strokeWidth={1.5} vectorEffect="non-scaling-stroke">
               {JOIN.map(([pc, py, a, b], i) => {
                 const x0 = right(pc - 1), xm = mid(x0, COL[pc].x)
                 return <path key={i} vectorEffect="non-scaling-stroke" d={`M${x0} ${a}H${xm}M${x0} ${b}H${xm}M${xm} ${a}V${b}M${xm} ${py}H${COL[pc].x}`} />
               })}
-              {CY.map((y, i) => <path key={i} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" d={`M${right(0)} ${y}H${COL[i < 6 ? 1 : 2].x}`} />)}
+              {CY.map((y, i) => <path key={i} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" d={`M${right(0)} ${y}H${COL[i < 6 ? 1 : 2].x}`} />)}
             </g>
           </svg>
           {JOIN.map(([pc, py, , , op], i) => (
-            <span key={i} style={{ left: `${mid(right(pc - 1), COL[pc].x)}%`, top: py }} className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-600 bg-neutral-900 text-xs text-neutral-300">{op}</span>
+            <span key={i} style={{ left: `${mid(right(pc - 1), COL[pc].x)}%`, top: py }} className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-500 bg-neutral-900 text-xs text-neutral-200">{op}</span>
           ))}
           {TEAM_BOX.map(([slot, team, lines]) => (
             <div key={slot} style={{ left: 0, width: `${COL[0].w}%`, top: SY[slot] + 6, height: SLOT[slot] - 12 }} className="absolute rounded-lg border border-neutral-800 px-3 py-2">
@@ -207,7 +245,7 @@ function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: 
             </div>
           ))}
           {BOXES.map((b) => (
-            <MapCard key={b.label} b={b} r={by.get(b.label)} cur={cur}
+            <MapCard key={b.label} b={b} r={by.get(b.label)} cur={cur} cmp={cmp(b)} acts={actions.filter((a) => a.box === b.label)}
               foot={b.label === '영업이익' && ratio ? (
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   <p>기준: 고정비 ÷ 공헌이익</p>
@@ -223,7 +261,7 @@ function HierarchyMap({ tree, rows, today }: { tree: Row[]; rows: Row[]; today: 
 
 const CASH_TIMING ='공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)'
 
-export async function FunnelTrendTab() {
+export async function FunnelTrendTab({ y, m }: { y?: string; m?: string } = {}) {
   const supabase = await createClient()
   const { data } = await supabase.storage.from(REPORTS_BUCKET).download(TREND_KEY)
   let t: FunnelTrend | null = null
@@ -235,17 +273,34 @@ export async function FunnelTrendTab() {
   // 신호등은 가장 최근 주간 보고서에서. 못 읽으면 신호등 없이 차트만
   const { data: files } = await supabase.storage.from(REPORTS_BUCKET).list('', { sortBy: { column: 'name', order: 'desc' } })
   const latest = (files ?? []).map((f) => f.name).filter((n) => parseReportKey(n)).sort().at(-1)
-  let rows: Row[] = []
-  if (latest) {
+  const load = async (key?: string) => {
+    if (!key) return []
     try {
-      const { data: r } = await supabase.storage.from(REPORTS_BUCKET).download(latest)
-      rows = r ? ((JSON.parse(await r.text()) as WeeklyReport).funnel?.rows ?? []) : []
-    } catch {}
+      const { data: r } = await supabase.storage.from(REPORTS_BUCKET).download(key)
+      return r ? ((JSON.parse(await r.text()) as WeeklyReport).funnel?.rows ?? []) : []
+    } catch {
+      return []
+    }
   }
-  return <FunnelTrendView t={t} rows={rows} period={latest ? parseReportKey(latest)!.title.replace('주간 경영 리포트 ', '') : null} />
+  const rows = await load(latest)
+  // 지도 달: 그 달에 시작한 마지막 주간 보고서(퍼널은 그 주 월요일의 달) + 그 달 정본 금액. 이번 달은 정본이 아직 없어 최신(tree)
+  const keys = (files ?? []).map((f) => f.name).filter((n) => parseReportKey(n)).sort()
+  const lastOf = (mm: string) => keys.filter((k) => parseReportKey(k)!.start.slice(0, 7) === mm).at(-1)
+  const cur = latest ? parseReportKey(latest)!.start.slice(0, 7) : t.today.slice(0, 7)
+  const months = [...new Set([...Object.keys(t.tree_months ?? {}), ...keys.map((k) => parseReportKey(k)!.start.slice(0, 7)), cur])].filter((x) => x <= cur).sort()
+  const want = y && m ? `${y}-${m.padStart(2, '0')}` : cur
+  const selM = months.includes(want) ? want : cur
+  const mapOf = async (mm: string): Promise<MapMonth> => ({
+    month: mm,
+    rows: mm === cur ? rows : await load(lastOf(mm)),
+    tree: t.tree_months?.[mm] ?? (mm === cur ? t.tree ?? [] : []),
+  })
+  const nextM = months[months.indexOf(selM) + 1]
+  const map = t.tree ? { sel: await mapOf(selM), next: nextM ? await mapOf(nextM) : undefined, months, missing: want !== selM ? want : undefined, actions: t.actions?.[selM] ?? [] } : null
+  return <FunnelTrendView t={t} rows={rows} map={map} period={latest ? parseReportKey(latest)!.title.replace('주간 경영 리포트 ', '') : null} />
 }
 
-export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTrend; rows?: Row[]; period?: string | null }) {
+export function FunnelTrendView({ t, rows = [], period = null, map = null }: { t: FunnelTrend; rows?: Row[]; period?: string | null; map?: React.ComponentProps<typeof HierarchyMap> | null }) {
   const pick = (...labels: string[]) => labels.flatMap((l) => rows.filter((r) => r.label === l))
   const cur = t.today.slice(0, 7)
   const upto = `${+t.today.slice(5, 7)}/${+t.today.slice(8)}`
@@ -272,7 +327,7 @@ export function FunnelTrendView({ t, rows = [], period = null }: { t: FunnelTren
         </p>
       </div>
 
-      {t.tree && <HierarchyMap tree={t.tree} rows={rows} today={t.today} />}
+      {map && <HierarchyMap {...map} />}
 
       <TeamLights rows={rows} />
 

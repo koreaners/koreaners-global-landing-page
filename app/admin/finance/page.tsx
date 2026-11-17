@@ -38,7 +38,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   // receivables 역할(경영지원 미수 확인용)은 주소의 tab 값과 무관하게 미수 탭만 본다. proxy는 경로만 막으므로 탭은 여기서 고정
   const only = (await adminRole()) === 'receivables'
   const tab: Tab = only ? 'receivables' : ((TABS.find(([k]) => k === sp.tab)?.[0] ?? 'summary') as Tab)
-  if (tab === 'funnel') return <FunnelTrendTab /> // 노션을 읽지 않고 주간 잡이 올린 파일만
+  if (tab === 'funnel') return <FunnelTrendTab y={sp.y} m={sp.m} /> // 노션을 읽지 않고 주간 잡이 올린 파일만
   // 기본 연도도 한국 시간 오늘에서(서버는 UTC라 새해 첫날 0~9시에 전년으로 열리던 문제, 261113 감사)
   const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10) // KST
   const thisYear = Number(today.slice(0, 4))
