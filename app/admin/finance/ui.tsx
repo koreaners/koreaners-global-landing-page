@@ -133,10 +133,11 @@ export function Tile({ label, value, full, delta, note, side, hint }: { label: s
           {hint && <span className="ml-1"><Info text={hint} align="right" /></span>}
         </p>
       </div>
-      <p className="text-2xl font-semibold text-neutral-50" title={full}>
+      {/* 줄바꿈 flex + gap: 「마진율」이 다음 줄로 넘어가도 금액과 같은 왼쪽 줄에서 시작(261117) */}
+      <p className="flex flex-wrap items-baseline gap-x-2 text-2xl font-semibold text-neutral-50" title={full}>
         {value}
         {/* 「마진율 31.9%」가 갈라져 숫자만 다음 줄로 떨어지지 않게 한 덩어리로(261116) */}
-        {side && <span className="ml-2 inline-block whitespace-nowrap text-base font-medium text-neutral-300">{side}</span>}
+        {side && <span className="whitespace-nowrap text-base font-medium text-neutral-300">{side}</span>}
       </p>
       <p className="mt-auto text-xs text-neutral-500">
         {delta}
