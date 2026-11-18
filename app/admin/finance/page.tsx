@@ -537,7 +537,8 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
   if (st === 'overdue') return <OverdueTable model={model} today={today} allHref={q({ st: undefined })} />
   const picked = model.contracts.find((x) => x.c.id === sel)
   // st=cost: 기준 탭 「원가 누락 의심」 계약만
-  const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : st === 'nolink' ? model.contracts.filter(noLinkPaid) : model.contracts
+  // st=voucher: 계약 DB 「수출바우처」 칸에 값이 있는 계약만
+  const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : st === 'nolink' ? model.contracts.filter(noLinkPaid) : st === 'voucher' ? model.contracts.filter((x) => x.c.voucher) : model.contracts
   const pool = o ? all.filter((x) => ownersOf(x.c).includes(o)) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
@@ -569,7 +570,22 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
           <Link href={q({ st: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
         </div>
       )}
-      <SearchBox q={q} f={f} n={rows.length} total={pool.length} placeholder="코드, 브랜드, 법인, 담당자" />
+      {st === 'voucher' && (() => {
+        const sum = (k: (x: (typeof rows)[number]) => number) => rows.reduce((a, x) => a + k(x), 0)
+        const supply = sum((x) => x.supply ?? 0), margin = sum((x) => x.margin ?? 0), marginSupply = sum((x) => (x.margin != null ? x.supply ?? 0 : 0))
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm text-sky-300">
+              수출바우처 계약만 보는 중: {rows.length}건, 공급가 <span title={won(supply)}>{won2(supply)}</span>, 변동비 <span title={won(sum((x) => x.cost))}>{won2(sum((x) => x.cost))}</span>, 마진 <span title={won(margin)}>{won2(margin)}</span> ({pct(marginSupply ? margin / marginSupply : null)})
+            </span>
+            <Link href={q({ st: undefined })} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>
+          </div>
+        )
+      })()}
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchBox q={q} f={f} n={rows.length} total={pool.length} placeholder="코드, 브랜드, 법인, 담당자" />
+        {st !== 'voucher' && <Link href={q({ st: 'voucher', sel: undefined })} className={`text-sm ${LINK}`}>수출바우처만</Link>}
+      </div>
       <Table head={['코드', '브랜드', '담당자', '계약일', '공급가', '입금', '입금 예정일', '초과 기간', '변동비', '마진', '계약서']} left={2} tall
         sort={{ keys: ['code', 'brand', 'owner', 'day', 'supply', 'received', 'due', 'overdue', 'cost', 'margin', null], cur: s, href: (k) => q({ s: k }) }}>
         {rows.map((x) => (
