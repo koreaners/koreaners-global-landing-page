@@ -188,7 +188,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
         {!absents && <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">재직자 명단이나 휴가 기록을 읽지 못해 미출근은 표시하지 않았습니다.</p>}
 
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <Card label="출근 기록" value={`${mine.length}건`} note="이 달 출근이 찍힌 날(정정, 자동 채움 포함)" />
+          <Card label="출근 기록" value={`${mine.length - count(mine, 'noin')}건`} note="이 달 출근이 찍힌 날(정정, 자동 채움 포함, 출근 누락 제외)" />
           <Card label="미출근" value={missed ? `${missed.length}건` : '-'} note="자정이 지난 평일 중 기록도 휴가도 없는 날" />
           <Card label="출퇴근 누락" value={`${count(mine, 'missing') + count(mine, 'noin')}건`} note="자정이 지나도 퇴근 기록이 없거나 16시 뒤 첫 기록이라 출근 기록이 없는 날" />
           <Card label="정정" value={`${count(mine, 'fixed')}건`} note="고친 날(자동 8시간 채움 포함)" />
@@ -220,7 +220,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
                     const n = count(xs, s)
                     return n > 0 && <span key={s} className="block leading-snug tabular-nums" style={{ color }}>{label} {n}</span>
                   })}
-                  {rs.length > 0 && <span className="mt-auto block border-t border-neutral-700 pt-1 tabular-nums leading-snug text-neutral-300">출근 {rs.length}명</span>}
+                  {rs.length > count(rs, 'noin') && <span className="mt-auto block border-t border-neutral-700 pt-1 tabular-nums leading-snug text-neutral-300">출근 {rs.length - count(rs, 'noin')}명</span>}
                 </Link>
               )
             })}
