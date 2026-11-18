@@ -96,7 +96,7 @@ export function offDays(members: Member[], leaves: Leave[], spans: Record<number
     if (l.type_code === 'annual_hour') {
       const [from, to] = (l.request_id != null && spans[l.request_id]) || [null, null]
       const minutes = Math.round((l.days ?? 0) * 8 * 60)
-      if (l.start_date.startsWith(m)) put(`${s} ${l.start_date}`, { label: `시차 ${from ? `${from}~${to}` : hhmm(minutes)}`, minutes, from, to, full: false })
+      if (l.start_date.startsWith(m)) put(`${s} ${l.start_date}`, { label: `시차 ${from ? `${from}~${to} (${hhmm(minutes)})` : hhmm(minutes)}`, minutes, from, to, full: false })
       continue
     }
     for (let d = new Date(`${l.start_date}T00:00:00Z`); d.toISOString().slice(0, 10) <= l.end_date; d.setUTCDate(d.getUTCDate() + 1)) {
@@ -107,8 +107,15 @@ export function offDays(members: Member[], leaves: Leave[], spans: Record<number
   return out
 }
 
-/** 휴가와 출퇴근(KST HH:MM)이 겹치는지: 종일 휴가에 출근했거나 시차 시각 안에 사무실에 있었음 */
-export const overlaps = (o: Off, first: string, last: string) => o.full || (!!o.from && !!o.to && o.from < last && first < o.to)
+/** 휴가와 출퇴근이 겹친 분: 종일 휴가면 머문 시간 전체, 시차면 신청 시각 안에 있던 시간(시각 없는 시차는 0).
+ * first, last 는 ISO 라 자정 넘긴 퇴근도 그대로 비교(261118 리뷰: HH:MM 글자 비교는 00:30 퇴근을 놓쳤음) */
+export function overlapMin(o: Off, workday: string, first: string, last: string): number {
+  const [a, b] = [Date.parse(first), Date.parse(last)]
+  if (o.full) return Math.max(0, Math.floor((b - a) / 60_000))
+  if (!o.from || !o.to) return 0
+  const [f, t] = [Date.parse(`${workday}T${o.from}:00+09:00`), Date.parse(`${workday}T${o.to}:00+09:00`)]
+  return Math.max(0, Math.floor((Math.min(b, t) - Math.max(a, f)) / 60_000))
+}
 
 /** 근태를 고칠 수 있는 어드민 계정(로그인 메일 → 정정자로 남길 슬랙 ID): 인혁, 건우(인혁 2026-11-09).
  * proxy 가 건우님(exec)에게 근태 페이지만 열어 주고, 저장하는 서버 액션이 다시 확인합니다 */

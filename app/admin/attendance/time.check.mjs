@@ -1,6 +1,6 @@
 // 근태 시간 계산 점검: node app/admin/attendance/time.check.mjs
 import assert from 'node:assert/strict'
-import { absent, editorOf, offDays, overlaps, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
+import { absent, editorOf, offDays, overlapMin, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
 
 assert.equal(worked(550), '8시간 10분') // 09:00~18:10, 휴게 1시간
 assert.equal(worked(300), '4시간') // 5시간 머묾, 휴게 1시간
@@ -59,13 +59,19 @@ const offs = offDays(members, [
   { member_email: 'c@koreaners.com', type_code: 'comp_sub', start_date: '2026-11-13', end_date: '2026-11-16' },
 ], { 7: ['10:00', '15:00'] }, { comp_sub: '보상 휴가(대체)' }, '2026-11')
 assert.deepEqual(Object.keys(offs).sort(), ['A 2026-11-16', 'B 2026-11-10', 'C 2026-11-13', 'C 2026-11-16']) // 주말 14, 15 빠짐
-assert.deepEqual(offs['A 2026-11-16'], { label: '시차 10:00~15:00', minutes: 240, from: '10:00', to: '15:00', full: false })
+assert.deepEqual(offs['A 2026-11-16'], { label: '시차 10:00~15:00 (4시간)', minutes: 240, from: '10:00', to: '15:00', full: false })
 assert.equal(offs['B 2026-11-10'].label, '시차 2시간')
 assert.deepEqual(offs['C 2026-11-13'], { label: '보상 휴가(대체)', minutes: 480, from: null, to: null, full: true })
-assert.equal(overlaps(offs['A 2026-11-16'], '14:00', '21:00'), true) // 건우 11/16: 14시 출근이 시차 안
-assert.equal(overlaps(offs['A 2026-11-16'], '15:00', '20:00'), false)
-assert.equal(overlaps({ ...offs['A 2026-11-16'], from: '16:00', to: '18:00' }, '09:00', '16:00'), false) // 보람
-assert.equal(overlaps(offs['C 2026-11-13'], '09:00', '18:00'), true) // 종일 휴가에 출근
+const ov = (o, a, b, d = '2026-11-16') => overlapMin(o, d, `${d}T${a}:00+09:00`, b)
+const A = offs['A 2026-11-16']
+assert.equal(ov(A, '14:00', '2026-11-16T21:00:00+09:00'), 60) // 건우 11/16: 1시간
+assert.equal(ov(A, '15:00', '2026-11-16T20:00:00+09:00'), 0)
+assert.equal(ov(A, '09:00', '2026-11-16T21:30:00+09:00'), 300) // 건우 11/9 모양: 시차 통째
+assert.equal(ov({ ...A, from: '16:00', to: '18:00' }, '09:00', '2026-11-16T16:00:00+09:00'), 0) // 보람
+assert.equal(ov({ ...A, from: '22:00', to: '23:00' }, '20:00', '2026-11-17T00:30:00+09:00'), 60) // 자정 넘긴 퇴근
+assert.equal(ov(offs['B 2026-11-10'], '09:00', '2026-11-16T18:00:00+09:00'), 0) // 시각 없는 시차
+assert.equal(ov(offs['C 2026-11-13'], '09:00', '2026-11-16T18:00:00+09:00'), 540) // 종일 휴가에 출근
+assert.equal(A.label, '시차 10:00~15:00 (4시간)')
 // 자정 전 날은 뺌: 11/12 23:59 KST 엔 11/12 제외, 11/13 00:00 KST 부터 포함
 assert.ok(!absent(members, att, [], '2026-11', Date.parse('2026-11-12T14:59:00Z')).some((x) => x.workday >= '2026-11-12'))
 assert.ok(absent(members, att, [], '2026-11', Date.parse('2026-11-12T15:00:00Z')).some((x) => x.workday === '2026-11-12'))
