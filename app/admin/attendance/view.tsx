@@ -4,10 +4,10 @@ import { AutoForm } from '../finance/auto-form'
 import { COLOR } from '../finance/colors'
 import { Card, Info, Table, td, tdl } from '../finance/ui'
 import { fixAttendance } from './actions'
-import { addMonth, ATT_FROM, dayLabel, hhmm, hm, kstDate, net, overlaps, today, view as view0, type Absent, type Att, type Off } from './time'
+import { addMonth, ATT_FROM, dayLabel, hhmm, hm, kstDate, net, overlapMin, today, view as view0, type Absent, type Att, type Off } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
-const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다. 휴가: 출근 기록 없이 그날 종일 휴가인 줄입니다. 겹침: 휴가 시각 안에 출근해 있었거나 종일 휴가 날 출근한 줄입니다.'
+const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다. 휴가: 출근 기록 없이 그날 종일 휴가인 줄입니다. 겹침: 휴가 시각 안에 출근해 있던 시간입니다(종일 휴가 날은 머문 시간 전체). 합계에는 근로와 휴가 신청 시간이 둘 다 들어갑니다.'
 const OFF_TIP = '그날 휴가입니다. 시차는 신청한 시각(시간 연차), 종일 휴가는 종류입니다. 출근과 퇴근은 사무실이나 근무지에서 찍은 시각이라 휴가 시간을 넣지 않습니다.'
 const SUM_TIP = '근로시간(휴게 제외)에 휴가 시간을 더한 값입니다. 시차는 신청 시간, 종일 휴가는 8시간입니다. 휴가가 없는 날은 비웁니다.'
 const LIST = 'att-list'
@@ -130,10 +130,10 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
   /** 휴가 칸, 합계(근로+휴가), 겹침 */
   const offInfo = (x: Line) => {
     const o = offOf(x)
-    if (!o) return { label: null, sum: null, clash: false }
+    if (!o) return { label: null, sum: null, clash: 0 }
     const v = 'taps' in x ? view(x) : null
     const work = v?.first && v.worked ? net(Math.floor((Date.parse(v.last) - Date.parse(v.first)) / 60_000)) : 0
-    return { label: o.label, sum: hhmm(work + o.minutes), clash: !!v?.first && !v.missing && !v.open && overlaps(o, hm(v.first), hm(v.last)) }
+    return { label: o.label, sum: hhmm(work + o.minutes), clash: v?.first && !v.missing && !v.open ? overlapMin(o, x.workday, v.first, v.last) : 0 }
   }
   const stCell = (x: Line) => {
     const [s, label, color] = stLabel(state(x))
@@ -141,7 +141,7 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
       <span className="inline-flex items-center justify-end gap-1.5" style={{ color }}>
         {label}
         {s === 'fixed' && 'taps' in x && <Info text={fixTip(x)} align="right" />}
-        {offInfo(x).clash && <span style={{ color: WARN }}>겹침</span>}
+        {offInfo(x).clash > 0 && <span className="whitespace-nowrap text-neutral-400">겹침 {hhmm(offInfo(x).clash)}</span>}
       </span>
     )
   }
@@ -316,11 +316,11 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
                           <Link href={link({ d: x.workday }, `#${LIST}`)} className="text-neutral-400 hover:text-neutral-100">{dayLabel(x.workday)}</Link>
                         </td>
                         <td className={tdl}>{name(x.slack_id)}</td>
-                        <td className={`${tdl} whitespace-nowrap tabular-nums text-neutral-300`}>{oi.label ?? '—'}</td>
+                        <td className={`${tdl} whitespace-nowrap tabular-nums text-neutral-300`}>{oi.label}</td>
                         <td className={td}>{on ? tIn('first', firstDef, '출근') : v?.first ? time(v.first, x.workday) : '—'}</td>
                         <td className={td}>{on ? tIn('last', lastDef, '퇴근') : v && !v.missing && !v.open ? time(v.last, x.workday) : '—'}</td>
                         <td className={td}>{v?.worked ?? '—'}</td>
-                        <td className={td}>{oi.sum ?? '—'}</td>
+                        <td className={td}>{oi.sum}</td>
                         <td className={td}>{'taps' in x ? x.taps : 0}</td>
                         <td className={td}>{on && edit?.err ? <span className="text-red-300">{edit.err}</span> : stCell(x)}</td>
                         {edit && (
