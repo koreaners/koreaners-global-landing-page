@@ -5,7 +5,6 @@ import {
   getClientIp,
   addRateLimitHeaders,
 } from "@/lib/rate-limit";
-import { sendSlackCreatorApplication } from "@/lib/slack";
 import { sendCAPIEvent } from "@/lib/meta-capi";
 
 const ALLOWED_ORIGINS = [
@@ -191,19 +190,6 @@ export async function POST(request: NextRequest) {
       console.log("[Creator API] Notion 저장 성공, pageId:", response.id);
     }
 
-    // Slack 알림 (응답 전 완료 보장)
-    await sendSlackCreatorApplication({
-      name: safeName,
-      email: safeEmail,
-      phone: safePhone || undefined,
-      instagram_url: safeInstagram,
-      youtube_url: safeYoutube || undefined,
-      tiktok_url: safeTiktok || undefined,
-      x_url: safeX || undefined,
-      message: safeMessage || undefined,
-      track_type: safeTrackType,
-      locale: safeLocale,
-    });
 
     // Meta CAPI: CompleteRegistration 이벤트 서버사이드 전송 (non-blocking)
     sendCAPIEvent({

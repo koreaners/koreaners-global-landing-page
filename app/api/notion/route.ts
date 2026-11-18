@@ -6,7 +6,6 @@ import {
   getClientIp,
   addRateLimitHeaders,
 } from "@/lib/rate-limit";
-import { sendSlackInquiry } from "@/lib/slack";
 import { sendCAPIEvent } from "@/lib/meta-capi";
 
 // 허용 Origin (도메인 변경 시 여기 추가)
@@ -287,16 +286,6 @@ export async function POST(request: NextRequest) {
       console.log("[Notion API] 문의 저장 성공, pageId:", response.id);
     }
 
-    // Slack 알림 (응답 전 완료 보장)
-    await sendSlackInquiry({
-      name: safeName,
-      email: safeEmail,
-      company: safeCompany || undefined,
-      position: safePosition || undefined,
-      phone: safePhone || undefined,
-      message: safeMessage,
-      notionPageId: response.id,
-    });
 
     // Meta CAPI: Lead 이벤트 서버사이드 전송 (non-blocking)
     sendCAPIEvent({
