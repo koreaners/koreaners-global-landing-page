@@ -1,7 +1,7 @@
 import { notion } from '@/lib/notion/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { absent, addMonth, ATT_FROM, editorOf, hourMarks, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
+import { absent, addMonth, ATT_FROM, editorOf, offDays, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
 import { AttendanceView } from './view'
 
 // 근태: Supabase hr_attendance(슬랙 출퇴근 봇이 씀, RLS로 service_role만 읽음) 조회 전용 (관리자 전용, proxy가 exec를 막음)
@@ -64,7 +64,7 @@ async function leaves(m: string): Promise<Leave[]> {
 }
 
 // 시간 연차 신청의 시각(hr_requests.fields from, to). 못 읽으면 시간만 표시
-async function spans(ls: Leave[]): Promise<Record<number, string>> {
+async function spans(ls: Leave[]): Promise<Record<number, [string, string]>> {
   const ids = [...new Set(ls.filter((l) => l.type_code === 'annual_hour' && l.request_id != null).map((l) => l.request_id!))]
   if (!ids.length) return {}
   const { data, error } = await createAdminClient().from('hr_requests').select('id, fields').in('id', ids)
@@ -72,10 +72,20 @@ async function spans(ls: Leave[]): Promise<Record<number, string>> {
     console.error('[attendance] hour leave spans failed', error.message)
     return {}
   }
-  const out: Record<number, string> = {}
+  const out: Record<number, [string, string]> = {}
   for (const r of (data ?? []) as { id: number; fields: { from?: string; to?: string } | null }[])
-    if (r.fields?.from && r.fields?.to) out[r.id] = `${r.fields.from}~${r.fields.to}`
+    if (r.fields?.from && r.fields?.to) out[r.id] = [r.fields.from, r.fields.to]
   return out
+}
+
+// 휴가 종류 이름(봇 hr.leave_types, 노션 근태 캘린더와 같은 이름). 못 읽으면 code 그대로
+async function typeNames(): Promise<Record<string, string>> {
+  const { data, error } = await createAdminClient().from('hr_leave_types').select('code, name, grp')
+  if (error) {
+    console.error('[attendance] leave types failed', error.message)
+    return {}
+  }
+  return Object.fromEntries(((data ?? []) as { code: string; name: string; grp: string | null }[]).map((t) => [t.code, t.grp === '보상 휴가' ? `보상 휴가(${t.name})` : t.name]))
 }
 
 type SlackUser = { id: string; name?: string; real_name?: string; profile?: { display_name?: string; real_name?: string } }
@@ -128,7 +138,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const [slack, absents, user] = await Promise.all([
     slackNames(),
     Promise.all([roster(), leaves(m)]).then(
-      ([ms, ls]) => spans(ls).then((sx) => ({ list: absent(ms, rows, ls, m), ms, hours: hourMarks(ms, ls, sx) })),
+      ([ms, ls]) => Promise.all([spans(ls), typeNames()]).then(([sx, tn]) => ({ list: absent(ms, rows, ls, m), ms, offs: offDays(ms, ls, sx, tn, m) })),
       (e) => {
         console.error('[attendance] absent failed', e)
         return null
@@ -144,5 +154,5 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const missed: Absent[] | null = absents?.list ?? null
   const emails = Object.fromEntries((absents?.ms ?? []).map((p) => [p.slack, p.email]))
   const edit = editorOf(user?.email) ? { e: sp.e, err: sp.err, emails } : undefined
-  return <AttendanceView m={m} u={sp.u || undefined} d={d} st={sp.st || undefined} rows={rows} absents={missed} names={names} hours={absents?.hours ?? {}} edit={edit} />
+  return <AttendanceView m={m} u={sp.u || undefined} d={d} st={sp.st || undefined} rows={rows} absents={missed} names={names} offs={absents?.offs ?? {}} edit={edit} />
 }
