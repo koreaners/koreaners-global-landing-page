@@ -78,18 +78,37 @@ export function absent(members: Member[], rows: Att[], leaves: Leave[], m: strin
   return out.reverse()
 }
 
-/** 시간 연차(시차) 표시: 「slack 날짜」 → '시차 10:00~15:00'. 신청에 시각이 없으면 '시차 4시간'(인혁 2026-11-17 「시차는 근무가 아니라 시차」).
- * spans: hr_requests id → 'HH:MM~HH:MM'. 시간 연차는 하루짜리라 시작일에만 붙임 */
-export function hourMarks(members: Member[], leaves: Leave[], spans: Record<number, string>): Record<string, string> {
-  const slack = Object.fromEntries(members.map((p) => [p.email.toLowerCase(), p.slack]))
-  const out: Record<string, string> = {}
+/** 그날 휴가(인혁 2026-11-18 「휴가랑 어떻게 연결되는지」): 시차는 시각 'HH:MM~HH:MM'(신청에 없으면 시간만), 종일 휴가는 종류 이름 */
+export type Off = { label: string; minutes: number; from: string | null; to: string | null; full: boolean }
+
+/** 재직자(SKIP 제외)의 m 달 휴가 → 「slack 날짜」 → Off. 시차는 하루짜리라 시작일에만, 종일 휴가는 평일(공휴일 제외)마다 8시간.
+ * spans: hr_requests id → [from, to], names: 휴가 종류 code → 이름. 같은 날 휴가가 둘이면 합침 */
+export function offDays(members: Member[], leaves: Leave[], spans: Record<number, [string, string]>, names: Record<string, string>, m: string): Record<string, Off> {
+  const slack = Object.fromEntries(members.filter((p) => !SKIP.has(p.slack)).map((p) => [p.email.toLowerCase(), p.slack]))
+  const out: Record<string, Off> = {}
+  const put = (k: string, o: Off) => {
+    const c = out[k]
+    out[k] = c ? { label: `${c.label}, ${o.label}`, minutes: c.minutes + o.minutes, from: c.from ?? o.from, to: o.to ?? c.to, full: c.full || o.full } : o
+  }
   for (const l of leaves) {
     const s = slack[l.member_email.toLowerCase()]
-    if (l.type_code !== 'annual_hour' || !s) continue
-    out[`${s} ${l.start_date}`] = `시차 ${(l.request_id != null && spans[l.request_id]) || `${(l.days ?? 0) * 8}시간`}`
+    if (!s) continue
+    if (l.type_code === 'annual_hour') {
+      const [from, to] = (l.request_id != null && spans[l.request_id]) || [null, null]
+      const minutes = Math.round((l.days ?? 0) * 8 * 60)
+      if (l.start_date.startsWith(m)) put(`${s} ${l.start_date}`, { label: `시차 ${from ? `${from}~${to}` : hhmm(minutes)}`, minutes, from, to, full: false })
+      continue
+    }
+    for (let d = new Date(`${l.start_date}T00:00:00Z`); d.toISOString().slice(0, 10) <= l.end_date; d.setUTCDate(d.getUTCDate() + 1)) {
+      const day = d.toISOString().slice(0, 10)
+      if (day.startsWith(m) && d.getUTCDay() % 6 !== 0 && !HOLIDAYS.has(day)) put(`${s} ${day}`, { label: names[l.type_code] ?? l.type_code, minutes: 480, from: null, to: null, full: true })
+    }
   }
   return out
 }
+
+/** 휴가와 출퇴근(KST HH:MM)이 겹치는지: 종일 휴가에 출근했거나 시차 시각 안에 사무실에 있었음 */
+export const overlaps = (o: Off, first: string, last: string) => o.full || (!!o.from && !!o.to && o.from < last && first < o.to)
 
 /** 근태를 고칠 수 있는 어드민 계정(로그인 메일 → 정정자로 남길 슬랙 ID): 인혁, 건우(인혁 2026-11-09).
  * proxy 가 건우님(exec)에게 근태 페이지만 열어 주고, 저장하는 서버 액션이 다시 확인합니다 */
@@ -111,12 +130,14 @@ export function fixTimes(workday: string, first: string, last: string) {
 
 /** 머문 분에서 휴게를 뺀 근로시간 글. lightsaber-slack nfc.py worked()와 같은 규칙:
  * 5시간 이상 1시간, 4시간 30분 이상 30분, 그 미만은 빼지 않음 */
-export function worked(stay: number) {
-  const rest = stay >= 300 ? 60 : stay >= 270 ? 30 : 0
-  const h = Math.floor((stay - rest) / 60)
-  const m = (stay - rest) % 60
+export const net = (stay: number) => stay - (stay >= 300 ? 60 : stay >= 270 ? 30 : 0)
+/** 분 → '8시간 10분' */
+export const hhmm = (min: number) => {
+  const h = Math.floor(min / 60)
+  const m = min % 60
   return h && m ? `${h}시간 ${m}분` : h ? `${h}시간` : `${m}분`
 }
+export const worked = (stay: number) => hhmm(net(stay))
 
 /** 한 줄의 화면 값: 정정값이 있으면 정정값. 정정 안 된 줄의 첫 탭이 LATE 뒤면 출근 누락(noIn, 바로 표시, 마지막 탭이 퇴근).
  * 아니면 출근과 마지막 기록이 1시간 안일 때 그날 자정 전은 근무 중(open), 지나면 퇴근 누락 */

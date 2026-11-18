@@ -1,6 +1,6 @@
 // 근태 시간 계산 점검: node app/admin/attendance/time.check.mjs
 import assert from 'node:assert/strict'
-import { absent, editorOf, hourMarks, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
+import { absent, editorOf, offDays, overlaps, ended, fixTimes, addMonth, dayLabel, hm, thisMonth, view, worked } from './time.ts'
 
 assert.equal(worked(550), '8시간 10분') // 09:00~18:10, 휴게 1시간
 assert.equal(worked(300), '4시간') // 5시간 머묾, 휴게 1시간
@@ -51,13 +51,21 @@ const leaves = [
 const now = Date.parse('2026-11-13T20:30:00Z') // 11/14(토) 05:30 KST
 const got = absent(members, att, leaves, '2026-11', now).map((x) => `${x.slack_id} ${x.workday.slice(8)}`)
 assert.deepEqual(got.sort(), ['A 10', 'A 11', 'A 12', 'A 13', 'B 12', 'B 13', 'C 09', 'C 12', 'C 13'].sort())
-// 시차 표시: 시각 있으면 시각, 없으면 시간, 명단 밖 메일과 다른 휴가는 뺌(인혁 2026-11-17)
-assert.deepEqual(hourMarks(members, [
+// 휴가 칸: 시차는 시각(없으면 시간), 종일 휴가는 평일마다 종류 이름, 명단 밖 메일은 뺌(인혁 2026-11-18)
+const offs = offDays(members, [
   { member_email: 'A@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-16', end_date: '2026-11-16', days: 0.5, request_id: 7 },
   { member_email: 'b@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-10', end_date: '2026-11-10', days: 0.25, request_id: null },
   { member_email: 'x@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-10', end_date: '2026-11-10', days: 0.5 },
-  ...leaves.slice(0, 1),
-], { 7: '10:00~15:00' }), { 'A 2026-11-16': '시차 10:00~15:00', 'B 2026-11-10': '시차 2시간' })
+  { member_email: 'c@koreaners.com', type_code: 'comp_sub', start_date: '2026-11-13', end_date: '2026-11-16' },
+], { 7: ['10:00', '15:00'] }, { comp_sub: '보상 휴가(대체)' }, '2026-11')
+assert.deepEqual(Object.keys(offs).sort(), ['A 2026-11-16', 'B 2026-11-10', 'C 2026-11-13', 'C 2026-11-16']) // 주말 14, 15 빠짐
+assert.deepEqual(offs['A 2026-11-16'], { label: '시차 10:00~15:00', minutes: 240, from: '10:00', to: '15:00', full: false })
+assert.equal(offs['B 2026-11-10'].label, '시차 2시간')
+assert.deepEqual(offs['C 2026-11-13'], { label: '보상 휴가(대체)', minutes: 480, from: null, to: null, full: true })
+assert.equal(overlaps(offs['A 2026-11-16'], '14:00', '21:00'), true) // 건우 11/16: 14시 출근이 시차 안
+assert.equal(overlaps(offs['A 2026-11-16'], '15:00', '20:00'), false)
+assert.equal(overlaps({ ...offs['A 2026-11-16'], from: '16:00', to: '18:00' }, '09:00', '16:00'), false) // 보람
+assert.equal(overlaps(offs['C 2026-11-13'], '09:00', '18:00'), true) // 종일 휴가에 출근
 // 자정 전 날은 뺌: 11/12 23:59 KST 엔 11/12 제외, 11/13 00:00 KST 부터 포함
 assert.ok(!absent(members, att, [], '2026-11', Date.parse('2026-11-12T14:59:00Z')).some((x) => x.workday >= '2026-11-12'))
 assert.ok(absent(members, att, [], '2026-11', Date.parse('2026-11-12T15:00:00Z')).some((x) => x.workday === '2026-11-12'))
