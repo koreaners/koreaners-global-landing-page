@@ -7,7 +7,7 @@ import { fixAttendance } from './actions'
 import { addMonth, ATT_FROM, dayLabel, hhmm, hm, kstDate, net, overlapMin, today, view as view0, type Absent, type Att, type Off } from './time'
 
 const WORK_TIP = '출근부터 퇴근까지 머문 시간에서 휴게를 뺀 시간입니다. 머문 시간이 5시간 이상이면 1시간, 4시간 30분 이상이면 30분을 빼고, 그 미만은 빼지 않습니다(슬랙 출퇴근 봇과 같은 계산).'
-const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 8시간 근무로 자동으로 채운 날 포함), ⓘ에 처음 기록과 정정자가 있습니다. 휴가: 출근 기록 없이 그날 종일 휴가인 줄입니다. 겹침: 휴가 시각 안에 출근해 있던 시간입니다(종일 휴가 날은 머문 시간 전체). 합계에는 근로와 휴가 신청 시간이 둘 다 들어갑니다.'
+const STATE_TIP = '미출근과 누락은 그날 자정이 지난 뒤에 판정합니다. 미출근: 출근 기록이 아예 없는 평일입니다(공휴일, 휴가 예약이나 사용 날, 입사 전은 뺌. 시간 연차는 출근하는 날이라 포함). 퇴근 누락: 출근과 마지막 기록이 1시간 안이라 퇴근 기록이 없는 날입니다(자정 전에는 근무 중). 출근 누락: 그날 첫 기록이 16시 뒤라 출근 없이 퇴근만 있는 날입니다(바로 표시). 정정: 고친 날이며(빠진 평일을 자동으로 채운 날 포함. 8시간으로 채우고, 16시 뒤 한 번만 찍힌 날은 그 탭을 퇴근으로 둠), ⓘ에 처음 기록과 정정자가 있습니다. 휴가: 출근 기록 없이 그날 종일 휴가인 줄입니다. 겹침: 휴가 시각 안에 출근해 있던 시간입니다(종일 휴가 날은 머문 시간 전체). 합계에는 근로와 휴가 신청 시간이 둘 다 들어갑니다.'
 const OFF_TIP = '그날 휴가입니다. 시차는 신청한 시각(시간 연차), 종일 휴가는 종류입니다. 출근과 퇴근은 사무실이나 근무지에서 찍은 시각이라 휴가 시간을 넣지 않습니다.'
 const SUM_TIP = '근로시간(휴게 제외)에 휴가 시간을 더한 값입니다. 시차는 신청 시간, 종일 휴가는 8시간입니다. 휴가가 없는 날은 근로시간과 같고, 근무 중이거나 누락이라 근로시간을 셀 수 없는 날은 휴가 시간만 셉니다.'
 const LIST = 'att-list'
@@ -132,9 +132,11 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
     const o = offOf(x)
     const v = 'taps' in x ? view(x) : null
     const work = v?.first && v.worked ? net(Math.floor((Date.parse(v.last) - Date.parse(v.first)) / 60_000)) : 0
-    const total = work + (o?.minutes ?? 0)
-    return { label: o?.label ?? null, sum: total ? hhmm(total) : null, clash: o && v?.first && !v.missing && !v.open ? overlapMin(o, x.workday, v.first, v.last) : 0 }
+    const leave = o?.minutes ?? 0
+    return { label: o?.label ?? null, work, leave, sum: work + leave ? hhmm(work + leave) : null, clash: o && v?.first && !v.missing && !v.open ? overlapMin(o, x.workday, v.first, v.last) : 0 }
   }
+  // 한 사람을 골랐을 때 이 달 합계: 목록 합계 칸을 더한 값(인혁 261119)
+  const month = u ? all.reduce((s, x) => ({ work: s.work + offInfo(x).work, leave: s.leave + offInfo(x).leave }), { work: 0, leave: 0 }) : null
   const stCell = (x: Line) => {
     const [s, label, color] = stLabel(state(x))
     return (
@@ -187,7 +189,8 @@ export function AttendanceView({ m, u, d, st, rows, absents, names, offs = {}, e
 
         {!absents && <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">재직자 명단이나 휴가 기록을 읽지 못해 미출근은 표시하지 않았습니다.</p>}
 
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className={`grid grid-cols-2 gap-3 ${month ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+          {month && <Card label="이 달 합계" value={hhmm(month.work + month.leave)} note={`근로 ${hhmm(month.work)}, 휴가 ${hhmm(month.leave)}. 오늘까지 목록 합계 칸을 더한 값`} />}
           <Card label="출근 기록" value={`${mine.length - count(mine, 'noin')}건`} note="이 달 출근이 찍힌 날(정정, 자동 채움 포함, 출근 누락 제외)" />
           <Card label="미출근" value={missed ? `${missed.length}건` : '-'} note="자정이 지난 평일 중 기록도 휴가도 없는 날" />
           <Card label="출퇴근 누락" value={`${count(mine, 'missing') + count(mine, 'noin')}건`} note="자정이 지나도 퇴근 기록이 없거나 16시 뒤 첫 기록이라 출근 기록이 없는 날" />
