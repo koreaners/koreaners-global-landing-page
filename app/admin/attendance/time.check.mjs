@@ -72,6 +72,12 @@ assert.equal(ov({ ...A, from: '22:00', to: '23:00' }, '20:00', '2026-11-17T00:30
 assert.equal(ov(offs['B 2026-11-10'], '09:00', '2026-11-16T18:00:00+09:00'), 0) // 시각 없는 시차
 assert.equal(ov(offs['C 2026-11-13'], '09:00', '2026-11-16T18:00:00+09:00'), 540) // 종일 휴가에 출근
 assert.equal(A.label, '시차 10:00~15:00 (4시간)')
+// SKIP 이어도 AUTO8(리카 U09HV7N1UDV)은 휴가 칸에 나옴, SKIP 만인 계정(U0B0V3089LY)은 뺌(261119 리카 11/17 대체 휴가가 빠졌음)
+const skipOffs = offDays([mem('U09HV7N1UDV'), mem('U0B0V3089LY')], [
+  { member_email: 'U09HV7N1UDV@koreaners.com', type_code: 'comp_sub', start_date: '2026-11-17', end_date: '2026-11-17' },
+  { member_email: 'U0B0V3089LY@koreaners.com', type_code: 'annual', start_date: '2026-11-17', end_date: '2026-11-17' },
+], {}, {}, '2026-11')
+assert.deepEqual(Object.keys(skipOffs), ['U09HV7N1UDV 2026-11-17'])
 // 자정 전 날은 뺌: 11/12 23:59 KST 엔 11/12 제외, 11/13 00:00 KST 부터 포함
 assert.ok(!absent(members, att, [], '2026-11', Date.parse('2026-11-12T14:59:00Z')).some((x) => x.workday >= '2026-11-12'))
 assert.ok(absent(members, att, [], '2026-11', Date.parse('2026-11-12T15:00:00Z')).some((x) => x.workday === '2026-11-12'))
