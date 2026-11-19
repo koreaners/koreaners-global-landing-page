@@ -43,6 +43,8 @@ export const HOLIDAYS = new Set(
 )
 /** nfc.py SKIP: 출퇴근 기록 대상이 아닌 슬랙 계정 */
 export const SKIP = new Set(['U0B0V3089LY', 'U09MDN55T0A', 'U09JPJAR74H', 'U09N5EQKJ82', 'U0BML0DQ6LS', 'U09HV7MGS4F', 'U09HV7N1UDV', 'U09HV7MD3AT'])
+/** nfc.py AUTO8: 빠진 평일을 8시간으로 채우는 사람. 사야카, 리카는 SKIP(찍지 않음)이어도 근태 줄이 있어 휴가 칸에 나와야 함 */
+export const AUTO8 = new Set(['U0A7ZHM3WAH', 'U09JYMFS64Q', 'U09HV7N1SFR', 'U09HV7MD3AT', 'U09HV7N1UDV'])
 /** nfc.py ATT_FROM 기본값: NFC 기록이 출퇴근 정본이 된 날 */
 export const ATT_FROM = '2026-11-09'
 /** nfc.py LATE: 근무일 이 시각 뒤 첫 탭은 퇴근(출근 기록 없음, 인혁 2026-11-16) */
@@ -81,10 +83,10 @@ export function absent(members: Member[], rows: Att[], leaves: Leave[], m: strin
 /** 그날 휴가(인혁 2026-11-18 「휴가랑 어떻게 연결되는지」): 시차는 시각 'HH:MM~HH:MM'(신청에 없으면 시간만), 종일 휴가는 종류 이름 */
 export type Off = { label: string; minutes: number; from: string | null; to: string | null; full: boolean }
 
-/** 재직자(SKIP 제외)의 m 달 휴가 → 「slack 날짜」 → Off. 시차는 하루짜리라 시작일에만, 종일 휴가는 평일(공휴일 제외)마다 8시간.
+/** 재직자(SKIP 제외, AUTO8 은 포함)의 m 달 휴가 → 「slack 날짜」 → Off. 시차는 하루짜리라 시작일에만, 종일 휴가는 평일(공휴일 제외)마다 8시간.
  * spans: hr_requests id → [from, to], names: 휴가 종류 code → 이름. 같은 날 휴가가 둘이면 합침 */
 export function offDays(members: Member[], leaves: Leave[], spans: Record<number, [string, string]>, names: Record<string, string>, m: string): Record<string, Off> {
-  const slack = Object.fromEntries(members.filter((p) => !SKIP.has(p.slack)).map((p) => [p.email.toLowerCase(), p.slack]))
+  const slack = Object.fromEntries(members.filter((p) => !SKIP.has(p.slack) || AUTO8.has(p.slack)).map((p) => [p.email.toLowerCase(), p.slack]))
   const out: Record<string, Off> = {}
   const put = (k: string, o: Off) => {
     const c = out[k]
