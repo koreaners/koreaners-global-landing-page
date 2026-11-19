@@ -140,7 +140,7 @@ type Act = NonNullable<FunnelTrend['actions']>[string][number]
 
 // cmp: 비교 한 줄(지난달을 보면 다음 달 값, 이번 달이면 전달 값). acts: 그 달 이 칸의 액션(노션 「하이라키 액션」)
 function MapCard({ b, r, cur, cmp, acts = [], foot }: { b: MapBox; r?: Row; cur: string; cmp?: string; acts?: Act[]; foot?: React.ReactNode }) {
-  const h = foot ? 150 : 112
+  const h = foot ? 196 : 112
   const book = /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1]
   const tag = [b.book ? `${book ?? '-'}월 정본` : `${cur}월 누적`, b.basis].filter(Boolean).join(', ')
   const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`, r?.note && `기준: ${r.note}`].filter(Boolean).join('\n')
@@ -190,6 +190,8 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
   }
   const red = BOXES.filter((b) => by.get(b.label)?.light === 'red').map((b) => b.label)
   const ratio = by.get('고정비 ÷ 공헌이익')
+  // 계약 단위(현금 기준의 송금 시차를 뺀 값): 같은 달 입금 계약에 붙은 지급 전부를 원가로
+  const [cbOp, cbRate] = [by.get('영업이익(계약 단위)'), by.get('공헌이익률(계약 단위)')]
   const cur = String(+sel.month.slice(5))
   const right = (c: number) => COL[c].x + COL[c].w
   return (
@@ -251,6 +253,15 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   <p>기준: 고정비 ÷ 공헌이익</p>
                   <p className="flex items-center gap-1.5"><Dot light={ratio.light} /><span className="text-neutral-200">{ratio.value}</span>목표 {ratio.target}</p>
+                  {cbOp && (
+                    <>
+                      <p className="mt-1 flex items-center gap-1">계약 단위(송금 시차 없음)
+                        <Info align="right" up text={[cbOp.define && `정의: ${cbOp.define}`, cbOp.note && `기준: ${cbOp.note}`, cbOp.mtd && `전달: ${cbOp.mtd}`].filter(Boolean).join('\n')} />
+                      </p>
+                      <p className="flex items-center gap-1.5"><Dot light={cbOp.light} /><span className="text-neutral-200">{split(cbOp.value)[0]}</span>
+                        {cbRate && !none(cbRate) && <>공헌이익률 <Dot light={cbRate.light} /><span className="text-neutral-200">{cbRate.value}</span></>}</p>
+                    </>
+                  )}
                 </div>
               ) : undefined} />
           ))}
