@@ -178,14 +178,14 @@ const Arrow = () => <ArrowRight aria-hidden className="h-4 w-4 shrink-0" />
 const MORE = 'inline-flex items-center gap-1 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-200'
 
 /** 입금은 됐는데 크리에이터 지급이 하나도 연결되지 않은 계약(계약 단위 마진에서 빠짐), 안건 탭 st=nolink.
- * 개요 할 일 카드로는 쓰지 않음: 크리에이터 비용이 원래 없는 계약(월 정액 운영, 정부사업, 통과금)과 구분할 칸이 계약 DB에 없어 대부분 잡음(인혁 261113) */
-const noLinkPaid = (x: Model['contracts'][number]) => x.c.source !== 'sheet' && x.supply != null && !x.payouts.length && x.received > 0
+ * 개요 할 일 카드로는 쓰지 않음(인혁 261113). 계약 DB 「크리에이터 지급 없음」 체크 계약은 원래 비용이 없어 뺌(261120) */
+const noLinkPaid = (x: Model['contracts'][number]) => x.c.source !== 'sheet' && !x.c.noPayout && x.supply != null && !x.payouts.length && x.received > 0
 
 // 발생 기준의 정산은 연결된 지급만이라 매출 − 정산이 연결 없는 계약 공급가만큼 부풀어(261113 확인) 발생 기준에선 계약 단위를 씀
 const NET_HINT = '이 기간 매출(입금된 공급가)에서 정산(송금 완료)을 뺀 값입니다. 계약을 고르지 않은 회사 전체 숫자이고, 입금과 송금 시점이 달라 달마다 출렁입니다. 아래 계약 단위 마진율은 지급이 연결된 계약끼리만 공급가에서 지급을 뺀 값이고, 이 기간 매출 가운데 그 계약들에서 들어온 몫의 비율을 함께 적습니다.'
 
 const marginHint = (cb: boolean) =>
-  `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(종결, 해제 금지 보류는 뺌)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
+  `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(종결, 해제 금지 보류는 뺌)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). 계약 DB에 「크리에이터 지급 없음」을 체크한 계약은 원가 0으로 넣습니다. ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
 
 /** 가로 막대 한 줄: 이름, 막대, 금액, 보조 글 */
 function BarRow({ label, value, max, color, aside, href }: { label: string; value: number; max: number; color: string; aside?: string; href?: string }) {
