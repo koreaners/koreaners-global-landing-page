@@ -277,7 +277,7 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
   )
 }
 
-const CASH_TIMING ='공헌이익은 현금 기준: 매출은 고객이 입금한 달, 크리에이터 지급은 송금한 달에 잡힘. 송금이 입금보다 몇 달 늦게 나가서 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보임. 주황 선은 그 달까지 3개월을 합쳐 낸 보정값(정본 숫자 그대로, 출렁임만 줄임)'
+const CB_TIMING = '공헌이익은 계약 단위: 그 달에 입금된 계약마다 붙은 크리에이터 지급을 송금 시점과 관계없이 모두 원가로 잡음(보류 제외, 아마네님 통과 매출 제외). 최근 달은 지급이 덜 붙어 실제보다 좋게 나올 수 있음. 주황 선은 그 달까지 3개월을 합쳐 낸 값'
 
 export async function FunnelTrendTab({ y, m }: { y?: string; m?: string } = {}) {
   const supabase = await createClient()
@@ -335,7 +335,7 @@ export function FunnelTrendView({ t, rows = [], period = null, map = null }: { t
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-neutral-50">
           지표 모니터링
-          <Info text={`경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 건전성 4개는 월간파이낸스 정본(손으로 매달 갱신) 값이라 정본이 없는 달은 비움${period ? '. 신호등은 최신 경영진 보고서 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달' : ''}`} />
+          <Info text={`경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 건전성 4개의 고정비, 인건비, 인원은 월간파이낸스 정본(손으로 매달 갱신)에서 읽어 정본이 없는 달은 비움. 공헌이익은 계약 단위${period ? '. 신호등은 최신 경영진 보고서 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달' : ''}`} />
         </h1>
         {/* 갱신 정보는 다른 탭처럼 흐린 평문 한 줄(261116 감사: 테두리 알약 3개) */}
         <p className="flex flex-wrap gap-x-3 text-xs text-neutral-500 sm:ml-auto">
@@ -415,11 +415,11 @@ export function FunnelTrendView({ t, rows = [], period = null, map = null }: { t
         )}
         {t.health ? (
           t.health.map((h) => (
-            <Panel key={h.label} title={h.label} rows={pick(h.label)} note={`${h.low ? '낮을수록 좋음' : '높을수록 좋음'}. 월간파이낸스 정본${h.label === '안건당 공헌이익' ? ', 안건은 정본의 입금 기준' : ''}`} info={h.adj ? CASH_TIMING : undefined}>
+            <Panel key={h.label} title={h.label} rows={pick(h.label)} note={`${h.low ? '낮을수록 좋음' : '높을수록 좋음'}. ${h.label === '인당 매출' ? '월간파이낸스 정본' : h.label === '안건당 공헌이익' ? '계약 단위, 그 달 입금 계약' : '공헌이익은 계약 단위, 고정비와 인건비는 정본'}`} info={h.adj ? CB_TIMING : undefined}>
               <TrendChart
                 unit={h.unit}
                 goal={h.unit === '%' ? h.goal * 100 : h.goal}
-                series={[{ key: 'v', name: h.adj ? '그 달' : h.label, color: C1, kind: 'line' }, ...(h.adj ? [{ key: 'a', name: '3개월 합 보정', color: C2, kind: 'line' as const }] : [])]}
+                series={[{ key: 'v', name: h.adj ? '그 달' : h.label, color: C1, kind: 'line' }, ...(h.adj ? [{ key: 'a', name: '3개월 합', color: C2, kind: 'line' as const }] : [])]}
                 data={pts((i) => {
                   const f = (x: number | null | undefined) => (x == null ? null : h.unit === '%' ? x * 100 : x)
                   return { v: f(h.v[i]), a: f(h.adj?.[i]) }
