@@ -12,6 +12,7 @@ export type Contract = {
   owner: string
   isExpense: boolean
   excluded?: boolean // Contract DB 「매출 제외」: 코리너스 매출이 아닌 계약(에츠코 직접 계약, 중복 코드). 매출, 받을 돈에서 뺌
+  noPayout?: boolean // Contract DB 「크리에이터 지급 없음」: 크리에이터 비용이 원래 없는 계약. 지급 연결이 없어도 원가 0으로 마진에 넣고 원가 덜 붙음, 지급 연결 없음에서 뺌(인혁 261105)
   method: string | null // 정산 방식
   supplyKrw: number | null // 공급가(원)
   supplyJpy: number | null // 공급가(엔)
@@ -504,7 +505,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     const s = supplyKrw(c, r)
     if (s == null) continue
     const cur = contractCurrency(c)
-    const linked = c.source !== 'sheet' && (payByContract.get(c.id) ?? []).some((p) => !isDead(p))
+    const linked = c.source !== 'sheet' && (!!c.noPayout || (payByContract.get(c.id) ?? []).some((p) => !isDead(p)))
     const add = (date: string, v: number) => {
       count(date, 'revenue', v, cur)
       if (linked && inPeriod(date, period)) linkedRevenue += v
@@ -554,13 +555,14 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
       const costPs = ps.filter((p) => !isDead(p))
       const cost = costPs.reduce((a, p) => a + krw(p), 0)
       const received = supply == null ? 0 : recs.filter((x) => x.date).reduce((a, x) => a + supplyKrw(c, r, x.date)! * x.share, 0)
-      // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012)
-      const margin = supply == null || c.source === 'sheet' || !costPs.length ? null : supply - cost
+      // 지급이 하나도 연결되지 않은 계약(시트 계약 포함)은 비용을 몰라 마진을 셈하지 않음(공급가 전액이 마진으로 부풀려짐, Leo 261012).
+      // 「크리에이터 지급 없음」 계약은 원가 0이 정상이라 마진에 넣음(인혁 261105)
+      const margin = supply == null || c.source === 'sheet' || (!costPs.length && !c.noPayout) ? null : supply - cost
       const unpaid = recs.filter((x) => !x.date)
       const due = unpaid.map((x) => x.due).filter((d): d is string => !!d).sort()[0] ?? null
       const late = due ? -daysFrom(today, due) : 0
       const rate = margin != null && supply ? margin / supply : null
-      const flag = supply == null || c.source === 'sheet' ? null : costFlag(c, cost, rate, today)
+      const flag = supply == null || c.source === 'sheet' || c.noPayout ? null : costFlag(c, cost, rate, today)
       flagOf.set(c.id, flag)
       return {
         c,
