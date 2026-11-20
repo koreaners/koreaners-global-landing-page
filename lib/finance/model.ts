@@ -29,7 +29,7 @@ export type Contract = {
   startDate: string | null
   link: string | null
   unsigned?: boolean // 봇 광고주 계약 서명 전(제목 「(서명 전) 」, 코드 없음). 캘린더에 따로 표시(Leo 261026)
-  dueGuess?: boolean // 비고에 「정산일 임의」: 정산일을 모르는 계약에 임의로 넣은 날(수출바우처 계약월 +2달 말일 등, Leo 261026). 캘린더 색을 따로
+  dueGuess?: boolean // 비고에 「정산일 임의」: 정산일을 모르는 계약에 임의로 넣은 날(수출바우처 계약월 +2달 말일 등, Leo 261026). 캘린더 색을 따로, 날짜가 지나면 확정 정산일과 같이 「예정일 지남」(인혁 261120)
   twikr?: boolean // 비고에 「공급자 트위커」: 대금이 트위커 국민 계좌로 가는 계약. 코리너스 받을 돈, 자금 캘린더 들어옴에서 뺌(매출은 그대로, 인혁 261105)
   supplyUsd?: number | null // 공급가(달러), 운영 대시보드 시트 행만
   currency?: Currency | null // Contract DB 통화 칸(매출 통화별 나눔용, 금액은 공급가(원) 그대로)
@@ -830,7 +830,7 @@ export function calendarMonth(contracts: Contract[], payouts: Payout[], r: Rates
     for (const x of inflows(c, r, today, paid, dated)) {
       const date = x.date ?? x.due
       if (!date?.startsWith(ym)) continue
-      out.push({ kind: 'in', state: x.date ? 'done' : c.unsigned ? 'unsigned' : c.dueGuess ? 'guess' : date < today ? 'late' : 'due', date, krw: x.krw, title: c.brand || c.corp || c.code, sub: x.label ?? (x.noTotal ? '합계 없음(공급가)' : ''), code: c.code, contractId: c.id, notionId: c.source === 'sheet' ? null : c.id })
+      out.push({ kind: 'in', state: x.date ? 'done' : c.unsigned ? 'unsigned' : date < today ? 'late' : c.dueGuess ? 'guess' : 'due', date, krw: x.krw, title: c.brand || c.corp || c.code, sub: x.label ?? (x.noTotal ? '합계 없음(공급가)' : ''), code: c.code, contractId: c.id, notionId: c.source === 'sheet' ? null : c.id })
     }
   }
   for (const p of payouts) {
