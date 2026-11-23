@@ -11,7 +11,7 @@ import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { COLOR } from './colors'
-import { at, Card, CUR_NAME, CURS, hit, Info, LINK, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
+import { Card, CUR_NAME, Fetched, CURS, hit, Info, LINK, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -89,10 +89,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500">
-          {at(data.fetchedAt)} 갱신
-          <Info text="5분마다 자동으로도 다시 읽습니다" align="right" />
-        </span>
+        <Fetched t={data.fetchedAt} />
         <form action={refreshFinance}>
           <RefreshButton />
         </form>

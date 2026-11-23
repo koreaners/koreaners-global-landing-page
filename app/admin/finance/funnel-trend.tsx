@@ -142,7 +142,7 @@ type Act = NonNullable<FunnelTrend['actions']>[string][number]
 
 // cmp: 비교 한 줄(지난달을 보면 다음 달 값, 이번 달이면 전달 값). acts: 그 달 이 칸의 액션(노션 「하이라키 액션」)
 function MapCard({ b, r, cur, cmp, acts = [], foot, tag: tagAs }: { b: MapBox; r?: Row; cur: string; cmp?: string; acts?: Act[]; foot?: React.ReactNode; tag?: string }) {
-  const h = foot ? (b.label === '영업이익' ? 190 : 156) : 112
+  const h = foot ? (b.label === '영업이익' ? 190 : b.label === '공헌이익' ? 176 : 156) : 112
   const book = /^(\d+)월, 월간파이낸스 정본/.exec(r?.note ?? '')?.[1]
   const tag = tagAs ?? [b.book ? `${book ?? '-'}월 정본` : `${cur}월 누적`, b.basis].filter(Boolean).join(', ')
   const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`, r?.note && `기준: ${r.note}`].filter(Boolean).join('\n')
@@ -199,6 +199,9 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
     return CB_BOX.includes(b.label) && by.get(k) && !none(by.get(k)) ? { ...b, label: k } : b
   }
   const red = BOXES.filter((b) => by.get(real(b).label)?.light === 'red').map((b) => b.label)
+  // 계약 단위 값이 얼마나 익었나(그 달 입금 계약 중 지급이 붙은 계약 수), 손익분기 안건 수(안건 수 목표 「월 59」)
+  const link = /입금 계약 (\d+)건 중 지급 연결 (\d+)건/.exec(cbOp?.note ?? '')
+  const be = /월 ([\d.]+)/.exec(by.get('안건 수')?.target ?? '')?.[1]
   const cbTip = (r: Row) => [r.define && `정의: ${r.define}`, r.note && `기준: ${r.note}`, r.mtd && `전달: ${r.mtd}`].filter(Boolean).join('\n')
   const cur = String(+sel.month.slice(5))
   const right = (c: number) => COL[c].x + COL[c].w
@@ -269,8 +272,17 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                 </div>
               ) : b.label === '공헌이익' && real(b) !== b && !none(by.get('공헌이익')) ? (
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
+                  {link && <p className="flex items-center gap-1">지급 연결 <span className="text-neutral-200">{link[2]}/{link[1]}건</span>
+                    <Info align="right" up text={'그 달 입금 계약 가운데 크리에이터 지급이 붙은 계약 수.\n읽는 법: 덜 붙었을수록 아직 안 잡힌 원가가 남아 계약 단위 값이 실제보다 좋게 나옵니다. 지급이 붙은 공급가가 90% 아래인 달은 지도 색을 끕니다.'} />
+                  </p>}
                   <p className="flex items-center gap-1">참고: 통장 기준 <span className="text-neutral-200">{split(by.get('공헌이익')!.value)[0]}</span>
                     <Info align="right" up text={'통장 기준: 그 달 입금 − 그 달 실제로 보낸 크리에이터비(월간파이낸스 정본, 현금 기준).\n읽는 법: 위 계약 단위 값보다 크면 그 달 입금 계약에 붙은 크리에이터비가 아직 덜 나간 것이라, 대체로 그 차이만큼 앞으로 나갈 돈입니다. 손익 판단은 위 계약 단위 값으로.'} />
+                  </p>
+                </div>
+              ) : b.label === '안건 수' && be ? (
+                <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
+                  <p className="flex items-center gap-1">손익분기 <span className="text-neutral-200">월 {be}건</span>
+                    <Info align="left" up text={'한 달에 이만큼 계약해야 흑자가 되는 건수(목표와 같음).\n계산: 고정비 ÷ 공헌이익이 100%가 되는 안건 수, 계약 단위.'} />
                   </p>
                 </div>
               ) : b.label === '영업이익' && ratio ? (
