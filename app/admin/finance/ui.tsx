@@ -13,6 +13,17 @@ export const won2 = (n: number) => (Math.abs(n) >= 1e4 ? `${Math.round(n / 1e4).
 export const LINK = 'text-neutral-100 underline-offset-2 hover:underline'
 // 날짜, 시각 표기 한 벌(261116 감사: 한 줄에 「2026-11-09」와 「2026. 11. 16. 오전 7:01」이 섞임). 날짜는 2026-11-16, 시각은 2026-11-16 07:01, 모두 KST
 export const at = (t: string | number | Date) => new Date(new Date(t).getTime() + 9 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ')
+/** 화면 머리의 갱신 시각. 캐시는 낡은 값을 먼저 띄우고 뒤에서 노션을 다시 읽어서(lib/finance/data.ts), 10분 넘은 값이면 노란 글씨로 알림(인혁 261123: 3일 전 값인 줄 모르고 봄) */
+export function Fetched({ t }: { t: string }) {
+  const min = (Date.now() - Date.parse(t)) / 60_000
+  const ago = min >= 1440 ? `${Math.floor(min / 1440)}일` : min >= 60 ? `${Math.floor(min / 60)}시간` : `${Math.floor(min)}분`
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs ${min > 10 ? 'text-amber-400' : 'whitespace-nowrap text-neutral-500'}`}>
+      {at(t)} 갱신{min > 10 && `: ${ago} 전 값, 지금 다시 읽는 중이라 1분쯤 뒤 새로고침하면 최신`}
+      <Info text={'열 때 5분 넘은 값이면 그 값을 먼저 띄우고 뒤에서 노션을 다시 읽습니다.\n새로고침 버튼은 바로 다시 읽습니다.'} align="right" />
+    </span>
+  )
+}
 export const orig = (p: Payout) => (p.amount == null ? '-' : `${p.amount.toLocaleString('ko-KR')} ${p.currency ?? '통화 미상'}`)
 
 export const CUR_NAME: Record<Currency, string> = { KRW: '원화', JPY: '엔화', USD: '달러', CNY: '위안' }
