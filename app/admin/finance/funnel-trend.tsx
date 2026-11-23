@@ -135,6 +135,8 @@ const TEAM_BOX: [number, string, [string, string[]][]][] = [
   [6, '경영지원', [['고정비 대항목별 추이는 아래 차트', []]]],
 ]
 const none = (r?: Row) => !r || r.value === '원천 칸 신설 전' || r.value === '미상'
+// 계약 단위 줄이 있으면 그 값을 큰 숫자로 쓰는 칸(공헌이익 − 고정비 = 영업이익이 지도에서 맞게)
+const CB_BOX = ['공헌이익률', '안건당 공헌이익', '공헌이익', '영업이익']
 
 type Act = NonNullable<FunnelTrend['actions']>[string][number]
 
@@ -190,9 +192,12 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
   }
   const ratio = by.get('고정비 ÷ 공헌이익')
   // 계약 단위(현금 기준의 송금 시차를 뺀 값): 같은 달 입금 계약에 붙은 지급 전부를 원가로
-  const [cbOp, cbRate, cbPer, cbFr] = [by.get('영업이익(계약 단위)'), by.get('공헌이익률(계약 단위)'), by.get('안건당 공헌이익(계약 단위)'), by.get('고정비 ÷ 공헌이익(계약 단위)')]
-  // 영업이익 카드는 실제 손익(계약 단위)이 큰 숫자, 통장 기준(현금)은 참고 한 줄(인혁 261121: 반대 방향 두 숫자가 직관적이지 않음)
-  const real = (b: MapBox) => (b.label === '영업이익' && cbOp ? { ...b, label: '영업이익(계약 단위)' } : b)
+  const [cbOp, cbFr] = [by.get('영업이익(계약 단위)'), by.get('고정비 ÷ 공헌이익(계약 단위)')]
+  // 공헌이익 쪽 금액 칸은 전부 계약 단위가 큰 숫자(인혁 261123: 현금 공헌이익 − 고정비가 영업이익과 안 맞아 노이즈), 통장 기준은 영업이익 칸 참고 한 줄
+  const real = (b: MapBox) => {
+    const k = `${b.label}(계약 단위)`
+    return CB_BOX.includes(b.label) && by.get(k) && !none(by.get(k)) ? { ...b, label: k } : b
+  }
   const red = BOXES.filter((b) => by.get(real(b).label)?.light === 'red').map((b) => b.label)
   const cbTip = (r: Row) => [r.define && `정의: ${r.define}`, r.note && `기준: ${r.note}`, r.mtd && `전달: ${r.mtd}`].filter(Boolean).join('\n')
   const cur = String(+sel.month.slice(5))
@@ -202,7 +207,7 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
           하이라키 지도
-          <Info text={'노션 「코리너스 하이라키 지표 트리」 구조도에 지금 값을 얹은 것. 오른쪽 영업이익에서 빨간 칸을 따라 왼쪽 팀 지표로 가면 원인이 나옵니다.\n금액 칸은 월간파이낸스 정본의 마지막 달(현금 기준), 안건 칸은 이번 달 누적(건수 목표는 경과일 비례). +, ×, − 는 구조를 나타내고, 칸마다 기준이 달라 값끼리 계산하면 맞지 않습니다. 전달 값과 3개월 평균은 칸의 ⓘ'} />
+          <Info text={'노션 「코리너스 하이라키 지표 트리」 구조도에 지금 값을 얹은 것. 오른쪽 영업이익에서 빨간 칸을 따라 왼쪽 팀 지표로 가면 원인이 나옵니다.\n공헌이익률, 안건당 공헌이익, 공헌이익, 영업이익은 계약 단위(그 달 입금 계약에 붙은 크리에이터 지급을 송금 전이어도 원가로), 나머지 금액 칸은 월간파이낸스 정본의 마지막 달, 안건 칸은 이번 달 누적(건수 목표는 경과일 비례). 공헌이익 − 고정비 = 영업이익은 값이 맞고, 나머지 +, × 는 구조 표시라 값끼리 계산하면 맞지 않습니다. 전달 값과 3개월 평균은 칸의 ⓘ'} />
         </h2>
         <p className="text-sm text-neutral-300">{red.length ? <>빨간 칸 <span className="text-neutral-50">{red.join(', ')}</span></> : '빨간 칸 없음'}</p>
         <SignalLegend className="sm:ml-auto" />
@@ -252,11 +257,10 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
           ))}
           {BOXES.map((b) => (
             <MapCard key={b.label} b={b} r={by.get(real(b).label)} cur={cur} cmp={cmp(real(b))} acts={actions.filter((a) => a.box === b.label)}
-              tag={real(b) !== b ? `${/^(\d+)월/.exec(cbOp!.note)?.[1] ?? '-'}월 실제 손익` : undefined}
+              tag={real(b) !== b ? `${/^(\d+)월/.exec(by.get(real(b).label)!.note)?.[1] ?? '-'}월 ${b.label === '영업이익' ? '실제 손익' : '계약 단위'}` : undefined}
               foot={b.label === '영업이익' && cbOp ? (
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   {cbFr && !none(cbFr) && <p className="flex items-center gap-1.5"><Dot light={cbFr.light} /><span className="text-neutral-200">{cbFr.value}</span>고정비 ÷ 공헌이익<Info align="right" up text={cbTip(cbFr)} /></p>}
-                  {cbRate && !none(cbRate) && <p className="flex items-center gap-1.5"><Dot light={cbRate.light} /><span className="text-neutral-200">{cbRate.value}</span>마진율<Info align="right" up text={cbTip(cbRate)} /></p>}
                   {by.get('영업이익') && !none(by.get('영업이익')) && (
                     <p className="mt-1 flex items-center gap-1 border-t border-neutral-800 pt-1">참고: 통장 기준 <span className="text-neutral-200">{split(by.get('영업이익')!.value)[0]}</span>
                       <Info align="right" up text={'크리에이터비를 아직 안 보내서 커 보이는 값(월간파이낸스 정본, 현금 기준). 송금이 입금보다 몇 달 늦게 나가서, 입금이 몰린 달은 좋아 보이고 송금이 몰린 달은 나빠 보입니다.'} />
@@ -267,11 +271,6 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   <p>기준: 고정비 ÷ 공헌이익</p>
                   <p className="flex items-center gap-1.5"><Dot light={ratio.light} /><span className="text-neutral-200">{ratio.value}</span>목표 {ratio.target}</p>
-                </div>
-              ) : b.label === '안건당 공헌이익' && cbPer && !none(cbPer) ? (
-                <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
-                  <p className="flex items-center gap-1">계약 단위(송금 시차 없음)<Info text={cbTip(cbPer)} /></p>
-                  <p className="flex items-center gap-1.5"><Dot light={cbPer.light} /><span className="text-neutral-200">{split(cbPer.value)[0]}</span>목표 {cbPer.target}</p>
                 </div>
               ) : undefined} />
           ))}
