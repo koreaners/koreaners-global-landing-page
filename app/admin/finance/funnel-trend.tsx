@@ -267,6 +267,12 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                     </p>
                   )}
                 </div>
+              ) : b.label === '공헌이익' && real(b) !== b && !none(by.get('공헌이익')) ? (
+                <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
+                  <p className="flex items-center gap-1">참고: 통장 기준 <span className="text-neutral-200">{split(by.get('공헌이익')!.value)[0]}</span>
+                    <Info align="right" up text={'통장 기준: 그 달 입금 − 그 달 실제로 보낸 크리에이터비(월간파이낸스 정본, 현금 기준).\n읽는 법: 위 계약 단위 값보다 크면 그 달 입금 계약에 붙은 크리에이터비가 아직 덜 나간 것이라, 대체로 그 차이만큼 앞으로 나갈 돈입니다. 손익 판단은 위 계약 단위 값으로.'} />
+                  </p>
+                </div>
               ) : b.label === '영업이익' && ratio ? (
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   <p>기준: 고정비 ÷ 공헌이익</p>

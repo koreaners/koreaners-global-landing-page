@@ -36,11 +36,24 @@ export function Info({ text, align = 'left', up }: { text: string; align?: 'left
   return (
     <span tabIndex={0} aria-label={text} className="group relative inline-flex shrink-0 cursor-help align-middle text-neutral-500 outline-none hover:text-neutral-200 focus:text-neutral-200">
       <InfoIcon className="h-3.5 w-3.5" aria-hidden />
-      <span aria-hidden className={`pointer-events-none invisible absolute z-30 w-64 ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} whitespace-pre-line break-keep rounded-md border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-left text-xs font-normal leading-relaxed text-neutral-200 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
-        {text}
+      <span aria-hidden className={`pointer-events-none invisible absolute z-30 w-80 max-w-[calc(100vw-2rem)] ${up ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} whitespace-pre-line break-keep rounded-lg border border-neutral-600 bg-neutral-950 px-3.5 py-3 text-left text-[13px] font-normal leading-relaxed text-neutral-100 opacity-0 shadow-xl shadow-black/60 transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100 ${align === 'right' ? 'right-0' : 'left-0'}`}>
+        <TipBody text={text} />
       </span>
     </span>
   )
+}
+
+// 툴팁 본문: 「정의: …」처럼 이름표가 붙은 줄은 이름표를 작은 머리글로 떼고 구분선, 문장마다 줄을 나눔(인혁 261123: 한 덩어리 문단이 읽기 힘듦)
+function TipBody({ text }: { text: string }) {
+  return text.split('\n').filter((l) => l.trim()).map((l, i) => {
+    const m = /^([가-힣A-Za-z][^:[\]]{0,9}):\s+(.+)$/.exec(l)
+    return (
+      <span key={i} className={`block ${i ? (m ? 'mt-2.5 border-t border-neutral-800 pt-2.5' : 'mt-1') : ''}`}>
+        {m && <span className="mb-1 block text-[11px] font-semibold tracking-wide text-neutral-400">{m[1]}</span>}
+        {(m ? m[2] : l).split(/(?<=\.)\s+/).map((s, j) => <span key={j} className={`block ${j ? 'mt-1' : ''}`}>{s}</span>)}
+      </span>
+    )
+  })
 }
 
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
