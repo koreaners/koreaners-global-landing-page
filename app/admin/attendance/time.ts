@@ -44,6 +44,8 @@ export const HOLIDAYS = new Set(
 /** nfc.py SKIP: 출퇴근 기록 대상이 아닌 슬랙 계정 */
 export const SKIP = new Set(['U0B0V3089LY', 'U09MDN55T0A', 'U09JPJAR74H', 'U09N5EQKJ82', 'U0BML0DQ6LS', 'U09HV7MGS4F', 'U09HV7N1UDV', 'U09HV7MD3AT'])
 /** nfc.py AUTO8: 빠진 평일을 8시간으로 채우는 사람. 사야카, 리카는 SKIP(찍지 않음)이어도 근태 줄이 있어 휴가 칸에 나와야 함 */
+/** 시간 단위 휴가(봇 hr.HOURS): 시간 연차, 시간 보상. 출근하는 날이라 미출근 판정에서 휴가로 치지 않음 */
+export const HOURS = new Set(['annual_hour', 'comp_hour'])
 export const AUTO8 = new Set(['U0A7ZHM3WAH', 'U09JYMFS64Q', 'U09HV7N1SFR', 'U09HV7MD3AT', 'U09HV7N1UDV'])
 /** nfc.py ATT_FROM 기본값: NFC 기록이 출퇴근 정본이 된 날 */
 export const ATT_FROM = '2026-11-09'
@@ -65,7 +67,7 @@ export const ended = (day: string, now = Date.now()) => Date.parse(`${day}T00:00
  * 재직자(SKIP 제외)가 입사일 이후, 퇴사일(마지막 근무일, 적혀 있으면) 이전인데 기록도 휴가도 없는 날. 시간 연차는 출근하는 날이라 휴가로 치지 않음. 최근 날짜 먼저 */
 export function absent(members: Member[], rows: Att[], leaves: Leave[], m: string, now = Date.now()): Absent[] {
   const have = new Set(rows.map((r) => `${r.slack_id} ${r.workday}`))
-  const off = leaves.filter((l) => l.type_code !== 'annual_hour')
+  const off = leaves.filter((l) => !HOURS.has(l.type_code))
   const out: Absent[] = []
   for (let d = new Date(`${m}-01T00:00:00Z`); d.toISOString().startsWith(m); d.setUTCDate(d.getUTCDate() + 1)) {
     const day = d.toISOString().slice(0, 10)
@@ -95,7 +97,7 @@ export function offDays(members: Member[], leaves: Leave[], spans: Record<number
   for (const l of leaves) {
     const s = slack[l.member_email.toLowerCase()]
     if (!s) continue
-    if (l.type_code === 'annual_hour') {
+    if (HOURS.has(l.type_code)) {
       const [from, to] = (l.request_id != null && spans[l.request_id]) || [null, null]
       const minutes = Math.round((l.days ?? 0) * 8 * 60)
       if (l.start_date.startsWith(m)) put(`${s} ${l.start_date}`, { label: `시차 ${from ? `${from}~${to} (${hhmm(minutes)})` : hhmm(minutes)}`, minutes, from, to, full: false })

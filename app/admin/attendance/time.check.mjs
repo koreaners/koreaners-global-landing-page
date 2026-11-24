@@ -47,6 +47,7 @@ const att = [{ ...row('2026-11-09T09:00:00+09:00', '2026-11-09T18:00:00+09:00'),
 const leaves = [
   { member_email: 'c@koreaners.com', type_code: 'annual', start_date: '2026-11-10', end_date: '2026-11-11' },
   { member_email: 'c@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-12', end_date: '2026-11-12' },
+  { member_email: 'c@koreaners.com', type_code: 'comp_hour', start_date: '2026-11-13', end_date: '2026-11-13' }, // 시간 보상도 출근하는 날(261124)
 ]
 const now = Date.parse('2026-11-13T20:30:00Z') // 11/14(토) 05:30 KST
 const got = absent(members, att, leaves, '2026-11', now).map((x) => `${x.slack_id} ${x.workday.slice(8)}`)
@@ -60,10 +61,12 @@ const offs = offDays(members, [
   { member_email: 'b@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-10', end_date: '2026-11-10', days: 0.25, request_id: null },
   { member_email: 'x@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-10', end_date: '2026-11-10', days: 0.5 },
   { member_email: 'c@koreaners.com', type_code: 'comp_sub', start_date: '2026-11-13', end_date: '2026-11-16' },
-], { 7: ['10:00', '15:00'] }, { comp_sub: '보상 휴가(대체)' }, '2026-11')
-assert.deepEqual(Object.keys(offs).sort(), ['A 2026-11-16', 'B 2026-11-10', 'C 2026-11-13', 'C 2026-11-16']) // 주말 14, 15 빠짐
+  { member_email: 'A@koreaners.com', type_code: 'comp_hour', start_date: '2026-11-17', end_date: '2026-11-17', days: 0.5, request_id: 8 },
+], { 7: ['10:00', '15:00'], 8: ['15:00', '19:00'] }, { comp_sub: '보상 휴가(대체)' }, '2026-11')
+assert.deepEqual(Object.keys(offs).sort(), ['A 2026-11-16', 'A 2026-11-17', 'B 2026-11-10', 'C 2026-11-13', 'C 2026-11-16']) // 주말 14, 15 빠짐
 assert.deepEqual(offs['A 2026-11-16'], { label: '시차 10:00~15:00 (4시간)', minutes: 240, from: '10:00', to: '15:00', full: false })
 assert.equal(offs['B 2026-11-10'].label, '시차 2시간')
+assert.equal(offs['A 2026-11-17'].label, '시차 15:00~19:00 (4시간)') // 시간 보상도 시차 칸(261124)
 assert.deepEqual(offs['C 2026-11-13'], { label: '보상 휴가(대체)', minutes: 480, from: null, to: null, full: true })
 const ov = (o, a, b, d = '2026-11-16') => overlapMin(o, d, `${d}T${a}:00+09:00`, b)
 const A = offs['A 2026-11-16']
