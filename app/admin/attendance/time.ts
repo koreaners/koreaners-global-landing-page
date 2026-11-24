@@ -51,7 +51,7 @@ export const ATT_FROM = '2026-11-09'
 export const LATE = '16:00'
 
 /** 노션 구성원(결재 조직도) 재직자 */
-export type Member = { slack: string; name: string; email: string; joined: string | null }
+export type Member = { slack: string; name: string; email: string; joined: string | null; left?: string | null }
 /** hr_leave_uses(예약, 사용) */
 export type Leave = { member_email: string; type_code: string; start_date: string; end_date: string; days?: number | null; request_id?: number | null }
 export type Absent = { slack_id: string; workday: string }
@@ -62,7 +62,7 @@ export const today = (now = Date.now()) => new Date(now + KST - 5 * 3_600_000).t
 export const ended = (day: string, now = Date.now()) => Date.parse(`${day}T00:00:00+09:00`) + 86_400_000 <= now
 
 /** 출근 기록이 아예 없는 날. m 달의 ATT_FROM 이후 평일(공휴일 제외) 중 자정이 지난 날,
- * 재직자(SKIP 제외)가 입사일 이후인데 기록도 휴가도 없는 날. 시간 연차는 출근하는 날이라 휴가로 치지 않음. 최근 날짜 먼저 */
+ * 재직자(SKIP 제외)가 입사일 이후, 퇴사일(마지막 근무일, 적혀 있으면) 이전인데 기록도 휴가도 없는 날. 시간 연차는 출근하는 날이라 휴가로 치지 않음. 최근 날짜 먼저 */
 export function absent(members: Member[], rows: Att[], leaves: Leave[], m: string, now = Date.now()): Absent[] {
   const have = new Set(rows.map((r) => `${r.slack_id} ${r.workday}`))
   const off = leaves.filter((l) => l.type_code !== 'annual_hour')
@@ -71,7 +71,7 @@ export function absent(members: Member[], rows: Att[], leaves: Leave[], m: strin
     const day = d.toISOString().slice(0, 10)
     if (day < ATT_FROM || !ended(day, now) || d.getUTCDay() % 6 === 0 || HOLIDAYS.has(day)) continue
     for (const p of members) {
-      if (SKIP.has(p.slack) || (p.joined && day < p.joined) || have.has(`${p.slack} ${day}`)) continue
+      if (SKIP.has(p.slack) || (p.joined && day < p.joined) || (p.left && day > p.left) || have.has(`${p.slack} ${day}`)) continue
       const email = p.email.toLowerCase()
       if (off.some((l) => l.member_email.toLowerCase() === email && l.start_date <= day && day <= l.end_date)) continue
       out.push({ slack_id: p.slack, workday: day })
