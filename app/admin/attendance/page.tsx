@@ -1,7 +1,7 @@
 import { notion } from '@/lib/notion/client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { absent, addMonth, ATT_FROM, editorOf, offDays, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
+import { absent, addMonth, ATT_FROM, editorOf, HOURS, offDays, SKIP, thisMonth, type Absent, type Att, type Leave, type Member } from './time'
 import { AttendanceView } from './view'
 
 // 근태: Supabase hr_attendance(슬랙 출퇴근 봇이 씀, RLS로 service_role만 읽음) 조회 전용 (관리자 전용, proxy가 exec를 막음)
@@ -65,7 +65,7 @@ async function leaves(m: string): Promise<Leave[]> {
 
 // 시간 연차 신청의 시각(hr_requests.fields from, to). 못 읽으면 시간만 표시
 async function spans(ls: Leave[]): Promise<Record<number, [string, string]>> {
-  const ids = [...new Set(ls.filter((l) => l.type_code === 'annual_hour' && l.request_id != null).map((l) => l.request_id!))]
+  const ids = [...new Set(ls.filter((l) => HOURS.has(l.type_code) && l.request_id != null).map((l) => l.request_id!))]
   if (!ids.length) return {}
   const { data, error } = await createAdminClient().from('hr_requests').select('id, fields').in('id', ids)
   if (error) {
