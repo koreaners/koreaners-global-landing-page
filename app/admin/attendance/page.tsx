@@ -85,7 +85,7 @@ async function typeNames(): Promise<Record<string, string>> {
     console.error('[attendance] leave types failed', error.message)
     return {}
   }
-  return Object.fromEntries(((data ?? []) as { code: string; name: string; grp: string | null }[]).map((t) => [t.code, t.grp === '보상 휴가' ? `보상 휴가(${t.name})` : t.name]))
+  return Object.fromEntries(((data ?? []) as { code: string; name: string; grp: string | null }[]).map((t) => [t.code, t.grp === '보상 휴가' && t.name !== t.grp ? `보상 휴가(${t.name})` : t.name]))
 }
 
 type SlackUser = { id: string; name?: string; real_name?: string; profile?: { display_name?: string; real_name?: string } }
