@@ -45,7 +45,7 @@ async function roster(): Promise<Member[]> {
     for (const x of res.results as unknown as { properties: Record<string, Prop> }[]) {
       const p = x.properties
       const slack = text(p['슬랙 ID'])
-      if (slack) out.push({ slack, name: text(p['이름']), email: p['이메일']?.email ?? '', joined: p['입사일']?.date?.start?.slice(0, 10) ?? null })
+      if (slack) out.push({ slack, name: text(p['이름']), email: p['이메일']?.email ?? '', joined: p['입사일']?.date?.start?.slice(0, 10) ?? null, left: p['퇴사일']?.date?.start?.slice(0, 10) ?? null })
     }
     cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined
   } while (cursor)

@@ -51,6 +51,9 @@ const leaves = [
 const now = Date.parse('2026-11-13T20:30:00Z') // 11/14(토) 05:30 KST
 const got = absent(members, att, leaves, '2026-11', now).map((x) => `${x.slack_id} ${x.workday.slice(8)}`)
 assert.deepEqual(got.sort(), ['A 10', 'A 11', 'A 12', 'A 13', 'B 12', 'B 13', 'C 09', 'C 12', 'C 13'].sort())
+// 퇴사일(마지막 근무일)이 적혀 있으면 그 뒤는 미출근 아님, 재직을 퇴사로 바꾸기 전에도(인혁 261124)
+const gone = absent([mem('D', { left: '2026-11-11' })], [], [], '2026-11', now).map((x) => x.workday.slice(8))
+assert.deepEqual(gone.sort(), ['09', '10', '11'])
 // 휴가 칸: 시차는 시각(없으면 시간), 종일 휴가는 평일마다 종류 이름, 명단 밖 메일은 뺌(인혁 2026-11-18)
 const offs = offDays(members, [
   { member_email: 'A@koreaners.com', type_code: 'annual_hour', start_date: '2026-11-16', end_date: '2026-11-16', days: 0.5, request_id: 7 },
