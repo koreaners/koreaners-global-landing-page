@@ -5,7 +5,7 @@ import { REPORTS_BUCKET, TREND_KEY, parseReportKey, type FunnelTrend, type Weekl
 import { TrendChart, type TrendPoint } from './charts'
 import { COLOR } from './colors'
 import { at, Info, won2 } from './ui'
-import { Dot, SignalLegend, SignalTable, goal, plain, split, type Row } from './signal-table'
+import { Dot, Goal, SignalLegend, SignalTable, goal, plain, split, type Row } from './signal-table'
 
 // 재무 탭 「지표 모니터링」(구 퍼널 추이, 탭 키 funnel 유지): brain-weekly 가 주간 리포트 신호등과 같은 계산으로 올린 월별 값(설계: 볼트 work/261028-정리-퍼널신호등-지표)
 const C1 = COLOR.in
@@ -35,7 +35,7 @@ function Stats({ rows, title }: { rows: Row[]; title: string }) {
             <p className={`flex items-baseline gap-1.5 font-semibold tabular-nums text-neutral-50 ${one ? 'text-2xl' : 'mt-0.5 text-lg'}`}>
               {one && <Dot light={r.light} hollow={plain(r)} className="self-center" />}
               {big}
-              {t && <span className="text-sm font-normal text-neutral-400">/ {t}</span>}
+              {t && <Goal t={t} className="text-sm" />}
             </p>
             {(sub || tail) && <p className="text-xs text-neutral-500">{[sub, tail].filter(Boolean).join(', ')}</p>}
             {r.note && <p className="text-xs text-neutral-500">{r.note}</p>}
@@ -165,7 +165,7 @@ function MapCard({ b, r, cur, cmp, acts = [], foot, tag: tagAs }: { b: MapBox; r
       {/* 「실제 / 목표」 한 줄. 목표의 괄호 부분(월 전체 목표, 잠정)은 아래 줄 */}
       <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-neutral-50">
         {none(r) ? <span className="text-sm font-normal text-neutral-500">값 없음</span> : split(r!.value)[0]}
-        {t && <span className="ml-1.5 text-sm font-normal text-neutral-400">/ {t}</span>}
+        {t && <Goal t={t} className="ml-1.5 text-sm" />}
       </p>
       <p className="truncate text-xs text-neutral-500">{t ? tail || ' ' : '목표 없음(참고 값)'}</p>
       <p className="truncate text-xs text-neutral-300">{cmp || ' '}</p>
@@ -295,7 +295,7 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
               ) : b.label === '영업이익' && ratio ? (
                 <div className="mt-1 border-t border-neutral-800 pt-1 text-xs text-neutral-500">
                   <p>기준: 고정비 ÷ 공헌이익</p>
-                  <p className="flex items-center gap-1.5"><Dot light={ratio.light} /><span className="text-neutral-200">{ratio.value}</span>/ {ratio.target}</p>
+                  <p className="flex items-center gap-1.5"><Dot light={ratio.light} /><span className="text-neutral-200">{ratio.value}</span><Goal t={ratio.target} /></p>
                 </div>
               ) : undefined} />
           ))}
