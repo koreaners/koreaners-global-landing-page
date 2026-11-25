@@ -11,7 +11,7 @@ import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
 import { FunnelTrendTab } from './funnel-trend'
 import { COLOR } from './colors'
-import { Card, CUR_NAME, Fetched, CURS, hit, Info, LINK, Money, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
+import { Card, CUR_NAME, Fetched, CURS, hit, Info, LINK, Money, Notes, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
 // 관리자 대시보드: 노션 Contract DB, 지급내역 DB 기준 매출, 정산, 마진 (설계: 볼트 work/261010-설계-관리자대시보드)
 export const dynamic = 'force-dynamic'
@@ -336,9 +336,13 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
               ))}
             </div>
             {!cb && (
-              <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200/90">
-                은행 잔고 변화가 아닙니다. 출금은 지급내역 DB에 기록된 크리에이터 지급만이라 인건비, 운영비, 세금, 카드 대금이 빠져 실제 은행 출금보다 훨씬 적습니다. 입금도 노션 계약 DB에 입금일이 적힌 계약과 은행 원장에서 공급가를 따로 받은 것으로 맞춘 입금만입니다.
-              </p>
+              <div className="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2">
+                <Notes className="text-amber-200/90" items={[
+                  '은행 잔고 변화가 아닙니다.',
+                  '출금은 지급내역 DB의 크리에이터 지급만입니다. 인건비, 운영비, 세금, 카드 대금이 빠져 실제 은행 출금보다 훨씬 적습니다.',
+                  '입금은 노션 계약 DB에 입금일이 적힌 계약과, 은행 원장에서 공급가를 따로 받은 것으로 맞춘 입금만입니다.',
+                ]} />
+              </div>
             )}
             <CashflowChart data={flow} inColor={REV} outColor={SET} names={flowNames} />
           </Panel>
@@ -623,7 +627,15 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">입금 예정일은 아직 받지 않은 회차의 가장 이른 정산일, 초과 기간은 그 날에서 오늘까지 지난 날수입니다(트위커 공급 계약은 트위커 계좌로 받아 미수가 아니라서 「트위커 수금」). 변동비는 연결된 지급 합계(종결, 해제 금지 보류는 뺌), 마진 아래 숫자는 마진율입니다. 마진이 마이너스인 계약은 빨간 줄입니다. 코드를 누르면 노션 계약 페이지가, 변동비를 누르면 지급 행이 열리고, 금액에 마우스를 올리면 원 단위가 보입니다.</p>
+      <Notes items={[
+        '입금 예정일: 아직 받지 않은 회차의 가장 이른 정산일입니다.',
+        '초과 기간: 입금 예정일에서 오늘까지 지난 날수입니다.',
+        '트위커 공급 계약은 트위커 계좌로 받아 미수가 아니라서 「트위커 수금」으로 보입니다.',
+        '변동비: 연결된 지급 합계입니다. 종결, 해제 금지 보류는 뺍니다.',
+        '마진 아래 숫자는 마진율이고, 마진이 마이너스인 계약은 빨간 줄입니다.',
+        '코드를 누르면 노션 계약 페이지, 변동비를 누르면 지급 행이 열립니다.',
+        '금액에 마우스를 올리면 원 단위가 보입니다.',
+      ]} />
     </div>
   )
 }
@@ -772,9 +784,17 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
           </tr>
         ))}
       </Table>
-      <p className="text-xs text-neutral-500">
-        인스타는 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}. 매출 몫은 계약 공급가를 정산금 비중으로 나눈 값이라(지급내역 「매출 단가」가 있는 행은 그 값), 한 계약의 참여자는 모두 그 계약 마진율을 받습니다. 수익성 묶음은 매출 몫 − 원가 = 마진이고, 지급 현황 묶음의 정산 합계는 상태와 관계없는 지급 합이라 원가와 다르고 개요의 정산과도 합이 다릅니다. 매출 몫과 마진은 현금 기준이면 고객사 입금일, 발생 기준이면 계약 기준일로 기간을 골라 개요 매출과 같은 기준이고, 크리에이터 지급이 없는 계약만큼 개요 매출보다 적습니다. 정산 합계는 지급일(송금일, 없으면 요청일)로 고릅니다. 계약 연결 없는 지급은 마진에서 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다. <Link href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">기준 탭</Link>
-      </p>
+      <Notes items={[
+        <>인스타: 지급 행의 크리에이터 관계로 크리에이터 리스트 「인스타」 칸을 읽습니다{igError ? ` (${igError})` : ''}.</>,
+        '매출 몫: 계약 공급가를 정산금 비중으로 나눈 값입니다(지급내역 「매출 단가」가 있는 행은 그 값). 그래서 한 계약의 참여자는 모두 그 계약 마진율을 받습니다.',
+        '수익성 묶음: 매출 몫 − 원가 = 마진입니다.',
+        '지급 현황 묶음의 정산 합계는 상태와 관계없는 지급 합이라 원가와 다르고, 개요의 정산과도 합이 다릅니다.',
+        '매출 몫과 마진의 기간: 현금 기준이면 고객사 입금일, 발생 기준이면 계약 기준일입니다(개요 매출과 같은 기준).',
+        '크리에이터 지급이 없는 계약만큼 개요 매출보다 적습니다.',
+        '정산 합계의 기간: 지급일(송금일, 없으면 요청일)입니다.',
+        '계약 연결 없는 지급은 마진에서 빠져, 계약일 기준인 개요의 마진과 합이 다릅니다.',
+        <Link key="b" href={q({ tab: 'basis' })} className="text-neutral-400 underline hover:text-neutral-200">전체 기준은 기준 탭</Link>,
+      ]} />
     </div>
   )
 }
@@ -814,7 +834,12 @@ function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partia
         ))}
       </Table>
       {(year == null || year < 2026) && <p className="text-xs text-amber-200/90">{OWNER_GAP}</p>}
-      <p className="text-xs text-neutral-500">노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다. 공급가가 없는 계약은 빠집니다. 여러 명이 맡은 계약(「,」나 「/」로 나눔)은 공급가, 입금액, 변동비, 마진을 n분의 1씩 나누고 계약 수는 각자 1건으로 셉니다.</p>
+      <Notes items={[
+        '노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다.',
+        '공급가가 없는 계약은 빠집니다.',
+        '여러 명이 맡은 계약(「,」나 「/」로 나눔)은 공급가, 입금액, 변동비, 마진을 n분의 1씩 나눕니다.',
+        '계약 수는 여러 명이 맡아도 각자 1건으로 셉니다.',
+      ]} />
     </div>
   )
 }

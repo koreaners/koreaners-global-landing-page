@@ -42,6 +42,11 @@ export function Card({ label, value, note }: { label: string; value: string; not
   )
 }
 
+/** 표 아래 설명: 한 줄에 사실 하나씩 불렛(인혁 261125: 줄글 벽 금지). className으로 색을 바꿈 */
+export function Notes({ items, className = 'text-neutral-500' }: { items: React.ReactNode[]; className?: string }) {
+  return <ul className={`list-disc space-y-0.5 pl-4 text-xs marker:text-neutral-600 ${className}`}>{items.filter(Boolean).map((x, i) => <li key={i}>{x}</li>)}</ul>
+}
+
 /** 설명 툴팁: 원 안 i 아이콘에 마우스를 올리거나(키보드, 모바일은 눌러서 포커스) 설명을 띄움. align은 말풍선이 붙는 쪽(오른쪽 정렬 칸은 right) */
 export function Info({ text, align = 'left', up }: { text: string; align?: 'left' | 'right'; up?: boolean }) {
   return (
