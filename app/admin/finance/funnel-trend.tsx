@@ -69,8 +69,11 @@ const TEAMS: [string, [string, string][]][] = [
   ['영업팀', [['', '신규 리드: 아웃바운드 영업'], ['', '신규 리드: 크리에이터 경유'], ['', '견적 발송률: 아웃바운드 영업'], ['', '견적 발송률: 크리에이터 경유'], ['', '견적 발송률: 홈페이지 문의'], ['', '수주율: 아웃바운드 영업'], ['', '수주율: 크리에이터 경유'], ['', '수주율: 홈페이지 문의'], ['', '단계 체류'], ['', '수주 질'], ['', '300만 원 미만 계약 비중'], ['', '공헌이익률']]],
   ['영업팀, 운영팀 공동', [['', '3개월 내 재계약률'], ['', '재계약 진도'], ['', '재계약 금액']]], // 재계약은 두 팀 공동 결과(설계 261125)
   ['운영팀', [['', '상태별 기한 준수율'], ['', '업로드 일정 준수율'], ['', '적체 안건'], ['', '운영 사유로 막힌 지급'], ['', '절차 예외: 계약 연결'], ['', '절차 예외: 계약서 링크'], ['', '사후 크리에이터 계약'], ['', '원가 초과 안건'], ['', '인당 처리 안건(운영)']]],
-  ['전략실', [['', '신규 리드: 홈페이지 문의'], ['', '인당 매출'], ['', '인당 처리 안건'], ['', '인건비 ÷ 공헌이익'], ['', '기타 고정비'], ['', '기한 내 회수율'], ['', '송금 처리율']]],
+  ['전략실', [['', '신규 리드: 홈페이지 문의'], ['', '인당 매출'], ['', '전사 인당 안건'], ['', '인건비 ÷ 공헌이익'], ['', '기타 고정비'], ['', '기한 내 회수율'], ['', '송금 처리율']]],
 ]
+// 이름이 바뀐 보고서 줄: 새 이름 줄이 없으면(옛 보고서) 옛 이름 줄을 읽음. 화면 이름은 새 이름
+const OLD_LABEL: Record<string, string> = { '전사 인당 안건': '인당 처리 안건' }
+const rowOf = (by: Map<string, Row>, l: string) => by.get(l) ?? by.get(OLD_LABEL[l] ?? '')
 
 function TeamLights({ rows }: { rows: Row[] }) {
   const by = new Map(rows.map((r) => [r.label, r]))
@@ -84,7 +87,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
         <SignalLegend className="sm:ml-auto" />
       </div>
       <div className="px-5 pb-4">
-        <SignalTable groups={TEAMS.map(([team, items]) => [team, items.map(([code, label]) => ({ code, label, row: by.get(label) }))])} missing="다음 주간 리포트부터" />
+        <SignalTable groups={TEAMS.map(([team, items]) => [team, items.map(([code, label]) => ({ code, label, row: rowOf(by, label) }))])} missing="다음 주간 리포트부터" />
       </div>
     </section>
   )
@@ -103,7 +106,7 @@ const TEAM_BOX: [number, string, [string, string[]][]][] = [
   [2, '영업팀', [['수주 질', ['수주 질']], ['300만 원 미만 계약 비중', ['300만 원 미만 계약 비중']]]],
   [3, '영업팀', [['공헌이익률', ['공헌이익률(계약 단위)']]]],  // 정본 「공헌이익률」(현금)이 같은 이름 보고서 줄을 덮어써서 계약 단위 줄을 직접
   [3, '운영팀', [['원가 초과 안건', ['원가 초과 안건']]]],
-  [4, '전략실', [['인당 매출', ['인당 매출']], ['인당 처리 안건', ['인당 처리 안건']]]],
+  [4, '전략실', [['인당 매출', ['인당 매출']], ['전사 인당 안건', ['전사 인당 안건']]]],
   [4, '운영팀', [['인당 처리 안건(운영)', ['인당 처리 안건(운영)']]]],
   [5, '전략실', [['인건비 ÷ 공헌이익', ['인건비 ÷ 공헌이익']]]],
   [6, '전략실', [['고정비 대항목별 추이는 아래 차트', []]]],
@@ -271,7 +274,7 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                   <span className="flex shrink-0 items-center gap-2.5 tabular-nums">
                     {labels.map((l) => {
                       if (!l) return <span key="" className="min-w-14" /> // 빈 자리: 경로 순서 칸 맞춤
-                      const x = by.get(l)
+                      const x = rowOf(by, l)
                       return <span key={l} className={`inline-flex items-center gap-1 text-neutral-200 ${slot === 0 ? 'min-w-14 justify-end' : ''}`}><Dot light={x?.light} hollow={plain(x)} />{none(x) ? <span className="text-neutral-600">-</span> : split(x!.value)[0]}</span>
                     })}
                   </span>
