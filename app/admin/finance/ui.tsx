@@ -114,7 +114,7 @@ export function Table({ head, left = 1, sort, tall, tips, foot, groups, cols, ch
                   <span className="inline-flex items-center gap-1">
                     {!sort ? <SortHead i={i}>{h}</SortHead> : k == null ? h : (
                       <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
-                        {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
+                        {h}{on ? (desc ? '\u00a0↓' : '\u00a0↑') : ''}
                       </Link>
                     )}
                     {tips?.[i] && <Info text={tips[i]!} align={i < left ? 'left' : 'right'} />}
@@ -142,7 +142,7 @@ export function sortRows<T>(rows: T[], s: string, get: Record<string, (x: T) => 
     const y = f(b)
     if (x == null || x === '') return y == null || y === '' ? 0 : 1
     if (y == null || y === '') return -1
-    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko')) * dir
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko', { numeric: true })) * dir
   })
 }
 

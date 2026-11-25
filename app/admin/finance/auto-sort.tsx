@@ -17,7 +17,7 @@ export function SortHead({ i, children }: { i: number; children: ReactNode }) {
   const on = s?.i === i
   return (
     <button type="button" onClick={() => set({ i, desc: !(on && s!.desc) })} className={`cursor-pointer ${on ? 'text-neutral-100' : 'hover:text-neutral-200'}`}>
-      {children}{on ? (s!.desc ? ' ↓' : ' ↑') : ''}
+      {children}{on ? (s!.desc ? '\u00a0↓' : '\u00a0↑') : ''}
     </button>
   )
 }
@@ -28,7 +28,7 @@ const text = (n: ReactNode): string => (typeof n === 'string' || typeof n === 'n
 export function cellValue(td: ReactNode): string | number | null {
   if (!isValidElement(td)) return null
   const d = (td.props as { 'data-sort'?: string | number | null })['data-sort']
-  if (d != null) return d
+  if (d != null) return d === '' ? null : d // data-sort=""는 값 없음(맨 끝)
   const t = text(td).trim()
   if (!t || t === '-') return null
   if (/^\d{4}-\d{2}/.test(t)) return t
@@ -47,7 +47,9 @@ export function SortBody({ children }: { children: ReactNode }) {
   keyed.sort(([, x], [, y]) => {
     if (x == null) return y == null ? 0 : 1
     if (y == null) return -1
-    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko')) * dir
+    // 숫자와 글자가 섞인 칸은 방향과 관계없이 숫자 먼저, 글자 안의 숫자는 크기 순(「1차, 5차, 13차」)
+    if (typeof x !== typeof y) return typeof x === 'number' ? -1 : 1
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'ko', { numeric: true })) * dir
   })
   return <>{keyed.map(([r]) => r)}</>
 }
