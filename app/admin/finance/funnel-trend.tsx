@@ -96,6 +96,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
 const CH = ['아웃바운드 영업', '크리에이터 경유', '홈페이지 문의']
 const TEAM_BOX: [number, string, [string, string[]][]][] = [
   [0, '영업팀', [['신규 리드', CH.map((c) => `신규 리드: ${c}`)], ['견적 발송률', CH.map((c) => `견적 발송률: ${c}`)], ['수주율', CH.map((c) => `수주율: ${c}`)], ['단계 체류', ['단계 체류']]]],
+  [1, '영업팀', [['단발 비중', ['단발 비중']]]],
   [1, '운영팀', [['3개월 내 재계약률', ['3개월 내 재계약률']], ['재계약 금액', ['재계약 금액']], ['상태별 기한 준수율', ['상태별 기한 준수율']], ['업로드 일정 준수율', ['업로드 일정 준수율']], ['적체 안건', ['적체 안건']], ['운영 사유로 막힌 지급', ['운영 사유로 막힌 지급']], ['절차 예외 (계약, 계약서)', ['절차 예외: 계약 연결', '절차 예외: 계약서 링크']], ['사후 크리에이터 계약', ['사후 크리에이터 계약']]]],
   [2, '영업팀', [['수주 질', ['수주 질']], ['300만 원 미만 계약 비중', ['300만 원 미만 계약 비중']]]],
   [3, '영업팀', [['공헌이익률', ['공헌이익률(계약 단위)']]]],  // 정본 「공헌이익률」(현금)이 같은 이름 보고서 줄을 덮어써서 계약 단위 줄을 직접
@@ -143,7 +144,7 @@ const JOIN: [number, number, number, number, string][] = [
 ]
 const none = (r?: Row) => !r || r.value === '원천 칸 신설 전' || r.value === '미상'
 // 계약 단위 줄이 있으면 그 값을 큰 숫자로 쓰는 칸(공헌이익 − 고정비 = 영업이익이 지도에서 맞게)
-const CB_BOX = ['공헌이익률', '안건당 공헌이익', '공헌이익', '영업이익']
+const CB_BOX = ['공헌이익률', '안건당 공헌이익', '공헌이익', '영업이익', '안건 수', '신규 고객 첫 계약', '재계약'] // 안건 세 칸도 입금 기준(인혁 261125): 안건 수 × 안건당 공헌이익 = 공헌이익
 
 type Act = NonNullable<FunnelTrend['actions']>[string][number]
 
@@ -208,7 +209,7 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
   // 공헌이익 쪽 금액 칸은 전부 계약 단위가 큰 숫자(인혁 261123: 현금 공헌이익 − 고정비가 영업이익과 안 맞아 노이즈), 통장 기준은 영업이익 칸 참고 한 줄
   const real = (b: MapBox) => {
     const k = `${b.label}(계약 단위)`
-    return CB_BOX.includes(b.label) && by.get(k) && !none(by.get(k)) ? { ...b, label: k } : b
+    return CB_BOX.includes(b.label) && by.get(k) && !none(by.get(k)) ? { ...b, label: k, book: true } : b // 계약 단위 줄은 추이 파일 tree 라 다음 달 값도 tree 에서
   }
   const red = BOXES.filter((b) => by.get(real(b).label)?.light === 'red').map((b) => b.label)
   // 계약 단위 값이 얼마나 익었나(그 달 입금 계약 중 지급이 붙은 계약 수), 손익분기 안건 수(안건 수 목표 「월 59」)
