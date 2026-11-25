@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Info as InfoIcon } from 'lucide-react'
+import { ArrowRight, Info as InfoIcon } from 'lucide-react'
 import { CleanForm } from './auto-form'
 import { FitBox } from './fit-box'
 import type { Currency, Payout } from '@/lib/finance/model'
@@ -163,14 +163,17 @@ export function Money({ n }: { n: number | null | undefined }) {
 }
 
 // tipAlign: 줄의 첫 카드는 말풍선이 왼쪽으로 펼쳐지면 사이드바 밑으로 잘려서 left로 줌
-export function Tile({ label, value, full, delta, note, side, hint, tipAlign = 'right' }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; side?: string; hint?: string; tipAlign?: 'left' | 'right' }) {
+// href: 카드 전체를 누르면 그 목록으로(인혁 261125). 링크는 카드를 덮는 투명 층이고 ⓘ만 그 위에 올려 호버, 포커스가 그대로 됨
+export function Tile({ label, value, full, delta, note, side, hint, tipAlign = 'right', href }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; side?: string; hint?: string; tipAlign?: 'left' | 'right'; href?: string }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+    <div className="relative flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4 has-[>a:hover]:bg-neutral-800/60">
+      {href && <Link href={href} title={`${full}, 눌러서 목록 보기`} aria-label={`${label} 목록`} className="absolute inset-0 rounded-xl" />}
       <div className="flex h-6 items-start justify-between gap-2">
         <p className="whitespace-nowrap text-xs text-neutral-400">
           {label}
-          {hint && <span className="ml-1"><Info text={hint} align={tipAlign} /></span>}
+          {hint && <span className="relative z-10 ml-1"><Info text={hint} align={tipAlign} /></span>}
         </p>
+        {href && <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-neutral-500" />}
       </div>
       {/* 줄바꿈 flex + gap: 「마진율」이 다음 줄로 넘어가도 금액과 같은 왼쪽 줄에서 시작(261117) */}
       <p className="flex flex-wrap items-baseline gap-x-2 text-2xl font-semibold text-neutral-50" title={full}>

@@ -315,8 +315,8 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} hint={REVENUE_HINT(cb)} tipAlign="left" note={[`부가세 제외, ${vs(s.revenue, p?.revenue, cb ? '계약 전액, 계약일의 달' : '입금된 달')}`, curSplit(s.revenueByCur)].filter(Boolean).join('. ')} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} hint={SETTLED_HINT} note={`부가세 제외, ${payGap ? `${cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} />
         <Tile label={cb ? '마진 (계약 단위)' : '마진 (현금, 전체)'} value={won2(net)} full={won(net)} delta={<Delta cur={net} prev={payGap || !p ? null : cb ? p.margin : p.revenue - p.settled} good />} side={`마진율 ${pct(cb ? s.marginRate : s.revenue ? net / s.revenue : null)}`} hint={`${cb ? marginHint(true) : NET_HINT}\n부가세: 매출과 지급 모두 부가세를 뺀 금액끼리 뺍니다.`} note={`부가세 제외, ${cb ? `지급 연결된 계약 ${s.marginN}건(매출의 ${cover}), 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}` : `매출 ${won2(s.revenue)} − 정산 ${won2(s.settled)}. 계약 단위 ${pct(s.marginRate)}(매출의 ${cover}만 지급 연결)`}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : ''}`} />
-        <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint={RECEIVABLE_HINT} note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
-        <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint={PAYABLE_HINT} note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
+        <Tile label="매출채권 (현재 잔액)" href={q({ tab: 'contracts', st: 'receivable' })} value={won2(s.receivable)} full={won(s.receivable)} hint={RECEIVABLE_HINT} note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
+        <Tile label="미지급금 (현재 잔액)" href="/admin/payouts" value={won2(s.payable)} full={won(s.payable)} hint={PAYABLE_HINT} note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -348,7 +348,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
           </Panel>
         </div>
 
-        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.filter((o) => !o.label).length}건 + 고객사 부가세 ${model.receivables.open.filter((o) => o.label).length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts' })} className={MORE}>안건 전체 <Arrow /></Link>}>
+        <Panel id="receivables" title="매출채권 만기" sub={`입금 전 회차 ${model.receivables.open.filter((o) => !o.label).length}건 + 고객사 부가세 ${model.receivables.open.filter((o) => o.label).length}건, 부가세 포함(일부 입금 뺀 남은 금액), 입금 예정일(정산일) 기준, 오늘 ${today}`} action={<Link href={q({ tab: 'contracts', st: 'receivable' })} className={MORE}>매출채권 전체 <Arrow /></Link>}>
           <div className="space-y-2.5">
             {buckets.map((b) => (
               <BarRow key={b.label} label={b.label} value={b.krw} max={bMax} color={b.alert ? ALERT : REV} aside={`${b.count}건`} />
@@ -491,16 +491,19 @@ function CreatorLines({ lines, flags, q }: { lines: Line[]; flags: Map<string, C
   )
 }
 
-/** 입금 예정일이 지난 매출채권 회차(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관). 개요 카드에서 넘어온 안건 탭(st=overdue)과 미수 탭이 같이 씀 */
-function OverdueTable({ model, today, allHref, bankError }: { model: Model; today: string; allHref?: string; bankError?: string | null }) {
-    const late = model.receivables.open.filter((x) => x.due && x.due < today).sort((a, b) => a.due!.localeCompare(b.due!))
+/** 입금 예정일이 지난 매출채권 회차(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관). 개요 카드에서 넘어온 안건 탭(st=overdue)과 미수 탭이 같이 씀.
+ * all이면 지난 것만이 아니라 매출채권 전체(개요 「매출채권」 카드 잔액과 같은 회차, 안건 탭 st=receivable) */
+function OverdueTable({ model, today, allHref, bankError, all }: { model: Model; today: string; allHref?: string; bankError?: string | null; all?: boolean }) {
+    const late = all ? model.receivables.open : model.receivables.open.filter((x) => x.due && x.due < today).sort((a, b) => a.due!.localeCompare(b.due!))
+    const days = (due: string) => Math.round((Date.parse(today) - Date.parse(due)) / 86_400_000)
+    const overN = late.filter((x) => x.due && x.due < today).length
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm text-neutral-200">입금 예정일이 지난 매출채권 {late.length}건, {won2(late.reduce((a, x) => a + x.krw, 0))} <span className="text-xs text-neutral-500">부가세 포함, 일부 입금 뺀 남은 금액, 오늘 {today}</span></span>
+          <span className="text-sm text-neutral-200">{all ? `매출채권 ${late.length}건(예정일 지남 ${overN}건)` : `입금 예정일이 지난 매출채권 ${late.length}건`}, {won2(late.reduce((a, x) => a + x.krw, 0))} <span className="text-xs text-neutral-500">부가세 포함, 일부 입금 뺀 남은 금액, 오늘 {today}</span></span>
           {allHref && <Link href={allHref} className="text-xs text-neutral-400 hover:text-neutral-200">전체 안건 보기</Link>}
         </div>
-        <Table head={['코드', '브랜드', '담당자', '입금 예정일', '지난 날수', '남은 금액']} left={2} tall>
+        <Table head={['코드', '브랜드', '담당자', '입금 예정일', all ? '예정일까지' : '지난 날수', '남은 금액']} left={2} tall>
           {late.map((x, i) => (
             <tr key={`${x.c.id}-${i}`}>
               <td className={tdl}>
@@ -510,8 +513,10 @@ function OverdueTable({ model, today, allHref, bankError }: { model: Model; toda
               </td>
               <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}{bankError && x.label === '부가세(고객사)' && <span className="text-amber-200/90"> 원장 없어 확인 불가</span>}</td>
               <td className={td}>{x.c.owner || '미지정'}</td>
-              <td className={td}>{x.due}</td>
-              <td className={`${td} font-semibold text-red-400`}>{Math.round((Date.parse(today) - Date.parse(x.due!)) / 86_400_000)}일</td>
+              <td className={td}>{x.due ?? '-'}</td>
+              {all
+                ? <td className={`${td} ${x.due && days(x.due) > 0 ? 'font-semibold text-red-400' : ''}`}>{!x.due ? '예정일 없음' : days(x.due) > 0 ? `${days(x.due)}일 지남` : days(x.due) < 0 ? `${-days(x.due)}일 남음` : '오늘'}</td>
+                : <td className={`${td} font-semibold text-red-400`}>{days(x.due!)}일</td>}
               <td className={td} title={won(x.krw)}>{won2(x.krw)}</td>
             </tr>
           ))}
@@ -544,6 +549,8 @@ function CostNote({ f, n, left }: { f: CostFlag; n?: number; left?: boolean }) {
 function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { model: Model; rates: Rates; sel?: string; q: (o: Partial<Search>) => string; f?: string; s?: string; o?: string; st?: string; today: string }) {
   // st=overdue: 개요 「입금 예정일이 지난 매출채권」 카드와 같은 회차만
   if (st === 'overdue') return <OverdueTable model={model} today={today} allHref={q({ st: undefined })} />
+  // st=receivable: 개요 「매출채권」 카드 잔액을 이루는 회차 전체
+  if (st === 'receivable') return <OverdueTable model={model} today={today} all allHref={q({ st: undefined })} />
   const picked = model.contracts.find((x) => x.c.id === sel)
   // st=cost: 기준 탭 「원가 누락 의심」 계약만
   // st=voucher: 계약 DB 「수출바우처」 칸에 값이 있는 계약만
