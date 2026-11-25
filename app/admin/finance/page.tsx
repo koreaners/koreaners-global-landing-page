@@ -515,9 +515,9 @@ function OverdueTable({ model, today, allHref, bankError, all }: { model: Model;
               <td className={td}>{x.c.owner || '미지정'}</td>
               <td className={td}>{x.due ?? '-'}</td>
               {all
-                ? <td className={`${td} ${x.due && days(x.due) > 0 ? 'font-semibold text-red-400' : ''}`}>{!x.due ? '예정일 없음' : days(x.due) > 0 ? `${days(x.due)}일 지남` : days(x.due) < 0 ? `${-days(x.due)}일 남음` : '오늘'}</td>
+                ? <td data-sort={x.due ? days(x.due) : undefined} className={`${td} ${x.due && days(x.due) > 0 ? 'font-semibold text-red-400' : ''}`}>{!x.due ? '예정일 없음' : days(x.due) > 0 ? `${days(x.due)}일 지남` : days(x.due) < 0 ? `${-days(x.due)}일 남음` : '오늘'}</td>
                 : <td className={`${td} font-semibold text-red-400`}>{days(x.due!)}일</td>}
-              <td className={td} title={won(x.krw)}>{won2(x.krw)}</td>
+              <td className={td} title={won(x.krw)} data-sort={x.krw}>{won2(x.krw)}</td>
             </tr>
           ))}
         </Table>

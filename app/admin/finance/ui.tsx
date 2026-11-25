@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { ArrowRight, Info as InfoIcon } from 'lucide-react'
 import { CleanForm } from './auto-form'
 import { FitBox } from './fit-box'
+import { AutoSort, SortBody, SortHead } from './auto-sort'
+import { Fragment } from 'react'
 import type { Currency, Payout } from '@/lib/finance/model'
 
 // 재무 대시보드(/admin/finance)와 정산 마스터(/admin/payouts)가 함께 쓰는 표, 칸, 금액 글
@@ -85,7 +87,10 @@ export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => 
 /** 표. cols를 주면 칸 폭 고정(table-fixed, 위아래로 쌓인 같은 구성의 표끼리 칸 위치를 맞춤), sort를 주면 머리글을 눌러 정렬(같은 칸을 다시 누르면 반대로), tall이면 화면 높이 안에서 스크롤하고 머리글 고정(높이는 표가 화면 아래로 넘치지 않게 화면 높이에서 머리 부분을 뺀 값), tips는 머리글 옆 ⓘ 설명(칸 이름은 정렬, 설명은 아이콘으로 나눔), foot은 표 아래 합계 줄, groups는 머리글 위 칸 묶음 이름과 칸 수 */
 export function Table({ head, left = 1, sort, tall, tips, foot, groups, cols, children }: { head: string[]; left?: number; cols?: string[]; sort?: Sort; tall?: boolean; tips?: (string | undefined)[]; foot?: React.ReactNode; groups?: [string, number][]; children: React.ReactNode }) {
   const Box = tall ? FitBox : 'div'
+  // sort가 없으면 화면 안 정렬(auto-sort.tsx): 모든 표는 머리글을 눌러 정렬할 수 있어야 함(인혁 261125)
+  const Wrap = sort ? Fragment : AutoSort
   return (
+    <Wrap>
     <Box className={`tbl overflow-auto rounded-xl border border-neutral-800 bg-neutral-900 ${tall ? 'sm:max-h-[calc(100dvh-16rem)]' : ''}`}>
       {/* 좁은 화면에선 칸 수 × 6rem 아래로 줄이지 않고 가로 스크롤(칸이 찌그러져 숫자, 날짜가 여러 줄로 꺾이던 것) */}
       <table style={{ '--tmin': `${head.length * 6}rem` } as React.CSSProperties} className={`w-full max-sm:min-w-(--tmin) ${cols ? 'table-fixed' : ''} text-[13px] 2xl:text-sm [&_tbody_td:first-child]:sticky [&_tbody_td:first-child]:left-0 [&_tbody_td:first-child]:bg-neutral-900 [&_thead_th:first-child]:sticky [&_thead_th:first-child]:left-0 [&_thead_th:first-child]:z-20 [&_thead_th:first-child]:bg-neutral-900`}>
@@ -107,7 +112,7 @@ export function Table({ head, left = 1, sort, tall, tips, foot, groups, cols, ch
               return (
                 <th key={h} className={`break-keep px-1.5 2xl:px-2 py-2 font-medium ${i < left ? 'text-left' : 'text-right'}`}>
                   <span className="inline-flex items-center gap-1">
-                    {k == null ? h : (
+                    {!sort ? <SortHead i={i}>{h}</SortHead> : k == null ? h : (
                       <Link href={sort!.href(on && desc ? k : `-${k}`)} className={on ? 'text-neutral-100' : 'hover:text-neutral-200'}>
                         {h}{on ? (desc ? ' ↓' : ' ↑') : ''}
                       </Link>
@@ -119,10 +124,11 @@ export function Table({ head, left = 1, sort, tall, tips, foot, groups, cols, ch
             })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-neutral-800 text-neutral-200">{children}</tbody>
+        <tbody className="divide-y divide-neutral-800 text-neutral-200">{sort ? children : <SortBody>{children}</SortBody>}</tbody>
         {foot && <tfoot className="border-t border-neutral-700 font-medium text-neutral-100">{foot}</tfoot>}
       </table>
     </Box>
+    </Wrap>
   )
 }
 
@@ -159,7 +165,7 @@ export const hit = (f: string | undefined, ...xs: (string | null | undefined)[])
 
 /** 표 금액 칸: 만원, 억원으로 줄이고 원 단위는 마우스를 올리면 */
 export function Money({ n }: { n: number | null | undefined }) {
-  return <td className={td} title={won(n)}>{n == null ? '-' : won2(n)}</td>
+  return <td className={td} title={won(n)} data-sort={n ?? undefined}>{n == null ? '-' : won2(n)}</td>
 }
 
 // tipAlign: 줄의 첫 카드는 말풍선이 왼쪽으로 펼쳐지면 사이드바 밑으로 잘려서 left로 줌
