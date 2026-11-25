@@ -121,6 +121,11 @@ const SLOT = [0, 1, 2, 3, 4, 5, 6].map((i) => Math.max(124, TEAM_BOX.filter(([s]
 const TOP = 30
 const SY = SLOT.map((_, i) => TOP + SLOT.slice(0, i).reduce((a, b) => a + b, 0))
 const CY = SLOT.map((h, i) => SY[i] + h / 2)
+// 팀 상자 자리(위, 높이): 상자와 그 상자에서 나가는 선이 같은 값을 씀
+const BOX_POS = TEAM_BOX.map(([slot, , lines], k) => {
+  const mates = TEAM_BOX.filter(([s]) => s === slot), above = TEAM_BOX.slice(0, k).filter(([s]) => s === slot)
+  return { top: SY[slot] + 6 + above.reduce((a, [, , l]) => a + BOX_H(l.length) + 12, 0), h: mates.length > 1 ? BOX_H(lines.length) : SLOT[slot] - 12 }
+})
 const MAP_H = SY[6] + SLOT[6] + 6
 const COL = [{ x: 0, w: 27 }, { x: 30, w: 15 }, { x: 48, w: 15 }, { x: 66, w: 15 }, { x: 84, w: 16 }]
 const mid = (a: number, b: number) => (a + b) / 2
@@ -255,17 +260,18 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                 const x0 = right(pc - 1), xm = mid(x0, COL[pc].x)
                 return <path key={i} vectorEffect="non-scaling-stroke" d={`M${x0} ${a}H${xm}M${x0} ${b}H${xm}M${xm} ${a}V${b}M${xm} ${py}H${COL[pc].x}`} />
               })}
-              {CY.map((y, i) => <path key={i} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" d={`M${right(0)} ${y}H${COL[i < 6 ? 1 : 2].x}`} />)}
+              {/* 팀 상자마다 자기 가운데에서 나와 사이 칸에서 슬롯 가운데(구성요소 높이)로 모이고, 구성요소로 가는 줄은 슬롯마다 하나 */}
+              {BOX_POS.map(({ top, h }, k) => <path key={`b${k}`} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" d={`M${right(0)} ${top + h / 2}H${mid(right(0), COL[1].x)}V${CY[TEAM_BOX[k][0]]}`} />)}
+              {CY.map((y, i) => <path key={i} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" d={`M${mid(right(0), COL[1].x)} ${y}H${COL[i < 6 ? 1 : 2].x}`} />)}
             </g>
           </svg>
           {JOIN.map(([pc, py, , , op], i) => (
             <span key={i} style={{ left: `${mid(right(pc - 1), COL[pc].x)}%`, top: py }} className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-500 bg-neutral-900 text-xs text-neutral-200">{op}</span>
           ))}
           {TEAM_BOX.map(([slot, team, lines], k) => {
-            const mates = TEAM_BOX.filter(([s]) => s === slot), above = TEAM_BOX.slice(0, k).filter(([s]) => s === slot)
-            const top = SY[slot] + 6 + above.reduce((a, [, , l]) => a + BOX_H(l.length) + 12, 0)
+            const { top, h } = BOX_POS[k]
             return (
-            <div key={`${slot}${team}`} style={{ left: 0, width: `${COL[0].w}%`, top, height: mates.length > 1 ? BOX_H(lines.length) : SLOT[slot] - 12 }} className={`absolute rounded-lg border px-3 py-2 ${TONE[team][0]}`}>
+            <div key={`${slot}${team}`} style={{ left: 0, width: `${COL[0].w}%`, top, height: h }} className={`absolute rounded-lg border px-3 py-2 ${TONE[team][0]}`}>
               <p className={`border-b border-neutral-700 pb-1 text-xs font-semibold ${TONE[team][1]}`}>{team}{slot === 0 && team === '영업팀' && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
               <div className="divide-y divide-neutral-800">
               {lines.map(([name, labels]) => (
