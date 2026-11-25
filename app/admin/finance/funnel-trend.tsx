@@ -67,7 +67,7 @@ function Panel({ title, note, info, href, rows = [], className = '', children }:
 // 하이라키 팀별 관리지표(노션 「코리너스 하이라키 지표 트리」 표와 같은 팀, 같은 순서). [번호, 보고서 줄 이름]. 값과 색은 보고서 줄 그대로
 const TEAMS: [string, [string, string][]][] = [
   ['영업팀', [['', '신규 리드: 아웃바운드 영업'], ['', '신규 리드: 크리에이터 경유'], ['', '견적 발송률: 아웃바운드 영업'], ['', '견적 발송률: 크리에이터 경유'], ['', '견적 발송률: 홈페이지 문의'], ['', '수주율: 아웃바운드 영업'], ['', '수주율: 크리에이터 경유'], ['', '수주율: 홈페이지 문의'], ['', '단계 체류'], ['', '수주 질'], ['', '300만 원 미만 계약 비중'], ['', '공헌이익률']]],
-  ['운영팀', [['', '3개월 내 재계약률'], ['', '재계약 금액'], ['', '상태별 기한 준수율'], ['', '업로드 일정 준수율'], ['', '적체 안건'], ['', '절차 예외: 계약 연결'], ['', '절차 예외: 계약서 링크'], ['', '원가 초과 안건'], ['', '인당 처리 안건(운영)']]],
+  ['운영팀', [['', '3개월 내 재계약률'], ['', '재계약 금액'], ['', '상태별 기한 준수율'], ['', '업로드 일정 준수율'], ['', '적체 안건'], ['', '운영 사유로 막힌 지급'], ['', '절차 예외: 계약 연결'], ['', '절차 예외: 계약서 링크'], ['', '사후 크리에이터 계약'], ['', '원가 초과 안건'], ['', '인당 처리 안건(운영)']]],
   ['전략실', [['', '신규 리드: 홈페이지 문의'], ['', '인당 매출'], ['', '인당 처리 안건'], ['', '인건비 ÷ 공헌이익'], ['', '기타 고정비'], ['', '기한 내 회수율'], ['', '송금 처리율']]],
 ]
 
@@ -92,7 +92,21 @@ function TeamLights({ rows }: { rows: Row[] }) {
 // 하이라키 지도: 노션 「코리너스 하이라키 지표 트리」 구조도와 같은 배치(팀별 관리지표 → 구성요소 → 영업이익)에 라이브 값과 색을 얹음
 // (설계: 볼트 work/261116-설계-어드민-하이라키-지도). 금액 칸은 추이 파일 tree(정본 마지막 달), 나머지는 최신 보고서 신호등 줄. 값과 색은 brain-weekly 그대로.
 // 가로는 상자 폭 비율(%), 세로는 px. 선은 같은 좌표의 SVG(가로만 늘어남). +, ×, − 는 구조 표시이고 칸마다 기준이 달라 실제 값끼리 계산이 맞지는 않음
-const SLOT = [160, 214, 124, 124, 124, 124, 124] // 슬롯 1은 운영팀 상자 6줄이 들어가게
+// 팀 상자: [슬롯, 팀, [[줄 이름, 보고서 줄 이름들]]]. 한 슬롯에 상자 여럿이면 위에서부터 쌓음(노션 구조도와 같은 자리). 경로별 지표는 한 줄에 아웃바운드, 크리에이터, 홈페이지 순(홈페이지 신규 리드는 전략실 몫)
+const CH = ['아웃바운드 영업', '크리에이터 경유', '홈페이지 문의']
+const TEAM_BOX: [number, string, [string, string[]][]][] = [
+  [0, '영업팀', [['신규 리드', CH.map((c) => `신규 리드: ${c}`)], ['견적 발송률', CH.map((c) => `견적 발송률: ${c}`)], ['수주율', CH.map((c) => `수주율: ${c}`)], ['단계 체류', ['단계 체류']]]],
+  [1, '운영팀', [['3개월 내 재계약률', ['3개월 내 재계약률']], ['재계약 금액', ['재계약 금액']], ['상태별 기한 준수율', ['상태별 기한 준수율']], ['업로드 일정 준수율', ['업로드 일정 준수율']], ['적체 안건', ['적체 안건']], ['운영 사유로 막힌 지급', ['운영 사유로 막힌 지급']], ['절차 예외 (계약, 계약서)', ['절차 예외: 계약 연결', '절차 예외: 계약서 링크']], ['사후 크리에이터 계약', ['사후 크리에이터 계약']]]],
+  [2, '영업팀', [['수주 질', ['수주 질']], ['300만 원 미만 계약 비중', ['300만 원 미만 계약 비중']]]],
+  [3, '영업팀', [['공헌이익률', ['공헌이익률(계약 단위)']]]],  // 정본 「공헌이익률」(현금)이 같은 이름 보고서 줄을 덮어써서 계약 단위 줄을 직접
+  [3, '운영팀', [['원가 초과 안건', ['원가 초과 안건']]]],
+  [4, '전략실', [['인당 매출', ['인당 매출']], ['인당 처리 안건', ['인당 처리 안건']]]],
+  [4, '운영팀', [['인당 처리 안건(운영)', ['인당 처리 안건(운영)']]]],
+  [5, '전략실', [['인건비 ÷ 공헌이익', ['인건비 ÷ 공헌이익']]]],
+  [6, '전략실', [['고정비 대항목별 추이는 아래 차트', []]]],
+]
+const BOX_H = (n: number) => 44 + 25 * n // 팀 상자 높이: 머리 + 줄 수
+const SLOT = [0, 1, 2, 3, 4, 5, 6].map((i) => Math.max(124, TEAM_BOX.filter(([s]) => s === i).reduce((a, [, , l]) => a + BOX_H(l.length) + 12, 0))) // 줄이 늘면 슬롯이 자람
 const TOP = 30
 const SY = SLOT.map((_, i) => TOP + SLOT.slice(0, i).reduce((a, b) => a + b, 0))
 const CY = SLOT.map((h, i) => SY[i] + h / 2)
@@ -122,17 +136,6 @@ const BOXES: MapBox[] = [
 const JOIN: [number, number, number, number, string][] = [
   [2, Y2.deals, CY[0], CY[1], '+'], [2, Y2.per, CY[2], CY[3], '×'], [2, Y2.labor, CY[4], CY[5], '×'],
   [3, Y3.cm, Y2.deals, Y2.per, '×'], [3, Y3.fixed, Y2.labor, Y2.other, '+'], [4, Y4, Y3.cm, Y3.fixed, '−'],
-]
-// 팀 상자: [슬롯, 팀, [[줄 이름, 보고서 줄 이름들]]]. 경로별 지표는 한 줄에 아웃바운드, 크리에이터, 홈페이지 순(홈페이지 신규 리드는 전략실 몫)
-const CH = ['아웃바운드 영업', '크리에이터 경유', '홈페이지 문의']
-const TEAM_BOX: [number, string, [string, string[]][]][] = [
-  [0, '영업팀', [['신규 리드', CH.map((c) => `신규 리드: ${c}`)], ['견적 발송률', CH.map((c) => `견적 발송률: ${c}`)], ['수주율', CH.map((c) => `수주율: ${c}`)], ['단계 체류', ['단계 체류']]]],
-  [1, '운영팀', [['3개월 내 재계약률', ['3개월 내 재계약률']], ['재계약 금액', ['재계약 금액']], ['상태별 기한 준수율', ['상태별 기한 준수율']], ['업로드 일정 준수율', ['업로드 일정 준수율']], ['적체 안건', ['적체 안건']], ['절차 예외 (계약, 계약서)', ['절차 예외: 계약 연결', '절차 예외: 계약서 링크']], ['원가 초과 안건', ['원가 초과 안건']]]],
-  [2, '영업팀', [['수주 질', ['수주 질']], ['300만 원 미만 계약 비중', ['300만 원 미만 계약 비중']]]],
-  [3, '영업팀', [['공헌이익률', ['공헌이익률(계약 단위)']]]],  // 정본 「공헌이익률」(현금)이 같은 이름 보고서 줄을 덮어써서 계약 단위 줄을 직접
-  [4, '전략실', [['인당 매출', ['인당 매출']], ['인당 처리 안건', ['인당 처리 안건']]]],
-  [5, '전략실', [['인건비 ÷ 공헌이익', ['인건비 ÷ 공헌이익']]]],
-  [6, '전략실', [['고정비 대항목별 추이는 아래 차트', []]]],
 ]
 const none = (r?: Row) => !r || r.value === '원천 칸 신설 전' || r.value === '미상'
 // 계약 단위 줄이 있으면 그 값을 큰 숫자로 쓰는 칸(공헌이익 − 고정비 = 영업이익이 지도에서 맞게)
@@ -247,8 +250,11 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
           {JOIN.map(([pc, py, , , op], i) => (
             <span key={i} style={{ left: `${mid(right(pc - 1), COL[pc].x)}%`, top: py }} className="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-500 bg-neutral-900 text-xs text-neutral-200">{op}</span>
           ))}
-          {TEAM_BOX.map(([slot, team, lines]) => (
-            <div key={slot} style={{ left: 0, width: `${COL[0].w}%`, top: SY[slot] + 6, height: SLOT[slot] - 12 }} className="absolute rounded-lg border border-neutral-800 px-3 py-2">
+          {TEAM_BOX.map(([slot, team, lines], k) => {
+            const mates = TEAM_BOX.filter(([s]) => s === slot), above = TEAM_BOX.slice(0, k).filter(([s]) => s === slot)
+            const top = SY[slot] + 6 + above.reduce((a, [, , l]) => a + BOX_H(l.length) + 12, 0)
+            return (
+            <div key={`${slot}${team}`} style={{ left: 0, width: `${COL[0].w}%`, top, height: mates.length > 1 ? BOX_H(lines.length) : SLOT[slot] - 12 }} className="absolute rounded-lg border border-neutral-800 px-3 py-2">
               <p className="border-b border-neutral-700 pb-1 text-xs font-semibold text-neutral-100">{team}{slot === 0 && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
               <div className="divide-y divide-neutral-800">
               {lines.map(([name, labels]) => (
@@ -264,7 +270,8 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
               ))}
               </div>
             </div>
-          ))}
+            )
+          })}
           {BOXES.map((b) => (
             <MapCard key={b.label} b={b} r={by.get(real(b).label)} cur={cur} cmp={cmp(real(b))} acts={actions.filter((a) => a.box === b.label)}
               tag={real(b) !== b ? `${/^(\d+)월/.exec(by.get(real(b).label)!.note)?.[1] ?? '-'}월 ${b.label === '영업이익' ? '실제 손익' : '계약 단위'}` : undefined}
