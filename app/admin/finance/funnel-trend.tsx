@@ -243,10 +243,11 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
           ))}
           {TEAM_BOX.map(([slot, team, lines]) => (
             <div key={slot} style={{ left: 0, width: `${COL[0].w}%`, top: SY[slot] + 6, height: SLOT[slot] - 12 }} className="absolute rounded-lg border border-neutral-800 px-3 py-2">
-              <p className="text-xs font-semibold text-neutral-200">{team}{slot === 0 && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
+              <p className="border-b border-neutral-700 pb-1 text-xs font-semibold text-neutral-100">{team}{slot === 0 && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
+              <div className="divide-y divide-neutral-800">
               {lines.map(([name, labels]) => (
-                <p key={name} className="mt-1 flex items-center justify-between gap-2 text-xs">
-                  <span className="truncate text-neutral-400">{name}</span>
+                <p key={name} className="flex items-center justify-between gap-2 py-[3px] text-xs">
+                  <span className="flex min-w-0 items-center gap-1.5 text-neutral-300"><span className="h-1 w-1 shrink-0 rounded-full bg-neutral-500" /><span className="truncate">{name}</span></span>
                   <span className="flex shrink-0 items-center gap-2.5 tabular-nums">
                     {labels.map((l) => {
                       const x = by.get(l)
@@ -255,6 +256,7 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
                   </span>
                 </p>
               ))}
+              </div>
             </div>
           ))}
           {BOXES.map((b) => (
