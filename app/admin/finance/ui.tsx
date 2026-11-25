@@ -157,13 +157,14 @@ export function Money({ n }: { n: number | null | undefined }) {
   return <td className={td} title={won(n)}>{n == null ? '-' : won2(n)}</td>
 }
 
-export function Tile({ label, value, full, delta, note, side, hint }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; side?: string; hint?: string }) {
+// tipAlign: 줄의 첫 카드는 말풍선이 왼쪽으로 펼쳐지면 사이드바 밑으로 잘려서 left로 줌
+export function Tile({ label, value, full, delta, note, side, hint, tipAlign = 'right' }: { label: string; value: string; full: string; delta?: React.ReactNode; note: string; side?: string; hint?: string; tipAlign?: 'left' | 'right' }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
       <div className="flex h-6 items-start justify-between gap-2">
         <p className="whitespace-nowrap text-xs text-neutral-400">
           {label}
-          {hint && <span className="ml-1"><Info text={hint} align="right" /></span>}
+          {hint && <span className="ml-1"><Info text={hint} align={tipAlign} /></span>}
         </p>
       </div>
       {/* 줄바꿈 flex + gap: 「마진율」이 다음 줄로 넘어가도 금액과 같은 왼쪽 줄에서 시작(261117) */}
