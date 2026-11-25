@@ -119,6 +119,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       </div>
 
       {tab === 'summary' && all && <Overview model={model} prior={prior} all={all} labels={labels} year={year} month={month} today={today} rates={rates} q={q} basis={basis} src={data} />}
+      {tab === 'calendar' && data.bankError && <p className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-2.5 text-xs text-red-400">은행 원장을 읽지 못해 일부 입금 줄이 빠지고, 그 회차는 일부 입금을 빼지 않은 전액을 들어올 돈으로 표시합니다: {data.bankError}</p>}
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today, data.bankLinks)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} st={sp.st} today={today} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
