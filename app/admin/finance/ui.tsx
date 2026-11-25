@@ -55,16 +55,24 @@ export function Info({ text, align = 'left', up }: { text: string; align?: 'left
 }
 
 // 툴팁 본문: 「정의: …」처럼 이름표가 붙은 줄은 이름표를 작은 머리글로 떼고 구분선, 문장마다 줄을 나눔(인혁 261123: 한 덩어리 문단이 읽기 힘듦)
+// 문장이 둘 이상이면 문장마다 불렛(인혁 261125: 줄글 대신 불렛)
 function TipBody({ text }: { text: string }) {
-  return text.split('\n').filter((l) => l.trim()).map((l, i) => {
+  const lines = text.split('\n').filter((l) => l.trim()).map((l) => {
     const m = /^([가-힣A-Za-z][^:[\]]{0,9}):\s+(.+)$/.exec(l)
-    return (
-      <span key={i} className={`block ${i ? (m ? 'mt-2.5 border-t border-neutral-800 pt-2.5' : 'mt-1') : ''}`}>
-        {m && <span className="mb-1 block text-[11px] font-semibold tracking-wide text-neutral-400">{m[1]}</span>}
-        {(m ? m[2] : l).split(/(?<=\.)\s+/).map((s, j) => <span key={j} className={`block ${j ? 'mt-1' : ''}`}>{s}</span>)}
-      </span>
-    )
+    return { head: m?.[1], parts: (m ? m[2] : l).split(/(?<=\.)\s+/) }
   })
+  const dot = lines.reduce((n, x) => n + x.parts.length, 0) > 1
+  return lines.map(({ head, parts }, i) => (
+    <span key={i} className={`block ${i ? (head ? 'mt-2.5 border-t border-neutral-800 pt-2.5' : 'mt-1') : ''}`}>
+      {head && <span className="mb-1 block text-[11px] font-semibold tracking-wide text-neutral-400">{head}</span>}
+      {parts.map((s, j) => (
+        <span key={j} className={`${dot ? 'flex gap-1.5' : 'block'} ${j ? 'mt-1' : ''}`}>
+          {dot && <span aria-hidden className="text-neutral-500">•</span>}
+          <span>{s}</span>
+        </span>
+      ))}
+    </span>
+  ))
 }
 
 export type Sort = { keys: (string | null)[]; cur: string; href: (s: string) => string }
