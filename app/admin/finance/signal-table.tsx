@@ -24,11 +24,16 @@ export const split = (v: string) => {
   return m ? [m[2], m[1]] : [v, '']
 }
 
-// 목표 「20.7건 (월 28.2)」 → 실제 옆에 붙일 「20.7건」과 아래 줄로 내릴 「(월 28.2)」. 괄호가 없으면 통째로 옆에
+// 목표 「20.7건 (월 28.2)」, 「1.36억 이상」 → 실제 옆에 붙일 숫자와 아래 줄로 내릴 「(월 28.2)」, 「이상」(좁은 카드에서 잘리지 않게)
 export const goal = (t?: string) => {
-  const m = /^(.+?)\s*(\(.+\))$/.exec(t ?? '')
+  const m = /^(.+?)\s*((?:이상|이하)?\s*(?:\(.+\))?)$/.exec(t ?? '')
   return m ? [m[1], m[2]] : [t ?? '', '']
 }
+
+// 실제 값 옆 「/ 목표 20.7건」. 라벨이 있어야 목표로 읽힘(인혁 261125)
+export const Goal = ({ t, className = '' }: { t: string; className?: string }) => (
+  <span className={`font-normal text-neutral-500 ${className}`}>/ 목표 <span className="text-neutral-200">{t}</span></span>
+)
 
 // 「10월 같은 기간(10/1~10/15)」 → 머리글 이름과 기간 둘로
 const head = (s: string) => {
@@ -127,7 +132,7 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
                     ) : (
                       <span className="text-sm font-semibold text-neutral-50">{big}</span>
                     )}
-                    {r?.target && <span className="ml-1 text-xs text-neutral-400">/ {r.target}</span>}
+                    {r?.target && <Goal t={r.target} className="ml-1 text-xs" />}
                     {sub && <span className="block text-xs text-neutral-500">{sub}</span>}
                     {r?.rate != null && <span className="block text-xs text-neutral-500 @2xl:hidden">달성 {r.rate}%</span>}
                   </td>
