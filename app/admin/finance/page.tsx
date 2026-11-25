@@ -184,10 +184,10 @@ const NET_HINT = '이 기간 매출(입금된 공급가)에서 정산(송금 완
 
 // 개요 카드 부가세 기준(인혁 261125): 손익(매출, 정산, 마진)은 부가세 제외, 잔액(매출채권, 미지급금)은 실제 주고받을 돈이라 부가세 포함
 const REVENUE_HINT = (cb: boolean) =>
-  `부가세: 제외(공급가). 부가세는 고객사에게 받아 세무서에 내는 돈이라 매출이 아닙니다.\n기간: ${cb ? '계약일이 속한 달에 계약 공급가 전액을 넣습니다.' : '고객사가 입금한 달에 그 회차 공급가를 넣습니다.'}`
-const SETTLED_HINT = '부가세: 제외(공급가). 세금계산서 VAT 포함 지급은 1.1로 나눕니다. 부가세는 매입세액 공제로 돌려받아 비용이 아닙니다.\n원천세: 3.3% 공제 전 지급액입니다.\n범위: 지급내역 DB의 크리에이터 지급만 셉니다. 인건비, 운영비, 카드 대금은 빠집니다.'
-const RECEIVABLE_HINT = '정의: 입금 전 회차의 합계에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다.\n부가세: 포함. 고객사가 실제로 보내야 할 돈이라 부가세까지 셉니다. 부가세까지 다 들어와야 입금 완료로 봅니다.\n수출바우처: 기관 공급가와 고객사 부가세를 따로 셉니다.'
-const PAYABLE_HINT = '부가세: 포함. 크리에이터에게 실제로 보낼 돈이라 부가세까지 셉니다. 세금계산서 VAT 포함은 지급액 그대로, VAT 별도는 부가세 10%를 더합니다.\n원천세: 사업소득은 3.3% 공제 전 금액입니다. 원천세도 세무서로 나가는 돈입니다.'
+  `부가세: 부가세를 뺀 공급가로 셉니다. 부가세는 고객사에게 받아 세무서에 내는 돈이라 매출이 아닙니다.\n기간: ${cb ? '계약일이 속한 달에 계약 공급가 전액을 넣습니다.' : '고객사가 입금한 달에 그 회차 공급가를 넣습니다.'}`
+const SETTLED_HINT = '부가세: 부가세를 뺀 공급가로 셉니다. 세금계산서 VAT 포함 지급은 1.1로 나눕니다. 부가세는 매입세액 공제로 돌려받아 비용이 아닙니다.\n원천세: 3.3% 공제 전 지급액입니다.\n범위: 지급내역 DB의 크리에이터 지급만 셉니다. 인건비, 운영비, 카드 대금은 빠집니다.'
+const RECEIVABLE_HINT = '정의: 입금 전 회차의 합계에서 은행에 일부 들어온 금액을 뺀 남은 금액입니다.\n부가세: 부가세까지 셉니다. 고객사가 실제로 보내야 할 돈이기 때문입니다. 부가세까지 다 들어와야 입금 완료로 봅니다.\n수출바우처: 기관 공급가와 고객사 부가세를 따로 셉니다.'
+const PAYABLE_HINT = '부가세: 부가세까지 셉니다. 크리에이터에게 실제로 보낼 돈이기 때문입니다. 세금계산서 VAT 포함은 지급액 그대로, VAT 별도는 부가세 10%를 더합니다.\n원천세: 사업소득은 3.3% 공제 전 금액입니다. 원천세도 세무서로 나가는 돈입니다.'
 
 const marginHint = (cb: boolean) =>
   `크리에이터 지급이 연결된 수입 계약만 셉니다. 계약마다 공급가에서 연결된 지급 합(종결, 해제 금지 보류는 뺌)을 빼고, 평균 마진율은 마진 합 ÷ 그 계약들의 공급가 합입니다. 지급이 하나도 연결되지 않은 계약은 비용을 몰라 뺍니다(공급가 전액이 마진으로 잡히지 않게). 계약 DB에 「크리에이터 지급 없음」을 체크한 계약은 원가 0으로 넣습니다. ${cb ? '기간은 매출, 정산과 같은 계약일 기준이지만, 지급 연결 없는 계약이 빠져 매출 − 정산과 다릅니다.' : '기간은 계약일 기준이라 옆의 매출(입금된 달), 정산(송금한 달)과 빼서 맞지 않습니다.'}`
@@ -312,9 +312,9 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} hint={REVENUE_HINT(cb)} note={[`부가세 제외, ${vs(s.revenue, p?.revenue, cb ? '계약 전액, 계약일의 달' : '입금된 달')}`, curSplit(s.revenueByCur)].filter(Boolean).join('. ')} />
+        <Tile label={cb ? '매출 (발생 기준)' : '매출 (입금 기준)'} value={won2(s.revenue)} full={won(s.revenue)} delta={<Delta cur={s.revenue} prev={p?.revenue ?? null} good />} hint={REVENUE_HINT(cb)} tipAlign="left" note={[`부가세 제외, ${vs(s.revenue, p?.revenue, cb ? '계약 전액, 계약일의 달' : '입금된 달')}`, curSplit(s.revenueByCur)].filter(Boolean).join('. ')} />
         <Tile label={cb ? '정산 (발생 기준)' : '정산 (송금 기준)'} value={won2(s.settled)} full={won(s.settled)} delta={<Delta cur={s.settled} prev={payGap ? null : p?.settled ?? null} good={null} />} hint={SETTLED_HINT} note={`부가세 제외, ${payGap ? `${cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달'}. ${labels.prev}은 지급 자료가 불완전해 비교 생략` : vs(s.settled, p?.settled, cb ? '연결된 지급(종결 제외), 계약일의 달' : '송금 완료, 송금한 달')}${s.settledEst ? `, 그중 ${won2(s.settledEst)}은 신청월 어림` : ''}`} />
-        <Tile label={cb ? '마진 (계약 단위)' : '마진 (현금, 전체)'} value={won2(net)} full={won(net)} delta={<Delta cur={net} prev={payGap || !p ? null : cb ? p.margin : p.revenue - p.settled} good />} side={`마진율 ${pct(cb ? s.marginRate : s.revenue ? net / s.revenue : null)}`} hint={`${cb ? marginHint(true) : NET_HINT}\n부가세: 제외. 매출과 지급 모두 부가세를 뺀 금액끼리 뺍니다.`} note={`부가세 제외, ${cb ? `지급 연결된 계약 ${s.marginN}건(매출의 ${cover}), 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}` : `매출 ${won2(s.revenue)} − 정산 ${won2(s.settled)}. 계약 단위 ${pct(s.marginRate)}(매출의 ${cover}만 지급 연결)`}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : ''}`} />
+        <Tile label={cb ? '마진 (계약 단위)' : '마진 (현금, 전체)'} value={won2(net)} full={won(net)} delta={<Delta cur={net} prev={payGap || !p ? null : cb ? p.margin : p.revenue - p.settled} good />} side={`마진율 ${pct(cb ? s.marginRate : s.revenue ? net / s.revenue : null)}`} hint={`${cb ? marginHint(true) : NET_HINT}\n부가세: 매출과 지급 모두 부가세를 뺀 금액끼리 뺍니다.`} note={`부가세 제외, ${cb ? `지급 연결된 계약 ${s.marginN}건(매출의 ${cover}), 공급가 ${won2(s.marginSupply)} − 지급 ${won2(s.marginSupply - s.margin)}` : `매출 ${won2(s.revenue)} − 정산 ${won2(s.settled)}. 계약 단위 ${pct(s.marginRate)}(매출의 ${cover}만 지급 연결)`}${payGap ? `, ${labels.prev}은 지급 자료가 불완전해 비교 생략` : ''}`} />
         <Tile label="매출채권 (현재 잔액)" value={won2(s.receivable)} full={won(s.receivable)} hint={RECEIVABLE_HINT} note={`부가세 포함, 예정일 지남 ${won2(overdueKrw)}, 기간과 무관`} />
         <Tile label="미지급금 (현재 잔액)" value={won2(s.payable)} full={won(s.payable)} hint={PAYABLE_HINT} note={`부가세 포함, 보류 ${won2(s.held)} 별도, 기간과 무관`} />
       </div>
