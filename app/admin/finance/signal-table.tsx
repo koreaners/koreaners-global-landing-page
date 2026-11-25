@@ -32,7 +32,7 @@ export const goal = (t?: string) => {
 
 // 실제 값 옆 「/ 목표 20.7건」. 라벨이 있어야 목표로 읽힘(인혁 261125)
 export const Goal = ({ t, className = '' }: { t: string; className?: string }) => (
-  <span className={`font-normal text-neutral-500 ${className}`}>/ 목표 <span className="text-neutral-200">{t}</span></span>
+  <span className={`font-normal text-neutral-500 ${className}`}><span className="whitespace-nowrap">/ 목표</span> <span className="text-neutral-200">{t}</span></span>
 )
 
 // 「10월 같은 기간(10/1~10/15)」 → 머리글 이름과 기간 둘로
