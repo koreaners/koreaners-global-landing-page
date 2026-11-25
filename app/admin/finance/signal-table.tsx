@@ -24,6 +24,12 @@ export const split = (v: string) => {
   return m ? [m[2], m[1]] : [v, '']
 }
 
+// 목표 「20.7건 (월 28.2)」 → 실제 옆에 붙일 「20.7건」과 아래 줄로 내릴 「(월 28.2)」. 괄호가 없으면 통째로 옆에
+export const goal = (t?: string) => {
+  const m = /^(.+?)\s*(\(.+\))$/.exec(t ?? '')
+  return m ? [m[1], m[2]] : [t ?? '', '']
+}
+
 // 「10월 같은 기간(10/1~10/15)」 → 머리글 이름과 기간 둘로
 const head = (s: string) => {
   const m = /^(.+?)\s*\((.+)\)$/.exec(s)
@@ -50,7 +56,7 @@ const Head = ({ s, className }: { s: string; className: string }) => {
 }
 
 // 칸을 보일지는 화면 폭이 아니라 표가 놓인 상자 폭으로 정함(@container: 어드민 사이드바, 카드 안쪽 여백과 상관없이 맞음). Tailwind 클래스는 정적 문자열이라 경우별로 적어 둠
-// 상자 폭 672px(@2xl)부터 목표, 달성률 칸. 주차 칸은 주차와 비교 칸이 3개 이하면 1024px(@5xl), 4개 이상이면 1152px(@6xl)부터.
+// 상자 폭 672px(@2xl)부터 달성률 칸(목표는 값 칸에 「실제 / 목표」로). 주차 칸은 주차와 비교 칸이 3개 이하면 1024px(@5xl), 4개 이상이면 1152px(@6xl)부터.
 // 기준 칸은 주차 칸이 없으면 896px(@4xl), 3개 이하면 1280px(@7xl)부터, 4개 이상이면 늘 지표 이름 아래(5주차 달은 칸이 모자람)
 const LAYOUT = {
   0: { wk: '', col: '@4xl:table-cell', in: '@4xl:hidden', lab: 'w-full @4xl:w-auto', nw: '@4xl:whitespace-nowrap' },
@@ -58,7 +64,7 @@ const LAYOUT = {
   6: { wk: '@6xl:table-cell', col: '', in: '', lab: 'w-full', nw: '' },
 } as const
 
-// 묶음마다 머리 줄, 줄마다 지표 | 값 | 목표 | 달성률 | (주차별, 비교) | 기준. 좁으면 목표, 달성률, 기준을 지표와 값 아래로 내림.
+// 묶음마다 머리 줄, 줄마다 지표 | 실제 / 목표 | 달성률 | (주차별, 비교) | 기준. 좁으면 달성률, 기준을 지표와 값 아래로 내림.
 // 주차별과 비교 칸은 좁은 상자에선 빠짐(값은 넓은 화면이나 보고서 원문에서). 감싸는 overflow 상자를 두지 않음(ⓘ 말풍선이 잘림)
 export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { groups: [string, Item[]][]; weeks?: { label: string; span: string }[]; mtd?: string; missing?: string }) {
   const rows = groups.flatMap(([, xs]) => xs.map((x) => x.row))
@@ -72,8 +78,7 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
         <thead className="text-xs text-neutral-500">
           <tr className="border-b border-neutral-800">
             <th className={`py-2 pr-3 text-left font-medium ${L.lab}`}>지표</th>
-            <th className={th}>값</th>
-            <th className={`${th} ${mid}`}>목표</th>
+            <th className={th}>실제 / 목표</th>
             <th className={`${th} ${mid}`}>달성률</th>
             {weeks?.map((w) => <Head key={w.label} s={`${w.label}(${w.span})`} className={`hidden ${L.wk}`} />)}
             {hasMtd && <Head s={mtd!} className={`hidden ${L.wk}`} />}
@@ -100,7 +105,6 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
             {items.map(({ label, code, row: r }) => {
               const [big, sub] = r && !off(r) ? split(r.value) : ['', '']
               const tip = [r?.define && `정의: ${r.define}`, r?.imply && `함의: ${r.imply}`].filter(Boolean).join('\n')
-              const small = [r?.target && `목표 ${r.target}`, r?.rate != null && `달성 ${r.rate}%`].filter(Boolean).join(', ')
               return (
                 <tr key={label} className="border-b border-neutral-800/60 align-top">
                   <td className={`py-2 pr-3 ${L.nw}`}>
@@ -116,19 +120,17 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
                       </span>
                     </span>
                   </td>
-                  {/* 좁은 상자(@md 아래)에선 값 칸도 줄바꿈: 안 그러면 「목표, 달성」 줄 폭만큼 지표 이름 칸이 찌그러짐 */}
+                  {/* 「실제 / 목표」 한 줄, 분자/분모(9/18곳)는 아래 줄. 좁은 상자(@md 아래)에선 줄바꿈: 안 그러면 지표 이름 칸이 찌그러짐 */}
                   <td className="px-3 py-2 text-right tabular-nums @md:whitespace-nowrap">
                     {off(r) ? (
                       <span className="text-xs text-neutral-500">{r ? r.value : missing}</span>
                     ) : (
-                      <>
-                        <span className="text-sm font-semibold text-neutral-50">{big}</span>
-                        {sub && <span className="ml-1.5 text-xs text-neutral-500">{sub}</span>}
-                      </>
+                      <span className="text-sm font-semibold text-neutral-50">{big}</span>
                     )}
-                    {small && <span className="block text-xs text-neutral-500 @2xl:hidden">{small}</span>}
+                    {r?.target && <span className="ml-1 text-xs text-neutral-400">/ {r.target}</span>}
+                    {sub && <span className="block text-xs text-neutral-500">{sub}</span>}
+                    {r?.rate != null && <span className="block text-xs text-neutral-500 @2xl:hidden">달성 {r.rate}%</span>}
                   </td>
-                  <td className={`whitespace-nowrap px-3 py-2 text-right tabular-nums text-neutral-400 ${mid}`}>{r?.target}</td>
                   <td className={`px-3 py-2 ${mid}`}>
                     {r?.rate != null && (
                       <span className="flex items-center justify-end gap-2 tabular-nums">
