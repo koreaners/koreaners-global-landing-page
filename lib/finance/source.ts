@@ -1,12 +1,13 @@
 // 노션 Contract DB, 지급내역 DB 전체 조회와 정리. next 에 기대지 않아 점검 스크립트도 그대로 쓴다.
 import { Client } from '@notionhq/client'
-import { nameKey, type BankLink, type Contract, type Currency, type Payout } from './model'
+import { nameKey, ownerAlias, type BankLink, type Contract, type Currency, type Payout } from './model'
 import { createAdminClient } from '../supabase/admin'
 
 type Prop = { type: string; [k: string]: unknown }
 type Page = { id: string; properties: Record<string, Prop> }
 
 const CURRENCIES = ['KRW', 'JPY', 'USD', 'CNY']
+const MEMBER_DS = '73cb2d1b-4a7c-4e36-ba1d-bb5383d0f5b7' // 노션 「구성원 (결재 조직도)」, app/admin/attendance/page.tsx 와 같은 DB
 
 /** 노션 속성 하나를 글, 숫자, 날짜, id 목록 같은 평범한 값으로 */
 function val(page: Page, name: string): unknown {
@@ -126,6 +127,7 @@ export type FinanceData = {
   fetchedAt: string
   bankLinks: BankLink[] // 은행 원장 입금 줄의 계약 연결(일부 입금 차감, 바우처 고객사 부가세)
   bankError: string | null
+  alias: Record<string, string> // 계약 담당자 표기 → 구성원 전체 이름(ownerAlias). 구성원 DB를 못 읽으면 빈 표(이름 원문 그대로)
 }
 
 /** 은행 원장(Supabase bank_transactions, RLS로 service_role만 읽음) 입금 줄 가운데 계약 연결이 있는 줄의 links를 펼침.
@@ -150,7 +152,7 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
   }
   const notion = new Client({ auth: token })
   let igError: string | null = null
-  const [c, p, cr] = await Promise.all([
+  const [c, p, cr, mb] = await Promise.all([
     queryAll(notion, contractDs).catch((e) => {
       throw new Error(`Contract DB 조회 실패: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`)
     }),
@@ -160,6 +162,11 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
     // 인스타 핸들만 쓰므로 못 읽어도 나머지는 계속
     queryAll(notion, env.NOTION_CREATOR_DS_ID ?? '2f601ca3-e480-80c0-82a3-000b7f67640d').catch((e) => {
       igError = `크리에이터 리스트 조회 실패: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`
+      return [] as Page[]
+    }),
+    // 담당자 별칭 표만 쓰므로 못 읽어도 나머지는 계속. 출퇴근 화면과 같은 DB, 같은 토큰(NOTION_TOKEN). 퇴사자 이름으로 남은 계약이 있어 재직 필터 없이 전부
+    queryAll(new Client({ auth: env.NOTION_TOKEN }), MEMBER_DS).catch((e) => {
+      console.error(`구성원 DB 조회 실패, 담당자 이름 원문 그대로: ${e?.status ?? ''} ${e?.code ?? e?.message ?? e}`)
       return [] as Page[]
     }),
   ])
@@ -178,7 +185,8 @@ export async function loadFinance(env: Record<string, string | undefined>): Prom
   } catch (e) {
     bankError = e instanceof Error ? e.message : String(e)
   }
-  return { contracts, payouts: bindPayeeByName(p.map(toPayout)), ig, igError, fetchedAt: new Date().toISOString(), bankLinks, bankError }
+  return { contracts, payouts: bindPayeeByName(p.map(toPayout)), ig, igError, fetchedAt: new Date().toISOString(), bankLinks, bankError,
+    alias: ownerAlias(mb.map((x) => ({ name: str(x, '이름'), aka: String(val(x, '표기') ?? '').split(',') }))) }
 }
 
 /** 수취인 관계가 빈 지급(2025 소급 행 등)은 같은 제목의 수취인이 전체에서 하나뿐일 때만 그 수취인으로 묶음. 둘 이상이면 동명이인일 수 있어 그대로(261113 감사 #12).

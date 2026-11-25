@@ -396,6 +396,7 @@ export type Model = {
   gaps: Gaps
   receivables: { buckets: Bucket[]; open: OpenItem[]; twikr: OpenItem[] } // twikr: 트위커 표시라 받을 돈에서 뺀 계약의 입금 전 회차(미수 탭 안내). 받을 돈(부가세 포함, 일부 입금 뺀 남은 금액) 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
   payables: Bucket[] // 줄 돈 상태 묶음(부가세 포함, grossPayoutKrw)
+  alias: Record<string, string> // owners 를 묶은 담당자 별칭 표(ownerAlias), 화면이 ownersOf 에 같은 표를 넘김
 }
 
 const DAY = 86_400_000
@@ -417,15 +418,21 @@ export function agingBuckets(open: OpenItem[], today: string): Bucket[] {
   })
 }
 
-/** 같은 직원의 다른 표기 → 계약 DB에서 더 많이 쓴 표기(봇이 슬랙 실명을 씀, 261113 감사 #6). 아이리는 누구인지 확인 전이라 뺌
- * 봇은 운영보드 안건을 고르면 그 행 담당자-정의 슬랙 실명을 씀(261117): 와다 카오리 */
-const OWNER_ALIAS: Record<string, string> = {
-  'Mizuno Sayaka': '사야카', '미즈노 사야카': '사야카', '히야마 유지': '유지', '마스다 리카': '리카', '와다 카오리': '카오리',
-  '이시카와 미나미': '미나미', 미나: '미나미', '와타나베 히로코': '히로코', 보람: '이보람', 소희: '박소희', 혜연: '심혜연',
+/** 담당자 표기 → 노션 「구성원 (결재 조직도)」 전체 이름. 이름 자신, 짧은 이름(띄어 쓴 이름은 끝 토막, 붙여 쓴 이름은 첫 글자 뺀 나머지),
+ * 「표기」 칸 항목. 짧은 이름이 두 사람에게 겹치면 뺌(표기 칸에 적힌 것은 넣음). 앞선 것을 뒤가 덮음: 짧은 이름 < 표기 < 전체 이름 */
+export function ownerAlias(members: { name: string; aka: string[] }[]): Record<string, string> {
+  const short = (n: string) => (n.includes(' ') ? n.split(/\s+/).at(-1)! : n.slice(1))
+  const who = new Map<string, Set<string>>()
+  for (const { name } of members) if (name && short(name)) who.set(short(name), (who.get(short(name)) ?? new Set()).add(name))
+  const out: Record<string, string> = {}
+  for (const [s, ns] of who) if (ns.size === 1) out[s] = [...ns][0]
+  for (const { name, aka } of members) if (name) for (const a of aka) if (a.trim()) out[a.trim()] = name
+  for (const { name } of members) if (name) out[name] = name
+  return out
 }
-/** 계약 담당자(정) 목록: 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭을 맞춘 뒤 중복 없이(「리카, 사야카」 = 「사야카/마스다 리카」), 비면 미지정 */
-export const ownersOf = (c: Contract): string[] => {
-  const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean).map((s) => OWNER_ALIAS[s] ?? s))]
+/** 계약 담당자(정) 목록: 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭 표(ownerAlias)로 맞춘 뒤 중복 없이, 표에 없으면 원문 그대로, 비면 미지정 */
+export const ownersOf = (c: Contract, alias: Record<string, string>): string[] => {
+  const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean).map((s) => alias[s] ?? s))]
   return xs.length ? xs : ['미지정']
 }
 
@@ -457,7 +464,7 @@ export const isDead = (p: Payout) => {
   return p.status === CLOSED || (p.status === '보류' && DEAD.test(top) && !top.includes('확인 전'))
 }
 
-export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = []): Model {
+export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = [], alias: Record<string, string> = {}): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
   const dayById = new Map(contracts.map((c) => [c.id, c])) // 서명 전 계약 포함: 지급 기준일(payoutDay)에만 씀(서명 전 계약에 걸린 지급이 기간을 고르면 사라지던 문제, 261113 감사)
@@ -695,7 +702,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   const owners = new Map<string, OwnerRow>()
   const marginSupply = new Map<string, number>() // 마진율 분모: 마진을 셈한 계약 공급가만
   for (const x of priced) {
-    const keys = ownersOf(x.c)
+    const keys = ownersOf(x.c, alias)
     const f = 1 / keys.length
     for (const key of keys) {
       const o = owners.get(key) ?? { owner: key, count: 0, supply: 0, received: 0, cost: 0, margin: 0, rate: null }
@@ -758,6 +765,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     gaps,
     receivables: { buckets: agingBuckets(open, today), open, twikr },
     payables,
+    alias,
   }
 }
 

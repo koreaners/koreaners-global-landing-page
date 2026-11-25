@@ -61,11 +61,11 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   }
 
   const period = { year, month }
-  const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks)
+  const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks, data.alias)
   const tw = model.receivables.twikr // 트위커 표시라 받을 돈에서 뺀 입금 전 회차(미수 탭 안내)
   const pp = priorPeriod(period, today)
-  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis, data.bankLinks) : null
-  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis, data.bankLinks) : null
+  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis, data.bankLinks, data.alias) : null
+  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis, data.bankLinks, data.alias) : null
   const span = (p: { year: number | null; month: number | null; upto?: number | null }) =>
     p.year == null ? '전체 기간' : p.month ? `${p.year}년 ${p.month}월` : p.upto ? `${p.year}년 1~${p.upto}월` : `${p.year}년`
   const labels = { cur: span(period), prev: pp ? span(pp) : null }
@@ -555,7 +555,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
   // st=cost: 기준 탭 「원가 누락 의심」 계약만
   // st=voucher: 계약 DB 「수출바우처」 칸에 값이 있는 계약만
   const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : st === 'nolink' ? model.contracts.filter(noLinkPaid) : st === 'voucher' ? model.contracts.filter((x) => x.c.voucher) : model.contracts
-  const pool = o ? all.filter((x) => ownersOf(x.c).includes(o)) : all
+  const pool = o ? all.filter((x) => ownersOf(x.c, model.alias).includes(o)) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
     supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => (x.c.twikr ? null : x.overdue), cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
@@ -809,7 +809,7 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
 /** 담당자 마진율. 계약 어디에도 지급이 연결되지 않았으면 100%가 아니라 「지급 연결 없음」 */
 function ownerRate(o: Model['owners'][number], model: Model) {
   if (o.rate == null) return '마진율 -'
-  const linked = model.contracts.some((x) => ownersOf(x.c).includes(o.owner) && x.payouts.length)
+  const linked = model.contracts.some((x) => ownersOf(x.c, model.alias).includes(o.owner) && x.payouts.length)
   return linked ? `마진율 ${pct(o.rate)}` : '지급 연결 없음'
 }
 
@@ -817,7 +817,7 @@ function ownerRate(o: Model['owners'][number], model: Model) {
 const OWNER_GAP = '2025년까지의 계약은 대부분 담당자(정)가 비어 있어 「미지정」으로 잡힙니다.'
 
 function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partial<Search>) => string; s?: string; year: number | null }) {
-  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => ownersOf(x.c).includes(o.owner) && x.payouts.length)
+  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => ownersOf(x.c, model.alias).includes(o.owner) && x.payouts.length)
   const rows = sortRows(model.owners, s, {
     owner: (o) => o.owner, count: (o) => o.count, supply: (o) => o.supply, received: (o) => o.received, cost: (o) => o.cost,
     margin: (o) => (o.rate == null && !o.margin ? null : o.margin), rate: (o) => (o.rate != null && linked(o) ? o.rate : null), // 지급 연결 없음은 100%로 치지 않고 끝으로

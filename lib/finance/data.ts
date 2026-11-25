@@ -11,7 +11,7 @@ const TTL = 300
 let inflight: Promise<FinanceData> | null = null
 const load = () => (inflight ??= loadFinance(process.env).finally(() => { inflight = null }))
 
-const cached = unstable_cache(async () => gzipSync(JSON.stringify(await load())).toString('base64'), ['admin-finance-v10'], { revalidate: TTL, tags: ['admin-finance'] })
+const cached = unstable_cache(async () => gzipSync(JSON.stringify(await load())).toString('base64'), ['admin-finance-v11'], { revalidate: TTL, tags: ['admin-finance'] })
 
 /** fresh: 5분보다 낡은 캐시면 노션을 직접 다시 읽음. 화면은 빠르게(false), 정산 람다 미수 알림이 읽는 받을 돈 API는 최신으로(true) */
 export async function getFinance({ fresh = false } = {}): Promise<FinanceData> {
