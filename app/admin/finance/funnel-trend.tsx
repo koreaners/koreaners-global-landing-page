@@ -105,6 +105,10 @@ const TEAM_BOX: [number, string, [string, string[]][]][] = [
   [5, '전략실', [['인건비 ÷ 공헌이익', ['인건비 ÷ 공헌이익']]]],
   [6, '전략실', [['고정비 대항목별 추이는 아래 차트', []]]],
 ]
+// 팀 상자 색: 노션 구조도와 같게 영업 파랑, 운영 주황, 전략실(S&O) 초록. [상자, 팀 이름]
+const TONE: Record<string, [string, string]> = {
+  영업팀: ['border-sky-800', 'text-sky-300'], 운영팀: ['border-amber-800 bg-amber-950/30', 'text-amber-300'], 전략실: ['border-emerald-800 bg-emerald-950/30', 'text-emerald-300'],
+}
 const BOX_H = (n: number) => 44 + 25 * n // 팀 상자 높이: 머리 + 줄 수
 const SLOT = [0, 1, 2, 3, 4, 5, 6].map((i) => Math.max(124, TEAM_BOX.filter(([s]) => s === i).reduce((a, [, , l]) => a + BOX_H(l.length) + 12, 0))) // 줄이 늘면 슬롯이 자람
 const TOP = 30
@@ -254,8 +258,8 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
             const mates = TEAM_BOX.filter(([s]) => s === slot), above = TEAM_BOX.slice(0, k).filter(([s]) => s === slot)
             const top = SY[slot] + 6 + above.reduce((a, [, , l]) => a + BOX_H(l.length) + 12, 0)
             return (
-            <div key={`${slot}${team}`} style={{ left: 0, width: `${COL[0].w}%`, top, height: mates.length > 1 ? BOX_H(lines.length) : SLOT[slot] - 12 }} className="absolute rounded-lg border border-neutral-800 px-3 py-2">
-              <p className="border-b border-neutral-700 pb-1 text-xs font-semibold text-neutral-100">{team}{slot === 0 && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
+            <div key={`${slot}${team}`} style={{ left: 0, width: `${COL[0].w}%`, top, height: mates.length > 1 ? BOX_H(lines.length) : SLOT[slot] - 12 }} className={`absolute rounded-lg border px-3 py-2 ${TONE[team][0]}`}>
+              <p className={`border-b border-neutral-700 pb-1 text-xs font-semibold ${TONE[team][1]}`}>{team}{slot === 0 && <span className="ml-1.5 font-normal text-neutral-500">아웃바운드, 크리에이터, 홈페이지 순</span>}</p>
               <div className="divide-y divide-neutral-800">
               {lines.map(([name, labels]) => (
                 <p key={name} className="flex items-center justify-between gap-2 py-[3px] text-xs">
