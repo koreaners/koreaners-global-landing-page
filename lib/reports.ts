@@ -92,7 +92,9 @@ export type FunnelTrend = {
 }
 
 // 사람 단면(추이 파일 people). 달은 지도 칸과 같은 입금 달, 건수는 정담당 n분의 1이라 소수. 「미배정」, 「인계 미지정」도 한 행씩
+// deal_list 의 supply, contrib 는 계약 전체 값이고 사람 몫은 × share. rep_list(재계약, 계약 기준일 달) amt 도 계약 전체 값, rep_amt = Σ amt × share
 export type PersonDeal = { code: string; corp: string; share: number; supply: number; contrib: number; rep: boolean; twikr: boolean }
+export type PersonRep = { code: string; corp: string; share: number; amt: number }
 export type PersonItem = { code: string; name: string; share?: number; month?: string; kind?: string }
 export type People = {
   months: string[]
@@ -100,7 +102,7 @@ export type People = {
     name: string
     status: '재직' | '퇴사' | ''
     roles: string[]
-    m: Record<string, { deals: number; supply: number; contrib: number; rep_n: number; rep_amt: number; twikr_est: number; deal_list: PersonDeal[] }>
+    m: Record<string, { deals: number; supply: number; contrib: number; rep_n: number; rep_amt: number; twikr_est: number; deal_list: PersonDeal[]; rep_list?: PersonRep[] }>
     proc: { exc: PersonItem[]; late_creator: PersonItem[]; blocked: PersonItem[] }
     open: { backlog: PersonItem[]; open: PersonItem[] }
   }[]

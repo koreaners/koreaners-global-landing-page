@@ -1,7 +1,7 @@
 // 관리자 대시보드 집계 (설계: 볼트 work/261010-설계-관리자대시보드).
 // 순수 함수만 둔다. node 로 바로 돌리는 점검(model.check.mjs)이 이 파일을 타입만 지워 읽으므로
 // enum, namespace 같은 지울 수 없는 문법과 런타임 import 는 쓰지 않는다.
-import type { FunnelTrend, People, PersonDeal, PersonItem } from '../reports'
+import type { FunnelTrend, People, PersonItem } from '../reports'
 
 export type Currency = 'KRW' | 'JPY' | 'USD' | 'CNY'
 
@@ -887,63 +887,87 @@ export const quarterOf = (ym: string) => `${ym.slice(0, 4)}-Q${Math.ceil(Number(
 export const quarterLabel = (q: string) => `${q.slice(0, 4)} ${q.slice(6)}분기`
 const monthsOfQ = (q: string) => [1, 2, 3].map((i) => `${q.slice(0, 4)}-${String((Number(q.slice(6)) - 1) * 3 + i).padStart(2, '0')}`)
 const prevQ = (q: string) => (q.endsWith('Q1') ? `${Number(q.slice(0, 4)) - 1}-Q4` : `${q.slice(0, 6)}${Number(q.slice(6)) - 1}`)
+const inData = (p: People, q: string) => monthsOfQ(q).filter((m) => p.months.includes(m))
 /** people.months 에서 나오는 분기(오름차순) */
 export const quarters = (p: People) => [...new Set(p.months.map(quarterOf))].sort()
+/** 기본 분기: 석 달이 모두 사람 단면에 있는 가장 최근 분기, 없으면 가장 최근 분기 */
+export const defaultQuarter = (p: People) => quarters(p).filter((q) => inData(p, q).length === 3).at(-1) ?? quarters(p).at(-1)!
+/** 버튼, 제목용 분기 이름. 석 달이 안 찬 분기는 들어 있는 달을 붙임: 2026 4분기(10월까지), 앞이 빠졌으면 2026 2분기(6월) */
+export function quarterTitle(p: People, q: string) {
+  const ms = inData(p, q)
+  if (ms.length === 3) return quarterLabel(q)
+  const mon = (m: string) => `${Number(m.slice(5))}월`
+  return `${quarterLabel(q)}(${ms[0] === monthsOfQ(q)[0] ? `${mon(ms.at(-1)!)}까지` : ms.map(mon).join(', ')})`
+}
 
+/** 표 한 줄: 금액은 사람 몫(계약 값 × share)의 석 달 합. 몫은 그 코드가 한 달에만 나오면 그 share, 여러 달이면 null(달별 share 를 더하면 뜻이 없음) */
+export type QuarterLine = { code: string; corp: string; share: number | null; supply: number; contrib: number; twikr: boolean }
+export type QuarterRep = { code: string; corp: string; share: number | null; amt: number }
 export type QuarterSheet = {
   q: string
   months: string[] // 이 분기 가운데 사람 단면에 있는 달(진행 중 분기는 석 달이 안 됨)
+  full: boolean // 석 달이 모두 있음
   cur: QSum
-  prev: QSum | null // 전 분기 달이 사람 단면에 없으면 null
+  prev: QSum | null // 이 분기와 전 분기가 모두 석 달이 찼을 때만(덜 찬 분기끼리는 비교하지 않음)
   prevQ: string
+  prevMonths: string[]
   roles: string[]
   share: { deals: number | null; supply: number | null; contrib: number | null } | null // 같은 기능(roles가 하나라도 겹치는) 사람들 합 대비, 기능이 없으면 null
-  deals: PersonDeal[] // 석 달 안건, 같은 코드는 합침, 공급가 큰 순
-  proc: Record<'exc' | 'late_creator' | 'blocked', { n: number; items: PersonItem[] }>
-  open: { backlog: PersonItem[]; open: PersonItem[] }
+  deals: QuarterLine[] // 석 달 안건(deal_list), 같은 코드는 금액만 합침, 공급가 큰 순. 금액 합 = cur.supply, cur.contrib
+  rep: QuarterRep[] | null // 재계약 안건(rep_list, 계약 기준일 달). 옛 파일처럼 rep_list 가 없으면 null(이름 없이 건수, 금액만)
+  proc: Record<'exc' | 'late_creator' | 'blocked', { n: number; items: PersonItem[] }> // 달력상 석 달에 month 가 드는 항목만, n 은 share 합
+  open: Record<'backlog' | 'open', { n: number; items: PersonItem[] }> // 지금 상태(분기 무관), n 은 share 합
   actions: (NonNullable<FunnelTrend['actions']>[string][number] & { month: string })[] // 이 분기와 전 분기 「하이라키 액션」 가운데 담당이 이 사람인 줄
 }
 
-/** 사람 한 명의 분기 한 장. 값은 그 분기 달 합(없는 달은 0), 절차는 달이 적힌 항목만 분기로 거르고, 흐름(적체, 열린 안건)은 지금 상태 그대로 */
+/** 사람 한 명의 분기 한 장. 값은 그 분기 달 합(없는 달은 0) */
 export function quarterSheet(p: People, name: string, q: string, actions: FunnelTrend['actions'] = {}, alias: Record<string, string> = {}): QuarterSheet | null {
   const row = p.rows.find((r) => r.name === name)
   if (!row) return null
-  const inData = (qq: string) => monthsOfQ(qq).filter((m) => p.months.includes(m))
   const sum = (rows: People['rows'], ms: string[]) => {
     const t = Object.fromEntries(QSUM.map((k) => [k, 0])) as QSum
     for (const r of rows) for (const m of ms) for (const k of QSUM) t[k] += r.m?.[m]?.[k] ?? 0
     return t
   }
-  const ms = inData(q)
+  const ms = inData(p, q)
+  const cal = monthsOfQ(q)
   const pq = prevQ(q)
-  const pms = inData(pq)
+  const pms = inData(p, pq)
   const cur = sum([row], ms)
   const roles = row.roles ?? []
   const peers = p.rows.filter((r) => (r.roles ?? []).some((x) => roles.includes(x)))
   const pt = roles.length ? sum(peers, ms) : null
   const ratio = (a: number, b: number) => (b ? a / b : null)
-  const deals = new Map<string, PersonDeal>()
+  const deals = new Map<string, QuarterLine>()
   for (const m of ms) for (const d of row.m?.[m]?.deal_list ?? []) {
     const o = deals.get(d.code)
-    if (o) Object.assign(o, { supply: o.supply + d.supply, contrib: o.contrib + d.contrib, rep: o.rep || d.rep, twikr: o.twikr || d.twikr })
-    else deals.set(d.code, { ...d })
+    if (o) Object.assign(o, { share: null, supply: o.supply + d.supply * d.share, contrib: o.contrib + d.contrib * d.share, twikr: o.twikr || d.twikr })
+    else deals.set(d.code, { code: d.code, corp: d.corp, share: d.share, supply: d.supply * d.share, contrib: d.contrib * d.share, twikr: d.twikr })
   }
-  const proc = (xs: PersonItem[] = []) => {
-    const items = xs.filter((x) => !x.month || ms.includes(x.month))
-    return { n: items.reduce((a, x) => a + (x.share ?? 1), 0), items }
+  const hasRep = ms.some((m) => Array.isArray(row.m?.[m]?.rep_list))
+  const rep = new Map<string, QuarterRep>()
+  for (const m of ms) for (const d of row.m?.[m]?.rep_list ?? []) {
+    const o = rep.get(d.code)
+    if (o) Object.assign(o, { share: null, amt: o.amt + d.amt * d.share })
+    else rep.set(d.code, { code: d.code, corp: d.corp, share: d.share, amt: d.amt * d.share })
   }
+  const n = (items: PersonItem[]) => ({ n: items.reduce((a, x) => a + (x.share ?? 1), 0), items })
+  const proc = (xs: PersonItem[] = []) => n(xs.filter((x) => !!x.month && cal.includes(x.month)))
   const mine = (who: string) => who.split(/[,/]/).map((s) => s.trim()).map((s) => alias[s] ?? s).includes(name)
   return {
     q,
     months: ms,
+    full: ms.length === 3,
     cur,
-    prev: pms.length ? sum([row], pms) : null,
+    prev: ms.length === 3 && pms.length === 3 ? sum([row], pms) : null,
     prevQ: pq,
+    prevMonths: pms,
     roles,
     share: pt && { deals: ratio(cur.deals, pt.deals), supply: ratio(cur.supply, pt.supply), contrib: ratio(cur.contrib, pt.contrib) },
     deals: [...deals.values()].sort((a, b) => b.supply - a.supply),
+    rep: hasRep ? [...rep.values()].sort((a, b) => b.amt - a.amt) : null,
     proc: { exc: proc(row.proc?.exc), late_creator: proc(row.proc?.late_creator), blocked: proc(row.proc?.blocked) },
-    open: { backlog: row.open?.backlog ?? [], open: row.open?.open ?? [] },
-    actions: [...monthsOfQ(pq), ...monthsOfQ(q)].flatMap((m) => (actions?.[m] ?? []).filter((a) => a.who && mine(a.who)).map((a) => ({ ...a, month: m }))),
+    open: { backlog: n(row.open?.backlog ?? []), open: n(row.open?.open ?? []) },
+    actions: [...monthsOfQ(pq), ...cal].flatMap((m) => (actions?.[m] ?? []).filter((a) => a.who && mine(a.who)).map((a) => ({ ...a, month: m }))),
   }
 }
