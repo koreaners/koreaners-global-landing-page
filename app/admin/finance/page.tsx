@@ -494,6 +494,9 @@ function CreatorLines({ lines, flags, q }: { lines: Line[]; flags: Map<string, C
   )
 }
 
+// 담당 칸: 정담당 전체 이름이 여럿이면 칸이 넓어져 표 오른쪽 칸이 화면 밖으로 밀림(261126 캡처). 최대 폭 안에서 이름 사이로 줄바꿈
+const Owner = ({ names }: { names: string[] }) => <span className="inline-block max-w-[8rem] whitespace-normal break-keep">{names.join(', ')}</span>
+
 /** 입금 예정일이 지난 매출채권 회차(부가세 포함, 일부 입금 뺀 남은 금액, 기간과 무관). 개요 카드에서 넘어온 안건 탭(st=overdue)과 미수 탭이 같이 씀.
  * all이면 지난 것만이 아니라 매출채권 전체(개요 「매출채권」 카드 잔액과 같은 회차, 안건 탭 st=receivable) */
 function OverdueTable({ model, today, allHref, bankError, all }: { model: Model; today: string; allHref?: string; bankError?: string | null; all?: boolean }) {
@@ -515,7 +518,7 @@ function OverdueTable({ model, today, allHref, bankError, all }: { model: Model;
                   : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className={LINK} title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
               </td>
               <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}{bankError && x.label === '부가세(고객사)' && <span className="text-amber-200/90"> 원장 없어 확인 불가</span>}</td>
-              <td className={td}>{ownersOf(x.c, model.alias, model.dealOwner).join(', ')}</td>
+              <td className={td}><Owner names={ownersOf(x.c, model.alias, model.dealOwner)} /></td>
               <td className={td}>{x.due ?? '-'}</td>
               {all
                 ? <td data-sort={x.due ? days(x.due) : ''} className={`${td} ${x.due && days(x.due) > 0 ? 'font-semibold text-red-400' : ''}`}>{!x.due ? '예정일 없음' : days(x.due) > 0 ? `${days(x.due)}일 지남` : days(x.due) < 0 ? `${-days(x.due)}일 남음` : '오늘'}</td>
@@ -622,7 +625,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
             <td className={tdl}>
               <span className="block max-w-[8rem] truncate" title={x.c.brand || x.c.corp}>{x.c.brand || x.c.corp}</span>
             </td>
-            <td className={td}>{who(x).join(', ')}</td>
+            <td className={td}><Owner names={who(x)} /></td>
             <td className={td}>{x.day ?? '-'}</td>
             <td className={td} title={won(x.supply)}>{x.supply == null ? '-' : won2(x.supply)}
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
@@ -865,9 +868,26 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
 
 const TWIKR_TIP = '트위커 분기 정산을 계약별로 나눈 추정값이 원가에 들어 있어 이 공헌이익은 순위 판단에 쓰지 않습니다.'
 const signed = (n: number, f: (n: number) => string) => `${n > 0 ? '+' : ''}${f(n)}`
-// 몫이 1이 아닌 줄은 이름 뒤에 몫(정담당 n분의 1, 여러 달에 걸친 줄은 몫 없음)
-const names = (xs: { code: string; name?: string; corp?: string; share?: number | null }[]) =>
-  xs.length ? xs.map((x) => `${x.name || x.corp || x.code}${x.share != null && x.share !== 1 ? `(${cnt(x.share)})` : ''}`).join(', ') : '없음'
+// 안건 목록: 한 줄에 한 안건, 몫이 1이 아니면 이름 뒤에 몫. 8줄 넘으면 나머지는 접음(JS 없이 details).
+// 이름 안의 「 · 」는 앞 글자와 붙여(줄 바꿈 없는 공백) 「·」가 줄 첫머리로 넘어가지 않게
+const LIST_MAX = 8
+function Items({ xs }: { xs: { code: string; name?: string; share?: number | null }[] }) {
+  if (!xs.length) return <p className="text-neutral-500">없음</p>
+  const line = (x: (typeof xs)[number], i: number) => (
+    <li key={i} className="break-keep">{(x.name || x.code).replace(/ ·/g, '\u00a0·')}{x.share != null && x.share !== 1 ? `(${cnt(x.share)})` : ''}</li>
+  )
+  return (
+    <div className="text-neutral-200">
+      <ul className="space-y-0.5">{xs.slice(0, LIST_MAX).map(line)}</ul>
+      {xs.length > LIST_MAX && (
+        <details className="mt-0.5">
+          <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">나머지 {xs.length - LIST_MAX}줄 보기</summary>
+          <ul className="mt-0.5 space-y-0.5">{xs.slice(LIST_MAX).map(line)}</ul>
+        </details>
+      )}
+    </div>
+  )
+}
 
 /** 담당자 탭 분기 한 장: 사람과 분기를 고르면 기여, 재계약, 절차, 흐름, 변화. 값은 주간 잡 사람 단면(추이 파일 people)의 석 달 합, 점수와 순위는 없음(설계 261125 결정 4) */
 function Quarter({ model, q, people, actions, sel, qt }: { model: Model; q: (o: Partial<Search>) => string; people: NonNullable<FunnelTrend['people']> | null; actions: FunnelTrend['actions']; sel?: string; qt?: string }) {
@@ -879,7 +899,7 @@ function Quarter({ model, q, people, actions, sel, qt }: { model: Model; q: (o: 
   const block = 'space-y-2 rounded-lg border border-neutral-800 p-4 text-sm'
   const h3 = 'text-xs font-semibold text-neutral-300'
   const twikr = !!x && x.cur.twikr_est > 0
-  const share = (r: number | null | undefined) => (x?.share && r != null ? `${x.roles.join(', ')} 합의 ${pct(r)}` : '')
+  const share = (r: number | null | undefined) => (x?.share && r != null ? `${x.roles.join(', ')} 담당 전체의 ${pct(r)}` : '')
   return (
     <Panel id="quarter" title={x ? `${sel}, ${quarterTitle(people, cq)}` : '분기 한 장'} sub={x ? `입금 달 기준 ${x.months.map((m) => `${Number(m.slice(5))}월`).join(', ')} 합` : '사람을 고르면 입금 달 기준 석 달 합'}
       action={x && model.owners.some((o) => o.owner === sel) ? <Link href={q({ tab: 'contracts', o: sel })} className={MORE}>안건 목록 <Arrow /></Link> : undefined}>
@@ -892,11 +912,11 @@ function Quarter({ model, q, people, actions, sel, qt }: { model: Model; q: (o: 
       {sel && !x && <p className="text-sm text-neutral-500">{sel}: 사람 단면에 없는 이름입니다</p>}
       {x && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-4">
             <Tile label="안건 수" value={`${cnt(x.cur.deals)}건`} full={`${x.cur.deals}건`} note={share(x.share?.deals)} tipAlign="left" />
             <Tile label="계약 공급가" value={won2(x.cur.supply)} full={won(x.cur.supply)} note={share(x.share?.supply)} />
             <Tile label="공헌이익" value={won2(x.cur.contrib)} full={won(x.cur.contrib)} note={[twikr && '트위커 추정 포함', share(x.share?.contrib)].filter(Boolean).join(', ')} hint={twikr ? TWIKR_TIP : undefined} />
-            <Tile label="재계약" value={won2(x.cur.rep_amt)} side={`${cnt(x.cur.rep_n)}건`} full={won(x.cur.rep_amt)} note={x.rep ? names(x.rep) : ''} />
+            <Tile label="재계약" value={won2(x.cur.rep_amt)} side={`${cnt(x.cur.rep_n)}건`} full={won(x.cur.rep_amt)} note="" />
           </div>
           <section className={block}>
             <h3 className={h3}>기여</h3>
@@ -913,17 +933,32 @@ function Quarter({ model, q, people, actions, sel, qt }: { model: Model; q: (o: 
             </Table>
             {!x.deals.length && <p className="text-xs text-neutral-500">이 분기 안건 없음</p>}
           </section>
+          {!!x.rep?.length && (
+            <section className={block}>
+              <h3 className={h3}>재계약</h3>
+              <Table head={['법인', '코드', '몫', '금액']} left={2}>
+                {x.rep.map((d) => (
+                  <tr key={d.code}>
+                    <td className={tdl}>{d.corp || '-'}</td>
+                    <td className={tdl}>{d.code}</td>
+                    <td className={td} data-sort={d.share ?? undefined}>{d.share == null ? '-' : cnt(d.share)}</td>
+                    <Money n={d.amt} />
+                  </tr>
+                ))}
+              </Table>
+            </section>
+          )}
           <div className="grid gap-3 lg:grid-cols-3">
             <section className={block}>
               <h3 className={h3}>절차</h3>
               {([['exc', '절차 예외'], ['late_creator', '사후 크리에이터 계약'], ['blocked', '막힌 지급']] as const).map(([k, l]) => (
-                <p key={k}><span className="text-neutral-400">{l} {cnt(x.proc[k].n)}건</span><br /><span className="text-neutral-200">{names(x.proc[k].items)}</span></p>
+                <div key={k}><p className="text-neutral-400">{l} {cnt(x.proc[k].n)}건</p><Items xs={x.proc[k].items} /></div>
               ))}
             </section>
             <section className={block}>
-              <h3 className={`${h3} inline-flex items-center gap-1`}>흐름 <Info text="본인이 입력하는 상태 값이라 면담 자료로만 봅니다." /></h3>
-              <p><span className="text-neutral-400">적체 안건 {cnt(x.open.backlog.n)}건</span><br /><span className="text-neutral-200">{names(x.open.backlog.items)}</span></p>
-              <p><span className="text-neutral-400">열린 안건 {cnt(x.open.open.n)}건</span><br /><span className="text-neutral-200">{names(x.open.open.items)}</span></p>
+              <h3 className={`${h3} inline-flex items-center gap-1`}>흐름 <span className="font-normal text-neutral-500">현재 기준</span> <Info text="분기와 상관없이 지금 열려 있는 안건입니다. 본인이 입력하는 상태 값이라 면담 자료로만 봅니다." /></h3>
+              <div><p className="text-neutral-400">적체 안건 {cnt(x.open.backlog.n)}건</p><Items xs={x.open.backlog.items} /></div>
+              <div><p className="text-neutral-400">열린 안건 {cnt(x.open.open.n)}건</p><Items xs={x.open.open.items} /></div>
             </section>
             <section className={block}>
               <h3 className={h3}>변화</h3>
