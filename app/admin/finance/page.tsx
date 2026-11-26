@@ -881,7 +881,7 @@ function Items({ xs }: { xs: { code: string; name?: string; share?: number | nul
       <ul className="space-y-0.5">{xs.slice(0, LIST_MAX).map(line)}</ul>
       {xs.length > LIST_MAX && (
         <details className="mt-0.5">
-          <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">나머지 {xs.length - LIST_MAX}건 보기</summary>
+          <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">나머지 {xs.length - LIST_MAX}줄 보기</summary>
           <ul className="mt-0.5 space-y-0.5">{xs.slice(LIST_MAX).map(line)}</ul>
         </details>
       )}
