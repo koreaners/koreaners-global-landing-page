@@ -332,14 +332,21 @@ function HierarchyMap({ sel, next, months, missing, actions }: { sel: MapMonth; 
 
 const CB_TIMING = '공헌이익은 계약 단위: 그 달에 입금된 계약마다 붙은 크리에이터 지급을 송금 시점과 관계없이 모두 원가로 잡음(보류 제외, 아마네님 통과 매출 제외). 최근 달은 지급이 덜 붙어 실제보다 좋게 나올 수 있음. 주황 선은 그 달까지 3개월을 합쳐 낸 값'
 
-export async function FunnelTrendTab({ y, m }: { y?: string; m?: string } = {}) {
+/** 주간 잡이 올린 추이 파일(version 1만). 없거나 못 읽으면 null. 재무 담당자 탭도 이 파일의 deal_owner, people, actions 를 읽음 */
+export async function readTrend(): Promise<FunnelTrend | null> {
   const supabase = await createClient()
   const { data } = await supabase.storage.from(REPORTS_BUCKET).download(TREND_KEY)
-  let t: FunnelTrend | null = null
   try {
     const j = data ? JSON.parse(await data.text()) : null
-    if (j?.version === 1) t = j
-  } catch {}
+    return j?.version === 1 ? j : null
+  } catch {
+    return null
+  }
+}
+
+export async function FunnelTrendTab({ y, m }: { y?: string; m?: string } = {}) {
+  const supabase = await createClient()
+  const t = await readTrend()
   if (!t) return <p className="rounded-xl border border-neutral-800 bg-neutral-900 p-6 text-sm text-neutral-400">지표 모니터링 파일이 아직 없습니다. 주간 잡(brain-weekly)이 한 번 돌면 생깁니다.</p>
   // 신호등은 가장 최근 주간 보고서에서. 못 읽으면 신호등 없이 차트만
   const { data: files } = await supabase.storage.from(REPORTS_BUCKET).list('', { sortBy: { column: 'name', order: 'desc' } })
