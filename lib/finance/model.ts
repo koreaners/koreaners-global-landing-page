@@ -433,13 +433,13 @@ export function ownerAlias(members: { name: string; aka: string[] }[]): Record<s
   return out
 }
 /** 안건 정담당 목록: 주간 잡 담당 표(dealOwner, 운영보드 우선, 퇴사자 인계 반영)에 유니크코드가 있으면 그 목록.
- * 없으면 계약 담당자(정)를 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭 표(ownerAlias)로 맞춘 뒤 중복 없이, 표에 없으면 원문 그대로, 비면 미지정
+ * 없으면 계약 담당자(정)를 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭 표(ownerAlias)로 맞춘 뒤 중복 없이, 표에 없으면 원문 그대로, 비면 미배정(주간 잡 사람 단면 행 이름과 같게)
  * ponytail: 담당 표가 주 1회(월요일 07:00 주간 잡) 갱신이라 주중 운영보드 담당 변경은 다음 월요일 반영, 새 계약은 계약 담당자(정)로 먼저 표시 */
 export const ownersOf = (c: Contract, alias: Record<string, string>, dealOwner: Record<string, string[]> = {}): string[] => {
   const d = dealOwner[c.code]
   if (d?.length) return [...new Set(d)]
   const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean).map((s) => alias[s] ?? s))]
-  return xs.length ? xs : ['미지정']
+  return xs.length ? xs : ['미배정']
 }
 
 /** 건수 표기: 정담당 n분의 1이라 소수가 생김. 정수면 정수, 아니면 소수 한 자리(더한 값의 부동소수 오차는 반올림으로 지움) */

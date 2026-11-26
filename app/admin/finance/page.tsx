@@ -515,7 +515,7 @@ function OverdueTable({ model, today, allHref, bankError, all }: { model: Model;
                   : <a href={`https://www.notion.so/${x.c.id.replace(/-/g, '')}`} target="_blank" className={LINK} title={`${x.c.code} (노션 열기)`}>{x.c.code}</a>}
               </td>
               <td className={tdl}>{x.c.brand || x.c.corp}{x.label ? ` ${x.label}` : ''}{bankError && x.label === '부가세(고객사)' && <span className="text-amber-200/90"> 원장 없어 확인 불가</span>}</td>
-              <td className={td}>{x.c.owner || '미지정'}</td>
+              <td className={td}>{x.c.owner || '미배정'}</td>
               <td className={td}>{x.due ?? '-'}</td>
               {all
                 ? <td data-sort={x.due ? days(x.due) : ''} className={`${td} ${x.due && days(x.due) > 0 ? 'font-semibold text-red-400' : ''}`}>{!x.due ? '예정일 없음' : days(x.due) > 0 ? `${days(x.due)}일 지남` : days(x.due) < 0 ? `${-days(x.due)}일 남음` : '오늘'}</td>
@@ -620,7 +620,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
             <td className={tdl}>
               <span className="block max-w-[8rem] truncate" title={x.c.brand || x.c.corp}>{x.c.brand || x.c.corp}</span>
             </td>
-            <td className={td}>{x.c.owner || '미지정'}</td>
+            <td className={td}>{x.c.owner || '미배정'}</td>
             <td className={td}>{x.day ?? '-'}</td>
             <td className={td} title={won(x.supply)}>{x.supply == null ? '-' : won2(x.supply)}
               {x.c.supplyKrw == null && x.c.supplyJpy != null && <span className="block text-xs text-neutral-500">엔화 환산</span>}</td>
@@ -816,8 +816,8 @@ function ownerRate(o: Model['owners'][number], model: Model) {
   return linked ? `마진율 ${pct(o.rate)}` : '지급 연결 없음'
 }
 
-// 2025 계약은 대부분 백필이라 원천 자료에 담당자가 없음(261113 감사: 2025년 공급가 83%가 미지정)
-const OWNER_GAP = '2025년까지의 계약은 대부분 담당자(정)가 비어 있어 「미지정」으로 잡힙니다.'
+// 2025 계약은 대부분 백필이라 원천 자료에 담당자가 없음(261113 감사: 2025년 공급가 83%가 담당자 없음)
+const OWNER_GAP = '2025년까지의 계약은 대부분 담당자(정)가 비어 있어 「미배정」으로 잡힙니다.'
 
 function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Model; q: (o: Partial<Search>) => string; s?: string; year: number | null; trend: FunnelTrend | null; sel?: string; qt?: string }) {
   const linked = (o: Model['owners'][number]) => model.contracts.some((x) => ownersOf(x.c, model.alias, model.dealOwner).includes(o.owner) && x.payouts.length)
@@ -834,7 +834,7 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
         {rows.map((o) => (
           <tr key={o.owner} className={o.owner === sel ? 'bg-neutral-800/60' : ''}>
             <td className={tdl}>
-              {/* 사람 단면에 있는 이름은 분기 한 장으로, 없으면(주간 잡 전, 「미지정」) 지금처럼 그 사람 안건 목록으로 */}
+              {/* 사람 단면에 있는 이름은 분기 한 장으로, 없으면(주간 잡 전, 사람 단면에 없는 이름) 지금처럼 그 사람 안건 목록으로 */}
               <Link href={inPeople(o.owner) ? `${q({ sel: o.owner })}#quarter` : q({ tab: 'contracts', o: o.owner })} className={LINK}>{o.owner}</Link>
             </td>
             <td className={td}>{cnt(o.count)}</td>
