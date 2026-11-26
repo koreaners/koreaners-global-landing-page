@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card'
 import { getSession, signInWithGoogle, signOut } from '@/lib/admin-auth'
 import { useToast } from '@/hooks/use-toast'
 
-// 로그인은 회사 구글 계정(koreaners.com)만. 들어온 뒤 역할 판정은 proxy(admin 전체, exec 보고서와 재무)
+// 로그인은 회사 구글 계정(koreaners.com)만. 들어온 뒤 역할 판정은 proxy(admin 전체, exec 재무)
 function GoogleLogo() {
   return (
     <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
