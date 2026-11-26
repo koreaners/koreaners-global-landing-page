@@ -12,6 +12,12 @@ const nextConfig = {
         permanent: false,
       },
       {
+        // 경영진 보고서 폐지(261126). 같은 신호등과 결론은 재무 「지표 모니터링」 탭. 데이터 파일(weekly-report-*.json)은 그 탭이 계속 읽음
+        source: '/admin/reports/:path*',
+        destination: '/admin/finance?tab=funnel',
+        permanent: false,
+      },
+      {
         source: '/creators',
         destination: '/creator',
         permanent: true,

@@ -82,7 +82,7 @@ function TeamLights({ rows }: { rows: Row[] }) {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-neutral-800 px-5 py-3.5">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
           팀별 관리지표
-          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 목표 근거는 각 지표 ⓘ와 경영진 보고서 해설. 회색 점은 원천 칸이 아직 없거나 읽지 못해 값이 없는 지표(목표는 잠정), 빈 점은 값은 있지만 표본이 작은 코호트(20곳 미만) 등으로 색을 매기지 않은 참고 값" />
+          <Info text="노션 「코리너스 하이라키 지표 트리」의 팀별 관리지표. 목표 근거는 각 지표 ⓘ. 회색 점은 원천 칸이 아직 없거나 읽지 못해 값이 없는 지표(목표는 잠정), 빈 점은 값은 있지만 표본이 작은 코호트(20곳 미만) 등으로 색을 매기지 않은 참고 값" />
         </h2>
         <SignalLegend className="sm:ml-auto" />
       </div>
@@ -378,6 +378,46 @@ export async function FunnelTrendTab({ y, m }: { y?: string; m?: string } = {}) 
   return <FunnelTrendView t={t} rows={rows} map={map} period={latest ? parseReportKey(latest)!.title.replace('주간 경영 리포트 ', '') : null} />
 }
 
+// 맨 위 요약 세 줄(경영진 보고서 폐지 261126, 그 보고서의 결론만 옮김). 지도·팀별 관리지표와 같은 줄에서 값만 꺼내고 새 계산은 하지 않음.
+// 손익은 지도처럼 계약 단위(추이 파일 tree), 안건과 인당 매출은 최신 주간 집계 줄. 줄이 없으면 그 항목만 빠짐
+function Summary({ rows, tree }: { rows: Row[]; tree: Row[] }) {
+  const tr = new Map(tree.map((r) => [r.label, r]))
+  const rw = new Map(rows.map((r) => [r.label, r]))
+  const mon = (r?: Row) => /^(\d+)월/.exec(r?.note ?? '')?.[1]
+  const op = tr.get('영업이익(계약 단위)')
+  const lines: [string, string, (Row | undefined)[]][] = [
+    ['손익', `${mon(op) ?? '-'}월 입금 계약, 계약 단위`, [op, tr.get('고정비 ÷ 공헌이익(계약 단위)'), tr.get('안건당 공헌이익(계약 단위)')]],
+    ['안건', '이번 달 누적, 목표는 경과일 비례', [rw.get('안건 수'), rw.get('신규 고객 첫 계약'), rw.get('재계약'), rw.get('재계약 금액')]],
+    ['인원', `${mon(rw.get('인당 매출')) ?? '-'}월, 월간파이낸스 정본`, [rw.get('인당 매출'), tr.get('인원')]],
+  ]
+  const shown = lines.map(([h, basis, rs]) => [h, basis, rs.filter((r): r is Row => !!r && !!r.value && r.value !== '미상')] as const).filter(([, , rs]) => rs.length)
+  if (!shown.length) return null
+  return (
+    <section className="rounded-xl border border-neutral-800 bg-neutral-900 px-5 py-3.5">
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-200">
+        요약
+        <Info text={'아래 지도와 팀별 관리지표에서 경영진이 먼저 볼 값만 모은 줄. 값과 색은 주간 잡 계산 그대로.\n손익: 그 달 입금 계약에 붙은 크리에이터 지급을 송금 전이어도 원가로 잡은 값(지도와 같음). 고정비 ÷ 공헌이익이 100% 아래면 흑자.\n해석 문장은 각 값의 ⓘ(지도, 팀별 관리지표)'} />
+      </h2>
+      <dl className="mt-2 space-y-1.5 text-sm">
+        {shown.map(([h, basis, rs]) => (
+          <div key={h} className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            <dt className="w-10 shrink-0 text-neutral-400">{h}</dt>
+            {rs.map((r) => (
+              <dd key={r.label} className="flex items-center gap-1.5">
+                <Dot light={r.light} hollow={plain(r)} />
+                <span className="text-neutral-400">{r.label.replace('(계약 단위)', '')}</span>
+                <span className="font-medium text-neutral-50">{split(r.value)[0]}</span>
+                {r.target && <Goal t={r.target} />}
+              </dd>
+            ))}
+            <span className="text-xs text-neutral-500">{basis}</span>
+          </div>
+        ))}
+      </dl>
+    </section>
+  )
+}
+
 export function FunnelTrendView({ t, rows = [], period = null, map = null }: { t: FunnelTrend; rows?: Row[]; period?: string | null; map?: React.ComponentProps<typeof HierarchyMap> | null }) {
   const pick = (...labels: string[]) => labels.flatMap((l) => rows.filter((r) => r.label === l))
   const cur = t.today.slice(0, 7)
@@ -395,15 +435,17 @@ export function FunnelTrendView({ t, rows = [], period = null, map = null }: { t
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-neutral-50">
           지표 모니터링
-          <Info text={`경영진 보고서 주간 잡이 신호등과 같은 계산으로 만든 월별 값입니다. 건전성 4개의 고정비, 인건비, 인원은 월간파이낸스 정본(손으로 매달 갱신)에서 읽어 정본이 없는 달은 비움. 공헌이익은 계약 단위${period ? '. 신호등은 최신 경영진 보고서 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달' : ''}`} />
+          <Info text={`주간 잡(brain-weekly)이 신호등과 같은 계산으로 만든 월별 값입니다. 건전성 4개의 고정비, 인건비, 인원은 월간파이낸스 정본(손으로 매달 갱신)에서 읽어 정본이 없는 달은 비움. 공헌이익은 계약 단위${period ? '. 신호등은 최신 주간 집계 값: 안건, 입금, 송금은 이번 달 누적이고 건수 목표는 경과일 비례, 건전성은 정본의 마지막 달' : ''}`} />
         </h1>
         {/* 갱신 정보는 다른 탭처럼 흐린 평문 한 줄(261116 감사: 테두리 알약 3개) */}
         <p className="flex flex-wrap gap-x-3 text-xs text-neutral-500 sm:ml-auto">
-          {period && <span>신호등: {period} 보고서</span>}
+          {period && <span>신호등: {period} 주간 집계</span>}
           <span>{at(t.generated_at)} 계산{closed ? '' : `, 이번 달은 ${t.today}까지`}</span>
           <span>매주 월 07:00 갱신</span>
         </p>
       </div>
+
+      <Summary rows={rows} tree={t.tree ?? []} />
 
       {map && <HierarchyMap {...map} />}
 
