@@ -77,6 +77,9 @@ export type FunnelTrend = {
   // 11/17 이후: 달별 금액 칸(정본에 있는 달마다, 'YYYY-MM' → 줄)과 노션 「하이라키 액션」 달별 기록
   tree_months?: Record<string, NonNullable<WeeklyReport['funnel']>['rows']> | null
   actions?: Record<string, { box: string; team: string; title: string; text: string; who: string }[]> | null
+  // 11/30 이후: 안건별 정담당(유니크코드 → 정본 이름, 운영보드 우선, 없으면 계약 담당자(정), 퇴사자 인계 반영, 미배정이면 키 없음)과 사람 단면(재무 「담당자」 탭 분기 한 장)
+  deal_owner?: Record<string, string[]> | null
+  people?: People | null
   // 10/29 이후: 리포트 주 끝에서 거슬러 월~일 13주. 송금은 그 주 일요일 시점 값, leads 는 Lead Status 읽기 실패면 null
   weeks?: {
     start: string[]
@@ -86,4 +89,20 @@ export type FunnelTrend = {
     remit: { a: number[]; k: number[] }
     leads: Record<string, number[]> | null
   }
+}
+
+// 사람 단면(추이 파일 people). 달은 지도 칸과 같은 입금 달, 건수는 정담당 n분의 1이라 소수. 「미배정」, 「인계 미지정」도 한 행씩
+export type PersonDeal = { code: string; corp: string; share: number; supply: number; contrib: number; rep: boolean; twikr: boolean }
+export type PersonItem = { code: string; name: string; share?: number; month?: string; kind?: string }
+export type People = {
+  months: string[]
+  rows: {
+    name: string
+    status: '재직' | '퇴사' | ''
+    roles: string[]
+    m: Record<string, { deals: number; supply: number; contrib: number; rep_n: number; rep_amt: number; twikr_est: number; deal_list: PersonDeal[] }>
+    proc: { exc: PersonItem[]; late_creator: PersonItem[]; blocked: PersonItem[] }
+    open: { backlog: PersonItem[]; open: PersonItem[] }
+  }[]
+  check?: Record<string, Record<string, [number, number]>> // 달마다 [사람 합, 지도 값], 주간 잡 점검용
 }

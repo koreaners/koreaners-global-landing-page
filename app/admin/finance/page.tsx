@@ -7,9 +7,10 @@ import { AutoForm } from './auto-form'
 import { getRates } from '@/lib/finance/fx'
 import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
-import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, ownersOf, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
+import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, ownersOf, cnt, quarterLabel, quarters, quarterSheet, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
-import { FunnelTrendTab } from './funnel-trend'
+import { FunnelTrendTab, readTrend } from './funnel-trend'
+import type { FunnelTrend } from '@/lib/reports'
 import { COLOR } from './colors'
 import { Card, CUR_NAME, Fetched, CURS, hit, Info, LINK, Money, Notes, orig, Panel, SearchBox, sortRows, Table, td, tdl, Tile, won, won2 } from './ui'
 
@@ -31,7 +32,7 @@ type Tab = (typeof TABS)[number][0]
 
 const pct = (r: number | null | undefined) => (r == null ? '-' : `${(r * 100).toFixed(1)}%`)
 
-type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string; o?: string; k?: string; st?: string } // o: 안건 탭을 담당자 한 명으로 거름, k/st: 캘린더 표 구분(in/out)과 상태(kind.state) 필터
+type Search = { tab?: string; y?: string; m?: string; sel?: string; b?: string; d?: string; f?: string; s?: string; o?: string; k?: string; st?: string; qt?: string } // o: 안건 탭을 담당자 한 명으로 거름, k/st: 캘린더 표 구분(in/out)과 상태(kind.state) 필터, qt: 담당자 탭 분기(2026-Q4)
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams
@@ -48,8 +49,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
   let data: Awaited<ReturnType<typeof getFinance>>
   let rates: Rates
+  let trend: FunnelTrend | null
   try {
-    ;[data, rates] = await Promise.all([getFinance(), getRates()])
+    // 추이 파일(주간 잡): 안건별 정담당은 담당자를 쓰는 탭(개요 패널, 안건 담당자 필터, 담당자)에서, 사람 단면은 담당자 탭에서. 없거나 못 읽으면 지금처럼 계약 담당자(정)
+    ;[data, rates, trend] = await Promise.all([getFinance(), getRates(), ['summary', 'contracts', 'owners'].includes(tab) ? readTrend().catch(() => null) : null])
   } catch (e) {
     return (
       <div className="space-y-2 rounded-xl border border-red-900 bg-red-950/40 p-6">
@@ -61,11 +64,11 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   }
 
   const period = { year, month }
-  const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks, data.alias)
+  const model = buildModel(data.contracts, data.payouts, rates, period, today, basis, data.bankLinks, data.alias, trend?.deal_owner ?? {})
   const tw = model.receivables.twikr // 트위커 표시라 받을 돈에서 뺀 입금 전 회차(미수 탭 안내)
   const pp = priorPeriod(period, today)
-  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis, data.bankLinks, data.alias) : null
-  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis, data.bankLinks, data.alias) : null
+  const prior = pp && tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, pp, today, basis, data.bankLinks, data.alias, trend?.deal_owner ?? {}) : null
+  const all = tab === 'summary' ? buildModel(data.contracts, data.payouts, rates, { year: null, month: null }, today, basis, data.bankLinks, data.alias, trend?.deal_owner ?? {}) : null
   const span = (p: { year: number | null; month: number | null; upto?: number | null }) =>
     p.year == null ? '전체 기간' : p.month ? `${p.year}년 ${p.month}월` : p.upto ? `${p.year}년 1~${p.upto}월` : `${p.year}년`
   const labels = { cur: span(period), prev: pp ? span(pp) : null }
@@ -73,7 +76,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const years = [...new Set(data.contracts.map((c) => c.contractDate?.slice(0, 4)).filter(Boolean) as string[])].sort().reverse()
   const q = (over: Partial<Search>) => {
     const s = new URLSearchParams()
-    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s, o: sp.o, k: sp.k, st: sp.st } // 탭을 옮기면 검색어, 정렬, 필터는 버림
+    const keep = over.tab && over.tab !== tab ? {} : { f: sp.f, s: sp.s, o: sp.o, k: sp.k, st: sp.st, qt: sp.qt } // 탭을 옮기면 검색어, 정렬, 필터는 버림
     const merged = { tab, y: year == null ? 'all' : String(year), m: month ? String(month) : undefined, b: basis === 'contract' ? basis : undefined, ...keep, ...over }
     for (const [k, v] of Object.entries(merged)) if (v) s.set(k, v)
     return `/admin/finance?${s}`
@@ -97,7 +100,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         {tab !== 'receivables' && <AutoForm className="flex flex-wrap items-center gap-2 text-sm" action="/admin/finance">
           <input type="hidden" name="tab" value={tab} />
           {/* 기준, 기간을 바꿔도 보던 크리에이터, 계약 상세와 검색, 정렬은 그대로 */}
-          {(['sel', 'f', 's', 'o'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
+          {(['sel', 'f', 's', 'o', 'qt'] as const).map((k) => sp[k] && <input key={k} type="hidden" name={k} value={sp[k]} />)}
           <select name="y" defaultValue={year == null ? 'all' : String(year)} className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-neutral-200">
             <option value="all">전체 기간</option>
             {years.map((y) => (
@@ -123,7 +126,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       {tab === 'calendar' && <Calendar items={calendarMonth(data.contracts, data.payouts, rates, calYm, today, data.bankLinks)} ym={calYm} today={today} sel={sp.d} q={q} f={sp.f} s={sp.s} k={sp.k} st={sp.st} />}
       {tab === 'contracts' && <Contracts model={model} rates={rates} sel={sp.sel} q={q} f={sp.f} s={sp.s} o={sp.o} st={sp.st} today={today} />}
       {tab === 'creators' && <Creators model={model} rates={rates} all={data.payouts} contracts={data.contracts} ig={data.ig} igError={data.igError} today={today} sel={sp.sel} q={q} f={sp.f} s={sp.s} basis={basis} />}
-      {tab === 'owners' && <Owners model={model} q={q} s={sp.s} year={year} />}
+      {tab === 'owners' && <Owners model={model} q={q} s={sp.s} year={year} trend={trend} sel={sp.sel} qt={sp.qt} />}
       {tab === 'basis' && <Basis model={model} rates={rates} basis={basis} src={data} q={q} />}
       {tab === 'receivables' && tw.length > 0 && (
         <details className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-4 py-2.5 text-xs text-neutral-400">
@@ -402,7 +405,7 @@ function Overview({ model, prior, all, labels, year, month, today, rates, q, bas
         <Panel title="담당자별 계약" sub={`${labels.cur}, 계약일 기준 공급가와 마진율, 여러 명이 맡은 계약은 n분의 1`} action={<Link href={q({ tab: 'owners' })} className={MORE}>전체 <Arrow /></Link>}>
           <div className="space-y-2.5">
             {topOwners.map((o) => (
-              <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${o.count}건, ${ownerRate(o, model)}`} />
+              <BarRow key={o.owner} label={o.owner} value={o.supply} max={oMax} color={REV} aside={`${cnt(o.count)}건, ${ownerRate(o, model)}`} />
             ))}
           </div>
           {(year == null || year < 2026) && <p className="text-xs text-amber-200/90">{OWNER_GAP}</p>}
@@ -555,7 +558,7 @@ function Contracts({ model, rates, sel, q, f, s = '-day', o, st, today }: { mode
   // st=cost: 기준 탭 「원가 누락 의심」 계약만
   // st=voucher: 계약 DB 「수출바우처」 칸에 값이 있는 계약만
   const all = st === 'cost' ? model.contracts.filter((x) => x.costFlag === 'missing') : st === 'nolink' ? model.contracts.filter(noLinkPaid) : st === 'voucher' ? model.contracts.filter((x) => x.c.voucher) : model.contracts
-  const pool = o ? all.filter((x) => ownersOf(x.c, model.alias).includes(o)) : all
+  const pool = o ? all.filter((x) => ownersOf(x.c, model.alias, model.dealOwner).includes(o)) : all
   const rows = sortRows(pool.filter((x) => hit(f, x.c.code, x.c.brand, x.c.corp, x.c.owner)), s, {
     code: (x) => x.c.code, brand: (x) => x.c.brand || x.c.corp, owner: (x) => x.c.owner, day: (x) => x.day,
     supply: (x) => x.supply, received: (x) => x.supply == null ? null : x.received, due: (x) => x.due, overdue: (x) => (x.c.twikr ? null : x.overdue), cost: (x) => x.c.source === 'sheet' ? null : x.cost, margin: (x) => x.margin,
@@ -809,15 +812,17 @@ function Creators({ model, rates, all, contracts, ig, igError, today, sel, q, f,
 /** 담당자 마진율. 계약 어디에도 지급이 연결되지 않았으면 100%가 아니라 「지급 연결 없음」 */
 function ownerRate(o: Model['owners'][number], model: Model) {
   if (o.rate == null) return '마진율 -'
-  const linked = model.contracts.some((x) => ownersOf(x.c, model.alias).includes(o.owner) && x.payouts.length)
+  const linked = model.contracts.some((x) => ownersOf(x.c, model.alias, model.dealOwner).includes(o.owner) && x.payouts.length)
   return linked ? `마진율 ${pct(o.rate)}` : '지급 연결 없음'
 }
 
 // 2025 계약은 대부분 백필이라 원천 자료에 담당자가 없음(261113 감사: 2025년 공급가 83%가 미지정)
 const OWNER_GAP = '2025년까지의 계약은 대부분 담당자(정)가 비어 있어 「미지정」으로 잡힙니다.'
 
-function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partial<Search>) => string; s?: string; year: number | null }) {
-  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => ownersOf(x.c, model.alias).includes(o.owner) && x.payouts.length)
+function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Model; q: (o: Partial<Search>) => string; s?: string; year: number | null; trend: FunnelTrend | null; sel?: string; qt?: string }) {
+  const linked = (o: Model['owners'][number]) => model.contracts.some((x) => ownersOf(x.c, model.alias, model.dealOwner).includes(o.owner) && x.payouts.length)
+  const people = Array.isArray(trend?.people?.months) && Array.isArray(trend?.people?.rows) ? trend!.people! : null
+  const inPeople = (n: string) => !!people?.rows.some((r) => r.name === n)
   const rows = sortRows(model.owners, s, {
     owner: (o) => o.owner, count: (o) => o.count, supply: (o) => o.supply, received: (o) => o.received, cost: (o) => o.cost,
     margin: (o) => (o.rate == null && !o.margin ? null : o.margin), rate: (o) => (o.rate != null && linked(o) ? o.rate : null), // 지급 연결 없음은 100%로 치지 않고 끝으로
@@ -825,13 +830,14 @@ function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partia
   return (
     <div className="space-y-2">
       <Table head={['담당자', '계약 수', '공급가', '입금액', '변동비', '마진', '마진율']}
-        sort={{ keys: ['owner', 'count', 'supply', 'received', 'cost', 'margin', 'rate'], cur: s, href: (k) => q({ s: k }) }}>
+        sort={{ keys: ['owner', 'count', 'supply', 'received', 'cost', 'margin', 'rate'], cur: s, href: (k) => q({ s: k, sel }) }}>
         {rows.map((o) => (
-          <tr key={o.owner}>
+          <tr key={o.owner} className={o.owner === sel ? 'bg-neutral-800/60' : ''}>
             <td className={tdl}>
-              <Link href={q({ tab: 'contracts', o: o.owner })} className={LINK}>{o.owner}</Link>
+              {/* 사람 단면에 있는 이름은 분기 한 장으로, 없으면(주간 잡 전, 「미지정」) 지금처럼 그 사람 안건 목록으로 */}
+              <Link href={inPeople(o.owner) ? `${q({ sel: o.owner })}#quarter` : q({ tab: 'contracts', o: o.owner })} className={LINK}>{o.owner}</Link>
             </td>
-            <td className={td}>{o.count}</td>
+            <td className={td}>{cnt(o.count)}</td>
             <Money n={o.supply} />
             <Money n={o.received} />
             <Money n={o.cost} />
@@ -842,12 +848,94 @@ function Owners({ model, q, s = '-supply', year }: { model: Model; q: (o: Partia
       </Table>
       {(year == null || year < 2026) && <p className="text-xs text-amber-200/90">{OWNER_GAP}</p>}
       <Notes items={[
-        '노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다.',
+        Object.keys(model.dealOwner).length
+          ? '주간 잡 안건별 정담당(운영보드 우선, 퇴사자 인계 반영) 기준입니다. 담당 표에 없는 계약은 노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다.'
+          : '노션 계약 DB 「담당자(정)」 기준입니다. 세일즈 담당자 칸은 아직 없습니다.',
+        Object.keys(model.dealOwner).length > 0 && '담당 표는 매주 월요일 07:00 주간 잡에서 갱신해 주중에 바뀐 운영보드 담당은 다음 월요일에 반영됩니다.',
         '공급가가 없는 계약은 빠집니다.',
-        '여러 명이 맡은 계약(「,」나 「/」로 나눔)은 공급가, 입금액, 변동비, 마진을 n분의 1씩 나눕니다.',
-        '계약 수는 여러 명이 맡아도 각자 1건으로 셉니다.',
+        '여러 명이 맡은 계약은 계약 수, 공급가, 입금액, 변동비, 마진을 정담당 n분의 1씩 나눕니다. 계약 수는 정수가 아니면 소수 한 자리입니다.',
+        people && '담당자 이름을 누르면 아래에 그 사람의 분기 한 장이 나옵니다.',
       ]} />
+      <Quarter model={model} q={q} people={people} actions={trend?.actions ?? {}} sel={sel} qt={qt} />
     </div>
+  )
+}
+
+const TWIKR_TIP = '트위커 분기 정산을 계약별로 나눈 추정값이 원가에 들어 있어 이 공헌이익은 순위 판단에 쓰지 않습니다.'
+const signed = (n: number, f: (n: number) => string) => `${n > 0 ? '+' : ''}${f(n)}`
+const names = (xs: { code: string; name?: string; corp?: string }[]) => (xs.length ? xs.map((x) => x.name || x.corp || x.code).join(', ') : '없음')
+
+/** 담당자 탭 분기 한 장: 사람과 분기를 고르면 기여, 재계약, 절차, 흐름, 변화. 값은 주간 잡 사람 단면(추이 파일 people)의 석 달 합, 점수와 순위는 없음(설계 261125 결정 4) */
+function Quarter({ model, q, people, actions, sel, qt }: { model: Model; q: (o: Partial<Search>) => string; people: NonNullable<FunnelTrend['people']> | null; actions: FunnelTrend['actions']; sel?: string; qt?: string }) {
+  if (!people?.rows.length || !people.months.length) return <p id="quarter" className="text-sm text-neutral-500">사람 단면은 다음 주간 잡(월요일 07:00) 뒤에 표시됩니다</p>
+  const qs = quarters(people)
+  const cq = qt && qs.includes(qt) ? qt : qs.at(-1)!
+  const x = sel ? quarterSheet(people, sel, cq, actions, model.alias) : null
+  const chip = (on: boolean) => `rounded-md px-2 py-0.5 text-xs ${on ? 'bg-neutral-700 text-neutral-50' : 'bg-neutral-800/60 text-neutral-400 hover:text-neutral-200'}`
+  const block = 'space-y-2 rounded-lg border border-neutral-800 p-4 text-sm'
+  const h3 = 'text-xs font-semibold text-neutral-300'
+  const twikr = !!x && x.cur.twikr_est > 0
+  const share = (r: number | null | undefined) => (x?.share && r != null ? `${x.roles.join(', ')} 합의 ${pct(r)}` : '')
+  return (
+    <Panel id="quarter" title={x ? `${sel}, ${quarterLabel(cq)}` : '분기 한 장'} sub={x ? `입금 달 기준 ${x.months.map((m) => `${Number(m.slice(5))}월`).join(', ')} 합` : '사람을 고르면 입금 달 기준 석 달 합'}
+      action={x && model.owners.some((o) => o.owner === sel) ? <Link href={q({ tab: 'contracts', o: sel })} className={MORE}>안건 목록 <Arrow /></Link> : undefined}>
+      <div className="flex flex-wrap gap-1.5">
+        {qs.map((k) => <Link key={k} href={`${q({ sel, qt: k })}#quarter`} className={chip(k === cq)}>{quarterLabel(k)}</Link>)}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {people.rows.map((r) => <Link key={r.name} href={`${q({ sel: r.name, qt })}#quarter`} className={chip(r.name === sel)}>{r.name}{r.status === '퇴사' ? ' (퇴사)' : ''}</Link>)}
+      </div>
+      {sel && !x && <p className="text-sm text-neutral-500">{sel}: 사람 단면에 없는 이름입니다</p>}
+      {x && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Tile label="안건 수" value={`${cnt(x.cur.deals)}건`} full={`${x.cur.deals}건`} note={share(x.share?.deals)} tipAlign="left" />
+            <Tile label="계약 공급가" value={won2(x.cur.supply)} full={won(x.cur.supply)} note={share(x.share?.supply)} />
+            <Tile label="공헌이익" value={won2(x.cur.contrib)} full={won(x.cur.contrib)} note={[twikr && '트위커 추정 포함', share(x.share?.contrib)].filter(Boolean).join(', ')} hint={twikr ? TWIKR_TIP : undefined} />
+            <Tile label="재계약" value={won2(x.cur.rep_amt)} side={`${cnt(x.cur.rep_n)}건`} full={won(x.cur.rep_amt)} note={names(x.deals.filter((d) => d.rep))} />
+          </div>
+          <section className={block}>
+            <h3 className={h3}>기여</h3>
+            <Table head={['법인', '코드', '몫', '공급가', '공헌이익']} left={2}>
+              {x.deals.map((d) => (
+                <tr key={d.code}>
+                  <td className={tdl}>{d.corp || '-'}{d.twikr && <span className="ml-1.5 inline-flex items-center gap-1 text-xs text-amber-200/90">트위커 추정 포함 <Info text={TWIKR_TIP} /></span>}</td>
+                  <td className={tdl}>{d.code}</td>
+                  <td className={td} data-sort={d.share}>{cnt(d.share)}</td>
+                  <Money n={d.supply} />
+                  <Money n={d.contrib} />
+                </tr>
+              ))}
+            </Table>
+            {!x.deals.length && <p className="text-xs text-neutral-500">이 분기 안건 없음</p>}
+          </section>
+          <div className="grid gap-3 lg:grid-cols-3">
+            <section className={block}>
+              <h3 className={h3}>절차</h3>
+              {([['exc', '절차 예외'], ['late_creator', '사후 크리에이터 계약'], ['blocked', '막힌 지급']] as const).map(([k, l]) => (
+                <p key={k}><span className="text-neutral-400">{l} {cnt(x.proc[k].n)}건</span><br /><span className="text-neutral-200">{names(x.proc[k].items)}</span></p>
+              ))}
+            </section>
+            <section className={block}>
+              <h3 className={`${h3} inline-flex items-center gap-1`}>흐름 <Info text="본인이 입력하는 상태 값이라 면담 자료로만 봅니다." /></h3>
+              <p><span className="text-neutral-400">적체 안건 {x.open.backlog.length}건</span><br /><span className="text-neutral-200">{names(x.open.backlog)}</span></p>
+              <p><span className="text-neutral-400">열린 안건 {x.open.open.length}건</span><br /><span className="text-neutral-200">{names(x.open.open)}</span></p>
+            </section>
+            <section className={block}>
+              <h3 className={h3}>변화</h3>
+              {x.prev ? (
+                <p className="text-neutral-200">
+                  <span className="text-neutral-400">{quarterLabel(x.prevQ)} 대비</span><br />
+                  안건 수 {signed(x.cur.deals - x.prev.deals, (n) => `${cnt(n)}건`)}, 계약 공급가 {signed(x.cur.supply - x.prev.supply, won2)}, 공헌이익 {signed(x.cur.contrib - x.prev.contrib, won2)}, 재계약 금액 {signed(x.cur.rep_amt - x.prev.rep_amt, won2)}
+                </p>
+              ) : <p className="text-neutral-500">{quarterLabel(x.prevQ)} 값 없음</p>}
+              <p className="text-neutral-400">하이라키 액션</p>
+              {x.actions.length ? x.actions.map((a, i) => <p key={i} className="text-neutral-200">{Number(a.month.slice(5))}월 {a.title}{a.text ? `: ${a.text}` : ''}</p>) : <p className="text-neutral-500">없음</p>}
+            </section>
+          </div>
+        </div>
+      )}
+    </Panel>
   )
 }
 

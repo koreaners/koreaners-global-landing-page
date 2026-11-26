@@ -1,6 +1,7 @@
 // 관리자 대시보드 집계 (설계: 볼트 work/261010-설계-관리자대시보드).
 // 순수 함수만 둔다. node 로 바로 돌리는 점검(model.check.mjs)이 이 파일을 타입만 지워 읽으므로
 // enum, namespace 같은 지울 수 없는 문법과 런타임 import 는 쓰지 않는다.
+import type { FunnelTrend, People, PersonDeal, PersonItem } from '../reports'
 
 export type Currency = 'KRW' | 'JPY' | 'USD' | 'CNY'
 
@@ -397,6 +398,7 @@ export type Model = {
   receivables: { buckets: Bucket[]; open: OpenItem[]; twikr: OpenItem[] } // twikr: 트위커 표시라 받을 돈에서 뺀 계약의 입금 전 회차(미수 탭 안내). 받을 돈(부가세 포함, 일부 입금 뺀 남은 금액) 만기 구간, 회차 목록(예정일 이른 순, 없는 것 뒤)
   payables: Bucket[] // 줄 돈 상태 묶음(부가세 포함, grossPayoutKrw)
   alias: Record<string, string> // owners 를 묶은 담당자 별칭 표(ownerAlias), 화면이 ownersOf 에 같은 표를 넘김
+  dealOwner: Record<string, string[]> // 주간 잡 안건별 정담당 표(추이 파일 deal_owner), 화면이 ownersOf 에 같은 표를 넘김
 }
 
 const DAY = 86_400_000
@@ -419,21 +421,31 @@ export function agingBuckets(open: OpenItem[], today: string): Bucket[] {
 }
 
 /** 담당자 표기 → 노션 「구성원 (결재 조직도)」 전체 이름. 이름 자신, 짧은 이름(띄어 쓴 이름은 끝 토막, 붙여 쓴 이름은 첫 글자 뺀 나머지),
- * 「표기」 칸 항목. 짧은 이름이 두 사람에게 겹치면 뺌(표기 칸에 적힌 것은 넣음). 앞선 것을 뒤가 덮음: 짧은 이름 < 표기 < 전체 이름 */
+ * 「표기」 칸 항목. 짧은 이름이 두 사람에게 겹치면 뺌(표기 칸에 적힌 것은 넣음). 앞선 것을 뒤가 덮음: 짧은 이름 < 전체 이름 < 표기(brain name_alias 와 같은 순서) */
 export function ownerAlias(members: { name: string; aka: string[] }[]): Record<string, string> {
   const short = (n: string) => (n.includes(' ') ? n.split(/\s+/).at(-1)! : n.slice(1))
   const who = new Map<string, Set<string>>()
   for (const { name } of members) if (name && short(name)) who.set(short(name), (who.get(short(name)) ?? new Set()).add(name))
   const out: Record<string, string> = {}
   for (const [s, ns] of who) if (ns.size === 1) out[s] = [...ns][0]
-  for (const { name, aka } of members) if (name) for (const a of aka) if (a.trim()) out[a.trim()] = name
   for (const { name } of members) if (name) out[name] = name
+  for (const { name, aka } of members) if (name) for (const a of aka) if (a.trim()) out[a.trim()] = name
   return out
 }
-/** 계약 담당자(정) 목록: 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭 표(ownerAlias)로 맞춘 뒤 중복 없이, 표에 없으면 원문 그대로, 비면 미지정 */
-export const ownersOf = (c: Contract, alias: Record<string, string>): string[] => {
+/** 안건 정담당 목록: 주간 잡 담당 표(dealOwner, 운영보드 우선, 퇴사자 인계 반영)에 유니크코드가 있으면 그 목록.
+ * 없으면 계약 담당자(정)를 「,」와 「/」로 나누고 앞뒤 공백을 지워 별칭 표(ownerAlias)로 맞춘 뒤 중복 없이, 표에 없으면 원문 그대로, 비면 미지정
+ * ponytail: 담당 표가 주 1회(월요일 07:00 주간 잡) 갱신이라 주중 운영보드 담당 변경은 다음 월요일 반영, 새 계약은 계약 담당자(정)로 먼저 표시 */
+export const ownersOf = (c: Contract, alias: Record<string, string>, dealOwner: Record<string, string[]> = {}): string[] => {
+  const d = dealOwner[c.code]
+  if (d?.length) return [...new Set(d)]
   const xs = [...new Set(c.owner.split(/[,/]/).map((s) => s.trim()).filter(Boolean).map((s) => alias[s] ?? s))]
   return xs.length ? xs : ['미지정']
+}
+
+/** 건수 표기: 정담당 n분의 1이라 소수가 생김. 정수면 정수, 아니면 소수 한 자리(더한 값의 부동소수 오차는 반올림으로 지움) */
+export const cnt = (n: number) => {
+  const r = Math.round(n * 10) / 10
+  return Number.isInteger(r) ? String(r) : r.toFixed(1)
 }
 
 /** 지급 기준일: 송금일, 없으면 송금 요청일, 없으면 연결 계약 기준일 */
@@ -464,7 +476,7 @@ export const isDead = (p: Payout) => {
   return p.status === CLOSED || (p.status === '보류' && DEAD.test(top) && !top.includes('확인 전'))
 }
 
-export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = [], alias: Record<string, string> = {}): Model {
+export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, period: Period, today = new Date().toISOString().slice(0, 10), basis: Basis = 'cash', links: BankLink[] = [], alias: Record<string, string> = {}, dealOwner: Record<string, string[]> = {}): Model {
   // 봇 계약은 서명 전에 유니크코드 없이 행을 만들고 서명완료 때 코드를 발급한다. 코드 없는 행은 아직 계약이 아니라 뺀다
   const unsigned = contracts.filter((c) => !c.code).length
   const dayById = new Map(contracts.map((c) => [c.id, c])) // 서명 전 계약 포함: 지급 기준일(payoutDay)에만 씀(서명 전 계약에 걸린 지급이 기간을 고르면 사라지던 문제, 261113 감사)
@@ -698,15 +710,15 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
   }
   for (const c of creators.values()) c.months.sort((a, b) => b.month.localeCompare(a.month))
 
-  // 담당자별. 여러 명이 맡은 계약은 돈을 n분의 1씩, 건수는 각자 1건(인혁 261113). 담당자 줄 돈의 합 = 회사 합계
+  // 담당자별. 여러 명이 맡은 계약은 건수와 돈 모두 정담당 n분의 1씩(설계 261125 결정 2). 담당자 줄 합 = 회사 합계(건수는 계약 수)
   const owners = new Map<string, OwnerRow>()
   const marginSupply = new Map<string, number>() // 마진율 분모: 마진을 셈한 계약 공급가만
   for (const x of priced) {
-    const keys = ownersOf(x.c, alias)
+    const keys = ownersOf(x.c, alias, dealOwner)
     const f = 1 / keys.length
     for (const key of keys) {
       const o = owners.get(key) ?? { owner: key, count: 0, supply: 0, received: 0, cost: 0, margin: 0, rate: null }
-      o.count += 1
+      o.count += f
       o.supply += (x.supply ?? 0) * f
       o.received += x.received * f
       o.cost += x.cost * f
@@ -766,6 +778,7 @@ export function buildModel(contracts: Contract[], payouts: Payout[], r: Rates, p
     receivables: { buckets: agingBuckets(open, today), open, twikr },
     payables,
     alias,
+    dealOwner,
   }
 }
 
@@ -865,4 +878,72 @@ export function dailyBalance(items: CalItem[], ym: string): number[] {
   for (const x of items) if (x.date.startsWith(ym) && !['late', 'guess', 'unsigned'].includes(x.state)) net[+x.date.slice(8) - 1] += x.kind === 'in' ? x.krw : -x.krw
   let b = 0
   return net.map((n) => (b += n))
+}
+
+// 담당자 탭 분기 한 장(설계 261125 「3. 개인 성과」, 「순서 3 설계」). 사람 단면(people)은 주간 잡이 계산해 추이 파일에 싣고 여기선 석 달을 더하기만 함
+const QSUM = ['deals', 'supply', 'contrib', 'rep_n', 'rep_amt', 'twikr_est'] as const
+type QSum = Record<(typeof QSUM)[number], number>
+export const quarterOf = (ym: string) => `${ym.slice(0, 4)}-Q${Math.ceil(Number(ym.slice(5, 7)) / 3)}`
+export const quarterLabel = (q: string) => `${q.slice(0, 4)} ${q.slice(6)}분기`
+const monthsOfQ = (q: string) => [1, 2, 3].map((i) => `${q.slice(0, 4)}-${String((Number(q.slice(6)) - 1) * 3 + i).padStart(2, '0')}`)
+const prevQ = (q: string) => (q.endsWith('Q1') ? `${Number(q.slice(0, 4)) - 1}-Q4` : `${q.slice(0, 6)}${Number(q.slice(6)) - 1}`)
+/** people.months 에서 나오는 분기(오름차순) */
+export const quarters = (p: People) => [...new Set(p.months.map(quarterOf))].sort()
+
+export type QuarterSheet = {
+  q: string
+  months: string[] // 이 분기 가운데 사람 단면에 있는 달(진행 중 분기는 석 달이 안 됨)
+  cur: QSum
+  prev: QSum | null // 전 분기 달이 사람 단면에 없으면 null
+  prevQ: string
+  roles: string[]
+  share: { deals: number | null; supply: number | null; contrib: number | null } | null // 같은 기능(roles가 하나라도 겹치는) 사람들 합 대비, 기능이 없으면 null
+  deals: PersonDeal[] // 석 달 안건, 같은 코드는 합침, 공급가 큰 순
+  proc: Record<'exc' | 'late_creator' | 'blocked', { n: number; items: PersonItem[] }>
+  open: { backlog: PersonItem[]; open: PersonItem[] }
+  actions: (NonNullable<FunnelTrend['actions']>[string][number] & { month: string })[] // 이 분기와 전 분기 「하이라키 액션」 가운데 담당이 이 사람인 줄
+}
+
+/** 사람 한 명의 분기 한 장. 값은 그 분기 달 합(없는 달은 0), 절차는 달이 적힌 항목만 분기로 거르고, 흐름(적체, 열린 안건)은 지금 상태 그대로 */
+export function quarterSheet(p: People, name: string, q: string, actions: FunnelTrend['actions'] = {}, alias: Record<string, string> = {}): QuarterSheet | null {
+  const row = p.rows.find((r) => r.name === name)
+  if (!row) return null
+  const inData = (qq: string) => monthsOfQ(qq).filter((m) => p.months.includes(m))
+  const sum = (rows: People['rows'], ms: string[]) => {
+    const t = Object.fromEntries(QSUM.map((k) => [k, 0])) as QSum
+    for (const r of rows) for (const m of ms) for (const k of QSUM) t[k] += r.m?.[m]?.[k] ?? 0
+    return t
+  }
+  const ms = inData(q)
+  const pq = prevQ(q)
+  const pms = inData(pq)
+  const cur = sum([row], ms)
+  const roles = row.roles ?? []
+  const peers = p.rows.filter((r) => (r.roles ?? []).some((x) => roles.includes(x)))
+  const pt = roles.length ? sum(peers, ms) : null
+  const ratio = (a: number, b: number) => (b ? a / b : null)
+  const deals = new Map<string, PersonDeal>()
+  for (const m of ms) for (const d of row.m?.[m]?.deal_list ?? []) {
+    const o = deals.get(d.code)
+    if (o) Object.assign(o, { supply: o.supply + d.supply, contrib: o.contrib + d.contrib, rep: o.rep || d.rep, twikr: o.twikr || d.twikr })
+    else deals.set(d.code, { ...d })
+  }
+  const proc = (xs: PersonItem[] = []) => {
+    const items = xs.filter((x) => !x.month || ms.includes(x.month))
+    return { n: items.reduce((a, x) => a + (x.share ?? 1), 0), items }
+  }
+  const mine = (who: string) => who.split(/[,/]/).map((s) => s.trim()).map((s) => alias[s] ?? s).includes(name)
+  return {
+    q,
+    months: ms,
+    cur,
+    prev: pms.length ? sum([row], pms) : null,
+    prevQ: pq,
+    roles,
+    share: pt && { deals: ratio(cur.deals, pt.deals), supply: ratio(cur.supply, pt.supply), contrib: ratio(cur.contrib, pt.contrib) },
+    deals: [...deals.values()].sort((a, b) => b.supply - a.supply),
+    proc: { exc: proc(row.proc?.exc), late_creator: proc(row.proc?.late_creator), blocked: proc(row.proc?.blocked) },
+    open: { backlog: row.open?.backlog ?? [], open: row.open?.open ?? [] },
+    actions: [...monthsOfQ(pq), ...monthsOfQ(q)].flatMap((m) => (actions?.[m] ?? []).filter((a) => a.who && mine(a.who)).map((a) => ({ ...a, month: m }))),
+  }
 }
