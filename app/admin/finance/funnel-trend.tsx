@@ -13,7 +13,7 @@ const C2 = COLOR.out
 const C3 = COLOR.due // 셋째 계열은 무채색(C1, C2 와 색상으로 겹치지 않게)
 const rate = (a: number, k: number) => (k ? (100 * a) / k : null)
 
-// 신호등: 최신 경영진 보고서 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
+// 신호등: 최신 주간 집계 파일(weekly-report-*.json)의 신호등 줄(funnel.rows)을 그대로 씀. 색 판정을 여기서 다시 하지 않아 보고서와 어긋나지 않는다
 
 // 카드 머리의 신호등 값. 한 줄이면 제목과 같은 지표라 이름을 빼고 크게, 여러 줄이면 2칸 격자. 높이를 맞춰 아래 차트 시작선이 카드끼리 같게
 function Stats({ rows, title }: { rows: Row[]; title: string }) {

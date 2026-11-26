@@ -1,7 +1,7 @@
 import { Info } from './ui'
 import type { WeeklyReport } from '@/lib/reports'
 
-// 신호등 표: 경영진 보고서 「퍼널 신호등」과 지표 모니터링 「팀별 관리지표」가 같이 씀. 값과 색은 보고서 줄(funnel.rows) 그대로, 색 판정을 여기서 다시 하지 않음
+// 신호등 표: 지표 모니터링 「팀별 관리지표」가 씀(경영진 보고서 화면은 261126 폐지). 값과 색은 보고서 줄(funnel.rows) 그대로, 색 판정을 여기서 다시 하지 않음
 export type Row = NonNullable<WeeklyReport['funnel']>['rows'][number]
 export type Item = { label: string; code?: string; row?: Row }
 
@@ -70,7 +70,7 @@ const LAYOUT = {
 } as const
 
 // 묶음마다 머리 줄, 줄마다 지표 | 실제 / 목표 | 달성률 | (주차별, 비교) | 기준. 좁으면 달성률, 기준을 지표와 값 아래로 내림.
-// 주차별과 비교 칸은 좁은 상자에선 빠짐(값은 넓은 화면이나 보고서 원문에서). 감싸는 overflow 상자를 두지 않음(ⓘ 말풍선이 잘림)
+// 주차별과 비교 칸은 좁은 상자에선 빠짐(값은 넓은 화면에서). 감싸는 overflow 상자를 두지 않음(ⓘ 말풍선이 잘림)
 export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { groups: [string, Item[]][]; weeks?: { label: string; span: string }[]; mtd?: string; missing?: string }) {
   const rows = groups.flatMap(([, xs]) => xs.map((x) => x.row))
   const hasMtd = !!mtd && rows.some((r) => r?.mtd)
