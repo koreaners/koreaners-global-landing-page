@@ -79,11 +79,11 @@ export function AheadHeatmap({ cap, cols, dates, ops, rest }: { cap: number; col
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[60rem] text-sm">
+        <table className="text-sm">
           <thead>
             <tr className="whitespace-nowrap text-xs text-neutral-500">
               {head.map((h, i) => <th key={h} className={`pb-1.5 font-normal ${i ? 'pl-3 text-right' : 'sticky left-0 z-10 bg-neutral-900 pr-3 text-left'}`}>{h}</th>)}
-              {cols.map((c, i) => <th key={c} className={`pb-1.5 text-center font-normal ${start && i === at ? 'text-neutral-100' : ''}`}>{c}</th>)}
+              {cols.map((c, i) => <th key={c} className={`w-12 min-w-12 pb-1.5 text-center font-normal ${start && i === at ? 'text-neutral-100' : ''}`}>{c}</th>)}
               <th className="pb-1.5 pl-3 text-right font-normal">정리 필요</th>
               <th className="pb-1.5 pl-3 text-right font-normal">곧 시작</th>
             </tr>
