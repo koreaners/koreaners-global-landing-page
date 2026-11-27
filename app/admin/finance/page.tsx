@@ -871,29 +871,51 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
 /** 운영 인력 리소스 게이지(인혁 261127): 사람마다 지금 진행 중 안건의 크리에이터 수 합 ÷ 상한. 값은 주간 잡 사람 단면 load, 미배정과 인계 미지정은 끝에 */
 function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null }) {
   const cap = people?.load_cap
-  const nobody = (n: string) => n === '미배정' || n === '인계 미지정'
-  const rows = (people?.rows ?? []).filter((r) => r.load?.deals).sort((a, b) => Number(nobody(a.name)) - Number(nobody(b.name)) || b.load!.heads - a.load!.heads)
-  if (!cap || !rows.length) return null
+  const all = (people?.rows ?? []).filter((r) => r.load?.deals).sort((a, b) => b.load!.heads - a.load!.heads)
+  if (!cap || !all.length) return null
+  // 운영팀(구성원 DB 기능 「운영」)을 위에, 운영팀 밖 담당과 미배정, 인계 미지정은 아래 묶음으로
+  const ops = all.filter((r) => r.roles.includes('운영'))
+  const rest = all.filter((r) => !r.roles.includes('운영'))
+  // 한 격자: 이름 | 크리에이터 | 막대(폭 고정, 80% 눈금) | % | 안건 | 미상. 좁은 화면은 뒤 두 칸 숨김
+  const grid = 'grid grid-cols-[6rem_3rem_minmax(5rem,16rem)_2.5rem] items-center gap-x-3 sm:grid-cols-[7rem_3.5rem_minmax(8rem,20rem)_3rem_3.5rem_4rem]'
+  const num = 'text-right tabular-nums'
+  const line = (r: (typeof all)[number]) => {
+    const l = r.load!
+    const p = (100 * l.heads) / cap
+    const tone = p >= 100 ? 'red' : p >= 80 ? 'yellow' : 'green'
+    return (
+      <li key={r.name} className={`${grid} py-1 text-sm`}>
+        <span className="truncate text-neutral-200">{r.name}</span>
+        <span className={`${num} font-medium text-neutral-100`}>{Math.round(l.heads)}명</span>
+        <span className="relative h-2 rounded-full bg-neutral-800">
+          <i className={`absolute inset-y-0 left-0 rounded-full ${DOT[tone]}`} style={{ width: `${Math.min(p, 100)}%` }} />
+          <i className="absolute -inset-y-1 left-[80%] w-px bg-neutral-500" aria-hidden />
+        </span>
+        <span className={`${num} text-neutral-400`}>{Math.round(p)}%</span>
+        <span className={`${num} hidden text-neutral-400 sm:block`}>{cnt(l.deals)}건</span>
+        <span className={`${num} hidden sm:block ${l.unknown ? 'text-neutral-400' : 'text-neutral-600'}`}>{l.unknown ? `${cnt(l.unknown)}건` : '-'}</span>
+      </li>
+    )
+  }
   return (
-    <Panel title="운영 리소스" sub={`사람마다 진행 중 안건의 크리에이터 수 합 ÷ ${cap}명`}>
-      {/* 목록 전체가 한 격자라 막대 폭이 줄마다 같음. 좁은 화면은 숫자를 막대 아래 줄로 */}
-      <ul className="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-1.5 text-sm sm:grid-cols-[6.5rem_minmax(4rem,1fr)_auto]">
-        {rows.map((r) => {
-          const l = r.load!
-          const p = (100 * l.heads) / cap
-          return (
-            <li key={r.name} className="contents">
-              <span className="truncate text-neutral-200">{r.name}</span>
-              <span className="h-1.5 overflow-hidden rounded-full bg-neutral-800">
-                <i className={`block h-full rounded-full ${DOT[p >= 100 ? 'red' : p >= 80 ? 'yellow' : 'green']}`} style={{ width: `${Math.min(p, 100)}%` }} />
-              </span>
-              <span className="col-start-2 -mt-1 break-keep text-xs tabular-nums text-neutral-400 sm:col-start-auto sm:mt-0 sm:whitespace-nowrap sm:text-right">
-                <span className="text-neutral-200">{cnt(l.heads)}명({Math.round(p)}%)</span>, 안건 {cnt(l.deals)}건{l.unknown ? `, 인원 미상 ${cnt(l.unknown)}건` : ''}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+    <Panel title="운영 리소스" sub={`진행 중 안건의 크리에이터 수 합, ${cap}명 대비. 세로선은 80%`}>
+      <div>
+        <div className={`${grid} whitespace-nowrap border-b border-neutral-800 pb-1.5 text-xs text-neutral-500`}>
+          <span>담당</span>
+          <span className={num}>크리에이터</span>
+          <span />
+          <span className={num}>비율</span>
+          <span className={`${num} hidden sm:block`}>안건</span>
+          <span className={`${num} hidden sm:block`}>인원 미상</span>
+        </div>
+        <ul className="pt-1">{ops.map(line)}</ul>
+        {rest.length > 0 && (
+          <>
+            <p className="mt-2 border-t border-neutral-800 pt-2 text-xs text-neutral-500">운영팀 밖 담당, 미배정, 인계 미지정</p>
+            <ul className="pt-1 opacity-80">{rest.map(line)}</ul>
+          </>
+        )}
+      </div>
       <Notes items={[
         `크리에이터 수는 안건마다 지급내역 받는 사람 수와 봇 크리에이터 계약 요청 수 중 큰 값입니다. 둘 다 없는 안건은 인원 미상으로 세고 막대에는 넣지 않습니다.`,
         '진행 중은 운영보드 상태 「진행 중」입니다. 담당은 운영보드 정담당, 없으면 계약 「담당자(정)」이고 여러 명이면 n분의 1입니다.',
