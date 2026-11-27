@@ -951,7 +951,7 @@ function Quarter({ model, q, people, actions, sel, qt }: { model: Model; q: (o: 
           <div className="grid gap-3 lg:grid-cols-3">
             <section className={block}>
               <h3 className={h3}>절차</h3>
-              {([['exc', '절차 예외'], ['late_creator', '사후 크리에이터 계약'], ['blocked', '막힌 지급']] as const).map(([k, l]) => (
+              {([['exc', '절차 예외'], ['late_creator', '사후 크리에이터 계약'], ['blocked', '막힌 지급'], ['margin', '마진 미달']] as const).map(([k, l]) => (
                 <div key={k}><p className="text-neutral-400">{l} {cnt(x.proc[k].n)}건</p><Items xs={x.proc[k].items} /></div>
               ))}
             </section>

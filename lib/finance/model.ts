@@ -915,7 +915,7 @@ export type QuarterSheet = {
   share: { deals: number | null; supply: number | null; contrib: number | null } | null // 같은 기능(roles가 하나라도 겹치는) 사람들 합 대비, 기능이 없으면 null
   deals: QuarterLine[] // 석 달 안건(deal_list), 같은 코드는 금액만 합침, 공급가 큰 순. 금액 합 = cur.supply, cur.contrib
   rep: QuarterRep[] | null // 재계약 안건(rep_list, 계약 기준일 달). 옛 파일처럼 rep_list 가 없으면 null(이름 없이 건수, 금액만)
-  proc: Record<'exc' | 'late_creator' | 'blocked', { n: number; items: PersonItem[] }> // 달력상 석 달에 month 가 드는 항목만, n 은 share 합
+  proc: Record<'exc' | 'late_creator' | 'blocked' | 'margin', { n: number; items: PersonItem[] }> // 달력상 석 달에 month 가 드는 항목만, n 은 share 합
   open: Record<'backlog' | 'open', { n: number; items: PersonItem[] }> // 지금 상태(분기 무관), n 은 share 합
   actions: (NonNullable<FunnelTrend['actions']>[string][number] & { month: string })[] // 이 분기와 전 분기 「하이라키 액션」 가운데 담당이 이 사람인 줄
 }
@@ -966,7 +966,7 @@ export function quarterSheet(p: People, name: string, q: string, actions: Funnel
     share: pt && { deals: ratio(cur.deals, pt.deals), supply: ratio(cur.supply, pt.supply), contrib: ratio(cur.contrib, pt.contrib) },
     deals: [...deals.values()].sort((a, b) => b.supply - a.supply),
     rep: hasRep ? [...rep.values()].sort((a, b) => b.amt - a.amt) : null,
-    proc: { exc: proc(row.proc?.exc), late_creator: proc(row.proc?.late_creator), blocked: proc(row.proc?.blocked) },
+    proc: { exc: proc(row.proc?.exc), late_creator: proc(row.proc?.late_creator), blocked: proc(row.proc?.blocked), margin: proc(row.proc?.margin) },
     open: { backlog: n(row.open?.backlog ?? []), open: n(row.open?.open ?? []) },
     actions: [...monthsOfQ(pq), ...cal].flatMap((m) => (actions?.[m] ?? []).filter((a) => a.who && mine(a.who)).map((a) => ({ ...a, month: m }))),
   }

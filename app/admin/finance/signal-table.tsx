@@ -69,6 +69,9 @@ const LAYOUT = {
   6: { wk: '@6xl:table-cell', col: '', in: '', lab: 'w-full', nw: '' },
 } as const
 
+// 목표 0건 줄(적체, 절차 예외 등)은 달성률이 0% 아니면 100%뿐이라 막대 없이 건수와 걸린 안건 이름만(색 점은 그대로, 인혁 261127)
+const zeroGoal = (r?: { target?: string } | null) => r?.target === '0건'
+
 // 묶음마다 머리 줄, 줄마다 지표 | 실제 / 목표 | 달성률 | (주차별, 비교) | 기준. 좁으면 달성률, 기준을 지표와 값 아래로 내림.
 // 주차별과 비교 칸은 좁은 상자에선 빠짐(값은 넓은 화면에서). 감싸는 overflow 상자를 두지 않음(ⓘ 말풍선이 잘림)
 export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { groups: [string, Item[]][]; weeks?: { label: string; span: string }[]; mtd?: string; missing?: string }) {
@@ -134,10 +137,10 @@ export function SignalTable({ groups, weeks, mtd, missing = '값 없음' }: { gr
                     )}
                     {r?.target && <Goal t={r.target} className="ml-1 text-xs" />}
                     {sub && <span className="block text-xs text-neutral-500">{sub}</span>}
-                    {r?.rate != null && <span className="block text-xs text-neutral-500 @2xl:hidden">달성 {r.rate}%</span>}
+                    {r?.rate != null && !zeroGoal(r) && <span className="block text-xs text-neutral-500 @2xl:hidden">달성 {r.rate}%</span>}
                   </td>
                   <td className={`px-3 py-2 ${mid}`}>
-                    {r?.rate != null && (
+                    {r?.rate != null && !zeroGoal(r) && (
                       <span className="flex items-center justify-end gap-2 tabular-nums">
                         <span className="h-1.5 w-14 overflow-hidden rounded-full bg-neutral-800">
                           <i className={`block h-full rounded-full ${r.light ? DOT[r.light] : 'bg-neutral-500'}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
