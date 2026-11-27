@@ -48,7 +48,22 @@ export function AheadHeatmap({ cap, cols, dates, ops, rest }: { cap: number; col
     )
   }
   const okCount = n > 0 ? [...ops, ...rest].filter((r) => r.free[at] >= n).length : 0
-  const total = ops.reduce((s, r) => s + Math.max(0, r.free[at]), 0)
+  // 운영팀 합계: 주마다 여유 합(0 미만은 0, 남의 여유를 깎지 않게)
+  const sums = cols.map((_, i) => ops.reduce((s, r) => s + Math.max(0, r.free[i]), 0))
+  const total = sums[at]
+  const sumRow = (
+    <tr className="border-t border-neutral-800 font-medium">
+      <td className="sticky left-0 z-10 bg-neutral-900 py-1 pr-3 text-neutral-300">운영팀 합계</td>
+      <td className={`${td} text-neutral-100`}>{total}명</td>
+      {n > 0 && <td />}
+      {sums.map((x, i) => (
+        <td key={i} className={`px-0.5 py-0.5 ${start && i < at ? 'opacity-40' : ''}`}>
+          <span className={`block rounded py-1 text-center text-xs tabular-nums text-neutral-100 ${start && i === at ? 'ring-1 ring-neutral-200' : ''}`}>{x}</span>
+        </td>
+      ))}
+      <td colSpan={2} />
+    </tr>
+  )
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-400">
@@ -90,6 +105,7 @@ export function AheadHeatmap({ cap, cols, dates, ops, rest }: { cap: number; col
           </thead>
           <tbody>
             {rank(ops).map(line(false))}
+            {sumRow}
             {rest.length > 0 && sub('운영팀 밖 담당, 미배정, 인계 미지정')}
             {rank(rest).map(line(true))}
           </tbody>
