@@ -9,6 +9,7 @@ import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
 import { buildModel, calendarMonth, dailyBalance, HIGH_MARGIN, HIGH_MARGIN_TRIAL, type CostFlag, contractDay, creatorKey, grossPayoutKrw, isDead, ownersOf, cnt, defaultQuarter, quarterLabel, quarters, quarterSheet, quarterTitle, payoutKrw, priorPeriod, type Basis, type Contract, type ByCur, type CalItem, type Currency, type Model, type Payout, type Rates } from '@/lib/finance/model'
 import { CashflowChart, NET_COLOR, type FlowPoint } from './charts'
+import { DOT } from './signal-table'
 import { FunnelTrendTab, readTrend } from './funnel-trend'
 import type { FunnelTrend } from '@/lib/reports'
 import { COLOR } from './colors'
@@ -834,6 +835,7 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
   })
   return (
     <div className="space-y-2">
+      <Load people={people} />
       <Table head={['담당자', '계약 수', '공급가', '입금액', '변동비', '마진', '마진율']}
         sort={{ keys: ['owner', 'count', 'supply', 'received', 'cost', 'margin', 'rate'], cur: s, href: (k) => q({ s: k, sel }) }}>
         {rows.map((o) => (
@@ -866,7 +868,42 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
   )
 }
 
-const TWIKR_TIP = '트위커 분기 정산을 계약별로 나눈 추정값이 원가에 들어 있어 이 공헌이익은 순위 판단에 쓰지 않습니다.'
+/** 운영 인력 리소스 게이지(인혁 261127): 사람마다 지금 진행 중 안건의 크리에이터 수 합 ÷ 상한. 값은 주간 잡 사람 단면 load, 미배정과 인계 미지정은 끝에 */
+function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null }) {
+  const cap = people?.load_cap
+  const nobody = (n: string) => n === '미배정' || n === '인계 미지정'
+  const rows = (people?.rows ?? []).filter((r) => r.load?.deals).sort((a, b) => Number(nobody(a.name)) - Number(nobody(b.name)) || b.load!.heads - a.load!.heads)
+  if (!cap || !rows.length) return null
+  return (
+    <Panel title="운영 리소스" sub={`사람마다 진행 중 안건의 크리에이터 수 합 ÷ ${cap}명`}>
+      {/* 목록 전체가 한 격자라 막대 폭이 줄마다 같음. 좁은 화면은 숫자를 막대 아래 줄로 */}
+      <ul className="grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-1.5 text-sm sm:grid-cols-[6.5rem_minmax(4rem,1fr)_auto]">
+        {rows.map((r) => {
+          const l = r.load!
+          const p = (100 * l.heads) / cap
+          return (
+            <li key={r.name} className="contents">
+              <span className="truncate text-neutral-200">{r.name}</span>
+              <span className="h-1.5 overflow-hidden rounded-full bg-neutral-800">
+                <i className={`block h-full rounded-full ${DOT[p >= 100 ? 'red' : p >= 80 ? 'yellow' : 'green']}`} style={{ width: `${Math.min(p, 100)}%` }} />
+              </span>
+              <span className="col-start-2 -mt-1 break-keep text-xs tabular-nums text-neutral-400 sm:col-start-auto sm:mt-0 sm:whitespace-nowrap sm:text-right">
+                <span className="text-neutral-200">{cnt(l.heads)}명({Math.round(p)}%)</span>, 안건 {cnt(l.deals)}건{l.unknown ? `, 인원 미상 ${cnt(l.unknown)}건` : ''}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <Notes items={[
+        `크리에이터 수는 안건마다 지급내역 받는 사람 수와 봇 크리에이터 계약 요청 수 중 큰 값입니다. 둘 다 없는 안건은 인원 미상으로 세고 막대에는 넣지 않습니다.`,
+        '진행 중은 운영보드 상태 「진행 중」입니다. 담당은 운영보드 정담당, 없으면 계약 「담당자(정)」이고 여러 명이면 n분의 1입니다.',
+        `막대는 ${cap}명의 80% 이상이면 노랑, 100% 이상이면 빨강입니다. 매주 월요일 07:00 주간 잡에서 갱신합니다.`,
+      ]} />
+    </Panel>
+  )
+}
+
+const TWIKR_TIP ='트위커 분기 정산을 계약별로 나눈 추정값이 원가에 들어 있어 이 공헌이익은 순위 판단에 쓰지 않습니다.'
 const signed = (n: number, f: (n: number) => string) => `${n > 0 ? '+' : ''}${f(n)}`
 // 안건 목록: 한 줄에 한 안건, 몫이 1이 아니면 이름 뒤에 몫. 8줄 넘으면 나머지는 접음(JS 없이 details).
 // 이름 안의 「 · 」는 앞 글자와 붙여(줄 바꿈 없는 공백) 「·」가 줄 첫머리로 넘어가지 않게

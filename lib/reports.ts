@@ -105,6 +105,9 @@ export type People = {
     m: Record<string, { deals: number; supply: number; contrib: number; rep_n: number; rep_amt: number; twikr_est: number; deal_list: PersonDeal[]; rep_list?: PersonRep[] }>
     proc: { exc: PersonItem[]; late_creator: PersonItem[]; blocked: PersonItem[]; margin?: PersonItem[] } // margin: 구간별 최소 마진 미달(입금 달), 261127 전 파일엔 없음
     open: { backlog: PersonItem[]; open: PersonItem[] }
+    // 리소스 게이지(261127 이후): 지금 진행 중 안건의 크리에이터 수 합(heads), 안건 수(deals), 그중 인원 미상(unknown). 모두 정담당 n분의 1
+    load?: { heads: number; deals: number; unknown: number }
   }[]
   check?: Record<string, Record<string, [number, number]>> // 달마다 [사람 합, 지도 값], 주간 잡 점검용
+  load_cap?: number // 한 명이 동시에 맡는 크리에이터 수 상한(50명)
 }
