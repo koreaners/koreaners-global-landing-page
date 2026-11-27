@@ -103,7 +103,7 @@ export type People = {
     status: '재직' | '퇴사' | ''
     roles: string[]
     m: Record<string, { deals: number; supply: number; contrib: number; rep_n: number; rep_amt: number; twikr_est: number; deal_list: PersonDeal[]; rep_list?: PersonRep[] }>
-    proc: { exc: PersonItem[]; late_creator: PersonItem[]; blocked: PersonItem[] }
+    proc: { exc: PersonItem[]; late_creator: PersonItem[]; blocked: PersonItem[]; margin?: PersonItem[] } // margin: 구간별 최소 마진 미달(입금 달), 261127 전 파일엔 없음
     open: { backlog: PersonItem[]; open: PersonItem[] }
   }[]
   check?: Record<string, Record<string, [number, number]>> // 달마다 [사람 합, 지도 값], 주간 잡 점검용
