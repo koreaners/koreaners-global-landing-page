@@ -876,8 +876,8 @@ function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null })
   // 운영팀(구성원 DB 기능 「운영」)을 위에, 운영팀 밖 담당과 미배정, 인계 미지정은 아래 묶음으로
   const ops = all.filter((r) => r.roles.includes('운영'))
   const rest = all.filter((r) => !r.roles.includes('운영'))
-  // 한 격자: 이름 | 크리에이터 | 막대(폭 고정, 80% 눈금) | % | 안건 | 미상. 좁은 화면은 뒤 두 칸 숨김
-  const grid = 'grid grid-cols-[6rem_3rem_minmax(5rem,16rem)_2.5rem] items-center gap-x-3 sm:grid-cols-[7rem_3.5rem_minmax(8rem,20rem)_3rem_3.5rem_4rem]'
+  // 한 격자: 이름 | 크리에이터 | 막대(남는 폭 전부, 80% 눈금) | % | 안건 | 미상. 좁은 화면은 뒤 두 칸 숨김
+  const grid = 'grid grid-cols-[6rem_3rem_minmax(4rem,1fr)_2.5rem] items-center gap-x-3 sm:grid-cols-[8rem_4rem_minmax(8rem,1fr)_4rem_5rem_5rem] sm:gap-x-5'
   const num = 'text-right tabular-nums'
   const line = (r: (typeof all)[number]) => {
     const l = r.load!
