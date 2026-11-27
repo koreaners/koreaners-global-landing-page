@@ -4,6 +4,7 @@ import { getFinance } from '@/lib/finance/data'
 import { refreshFinance } from './actions'
 import { RefreshButton } from './refresh-button'
 import { AutoForm } from './auto-form'
+import { AheadHeatmap, type HeatRow } from './ahead-heatmap'
 import { getRates } from '@/lib/finance/fx'
 import { adminRole } from '@/lib/supabase/role'
 import type { FinanceData } from '@/lib/finance/source'
@@ -933,51 +934,23 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
   const all = (people?.rows ?? []).filter((r) => r.ahead && r.load && (r.load.deals || r.ahead.soon)).sort((a, b) => b.load!.heads - a.load!.heads)
   if (!cap || !at?.length || !all.length) return null
   const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
-  const grid = 'grid grid-cols-[4.5rem_repeat(5,minmax(2.25rem,1fr))] items-center gap-x-2 sm:grid-cols-[8rem_repeat(5,minmax(4rem,1fr))_minmax(5rem,1fr)_minmax(5rem,1fr)] sm:gap-x-5'
-  const num = 'text-right tabular-nums'
-  const free = (used: number, est = 0) => {
-    const f = Math.round(cap - used)
-    const tone = f <= 0 ? 'text-red-400' : f < cap * 0.2 ? 'text-amber-300' : 'text-neutral-100'
-    return (
-      <span className={num}>
-        <span className={`font-medium ${tone}`}>{f}명</span>
-        {est >= 0.5 && <span className="block text-[11px] text-neutral-500">추정 +{Math.round(est)}</span>}
-      </span>
-    )
-  }
-  const line = (r: (typeof all)[number]) => {
+  // 칸: 지금(load.heads) + ahead_at 주마다. 히트맵(색, 드래그, 필요 인원)은 클라이언트 컴포넌트
+  const row = (r: (typeof all)[number]): HeatRow => {
     const a = r.ahead!
-    return (
-      <li key={r.name} className={`${grid} py-1 text-sm`}>
-        <span className="truncate text-neutral-200">{r.name}</span>
-        {free(r.load!.heads)}
-        {a.at.map((x, i) => <span key={i} className="contents">{free(x, a.est_freed[i])}</span>)}
-        <span className={`${num} hidden sm:block ${a.stale ? 'text-neutral-300' : 'text-neutral-600'}`}>{a.stale ? `${Math.round(a.stale)}명, ${cnt(a.stale_list.reduce((s, x) => s + x.share, 0))}건` : '-'}</span>
-        <span className={`${num} hidden sm:block ${a.soon ? 'text-neutral-300' : 'text-neutral-600'}`}>{a.soon ? `${cnt(a.soon)}건${a.soon_heads ? `, ${Math.round(a.soon_heads)}명` : ''}` : '-'}</span>
-      </li>
-    )
+    return {
+      name: r.name,
+      free: [r.load!.heads, ...a.at].map((x) => Math.round(cap - x)),
+      est: [0, ...a.est_freed],
+      stale: a.stale ? `${Math.round(a.stale)}명, ${cnt(a.stale_list.reduce((s, x) => s + x.share, 0))}건` : '-',
+      soon: a.soon ? `${cnt(a.soon)}건${a.soon_heads ? `, ${Math.round(a.soon_heads)}명` : ''}` : '-',
+    }
   }
-  const ops = all.filter((r) => r.roles.includes('운영'))
-  const rest = all.filter((r) => !r.roles.includes('운영'))
+  const ops = all.filter((r) => r.roles.includes('운영')).map(row)
+  const rest = all.filter((r) => !r.roles.includes('운영')).map(row)
   const stale = all.flatMap((r) => r.ahead!.stale_list.map((x) => ({ ...x, who: r.name })))
   return (
-    <Panel title="리소스 예측" sub={`날짜마다 새로 받을 수 있는 크리에이터 수(${cap}명 − 그날에도 진행 중일 크리에이터). 수주할 때 담당 고르기용`}>
-      <div>
-        <div className={`${grid} whitespace-nowrap border-b border-neutral-800 pb-1.5 text-xs text-neutral-500`}>
-          <span>담당</span>
-          <span className={num}>지금</span>
-          {at.map((d) => <span key={d} className={num}>{md(d)}</span>)}
-          <span className={`${num} hidden sm:block`}>정리 필요</span>
-          <span className={`${num} hidden sm:block`}>곧 시작</span>
-        </div>
-        <ul className="pt-1">{ops.map(line)}</ul>
-        {rest.length > 0 && (
-          <>
-            <p className="mt-2 border-t border-neutral-800 pt-2 text-xs text-neutral-500">운영팀 밖 담당, 미배정, 인계 미지정</p>
-            <ul className="pt-1 opacity-80">{rest.map(line)}</ul>
-          </>
-        )}
-      </div>
+    <Panel title="리소스 예측" sub={`주마다 새로 받을 수 있는 크리에이터 수(${cap}명 − 그 주에도 진행 중일 크리에이터). 수주할 때 담당 고르기용`}>
+      <AheadHeatmap cap={cap} cols={['지금', ...at.map(md)]} ops={ops} rest={rest} />
       {stale.length > 0 && (
         <details className="text-sm">
           <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">정리 필요 안건 {stale.length}줄 보기(종료일이 지났거나 없는데 운영보드 상태가 진행 중)</summary>
@@ -994,8 +967,8 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
         </details>
       )}
       <Notes items={[
-        '칸 값은 그 날짜에도 진행 중일 안건의 크리에이터 수를 상한에서 뺀 값입니다. 0명 이하는 빨강, 상한의 20% 미만은 노랑입니다.',
-        `종료일은 계약 종료일, 없으면 운영보드 종료일입니다. 둘 다 없으면 시작일 + ${people?.ahead_est_days ?? 30}일로 추정하고, 추정으로 풀린 인원은 칸 아래 「추정 +N」으로 적습니다.`,
+        '칸 값은 그 주(머리글 날짜)에도 진행 중일 안건의 크리에이터 수를 상한에서 뺀 값입니다. 0명 이하는 빨강, 상한의 20% 미만은 노랑입니다. 머리글을 끌어 기간을 고르고 필요 인원을 넣으면 그 기간 최저 여유가 큰 순으로 줄을 세우고 받을 수 있는 사람만 밝게 보입니다.',
+        `종료일은 계약 종료일, 없으면 운영보드 종료일입니다. 둘 다 없으면 시작일 + ${people?.ahead_est_days ?? 30}일로 추정하고, 추정으로 풀린 인원이 든 칸은 점선 밑줄을 긋습니다(칸에 마우스를 올리면 명수).`,
         '종료일이 지났거나 시작일도 없는 안건은 운영보드 상태가 바뀔 때까지 모든 칸을 차지합니다(「정리 필요」). 운영보드에서 상태나 종료일을 고치면 다음 주간 잡부터 여유가 늘어납니다.',
         '곧 시작은 운영보드 상태 「진행 전」, 「섭외 중」 안건입니다. 인원을 아는 것만 명수를 붙이고 칸 값에는 넣지 않습니다. 인원 미상 안건도 칸 값에 들어가지 않습니다. 담당은 위 운영 리소스와 같이 운영보드 「정:」 기준입니다.',
       ]} />
