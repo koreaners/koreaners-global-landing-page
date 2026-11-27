@@ -949,8 +949,8 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
   const rest = all.filter((r) => !r.roles.includes('운영')).map(row)
   const stale = all.flatMap((r) => r.ahead!.stale_list.map((x) => ({ ...x, who: r.name })))
   return (
-    <Panel title="리소스 예측" sub={`주마다 새로 받을 수 있는 크리에이터 수(${cap}명 − 그 주에도 진행 중일 크리에이터). 수주할 때 담당 고르기용`}>
-      <AheadHeatmap cap={cap} cols={['지금', ...at.map(md)]} ops={ops} rest={rest} />
+    <Panel title="리소스 예측" sub={`안건 시작일과 필요 인원을 넣으면 그날 새로 받을 수 있는 크리에이터 수(${cap}명 − 그날에도 진행 중일 크리에이터)가 많은 순. 수주할 때 담당 고르기용`}>
+      <AheadHeatmap cap={cap} cols={['지금', ...at.map(md)]} dates={at} ops={ops} rest={rest} />
       {stale.length > 0 && (
         <details className="text-sm">
           <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">정리 필요 안건 {stale.length}줄 보기(종료일이 지났거나 없는데 운영보드 상태가 진행 중)</summary>
@@ -967,7 +967,7 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
         </details>
       )}
       <Notes items={[
-        '칸 값은 그 주(머리글 날짜)에도 진행 중일 안건의 크리에이터 수를 상한에서 뺀 값입니다. 0명 이하는 빨강, 상한의 20% 미만은 노랑입니다. 머리글을 끌어 기간을 고르고 필요 인원을 넣으면 그 기간 최저 여유가 큰 순으로 줄을 세우고 받을 수 있는 사람만 밝게 보입니다.',
+        '여유는 그날에도 진행 중일 안건의 크리에이터 수를 상한에서 뺀 값입니다. 새 안건은 들어가지 않아 여유는 시간이 갈수록 늘기만 하므로, 안건 기간 중 가장 빠듯한 날은 시작일입니다(종료일은 넣지 않음). 주 단위로 계산해 시작일이 주 사이면 앞 주 값을 씁니다. 0명 이하는 빨강, 상한의 20% 미만은 노랑입니다.',
         `종료일은 계약 종료일, 없으면 운영보드 종료일입니다. 둘 다 없으면 시작일 + ${people?.ahead_est_days ?? 30}일로 추정하고, 추정으로 풀린 인원이 든 칸은 점선 밑줄을 긋습니다(칸에 마우스를 올리면 명수).`,
         '종료일이 지났거나 시작일도 없는 안건은 운영보드 상태가 바뀔 때까지 모든 칸을 차지합니다(「정리 필요」). 운영보드에서 상태나 종료일을 고치면 다음 주간 잡부터 여유가 늘어납니다.',
         '곧 시작은 운영보드 상태 「진행 전」, 「섭외 중」 안건입니다. 인원을 아는 것만 명수를 붙이고 칸 값에는 넣지 않습니다. 인원 미상 안건도 칸 값에 들어가지 않습니다. 담당은 위 운영 리소스와 같이 운영보드 「정:」 기준입니다.',
