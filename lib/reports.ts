@@ -113,6 +113,6 @@ export type People = {
   }[]
   check?: Record<string, Record<string, [number, number]>> // 달마다 [사람 합, 지도 값], 주간 잡 점검용
   load_cap?: number // 한 명이 동시에 맡는 크리에이터 수 상한(50명)
-  ahead_at?: string[] // 예측 칸 날짜(기준일 뒤 2, 4, 8, 12주)
+  ahead_at?: string[] // 예측 칸 날짜(기준일 뒤 매주, 261127 이전 파일은 2, 4, 8, 12주)
   ahead_est_days?: number // 종료일 없는 안건 추정 기간(시작일 + N일)
 }
