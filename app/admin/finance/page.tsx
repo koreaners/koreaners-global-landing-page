@@ -836,6 +836,7 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
   return (
     <div className="space-y-2">
       <Load people={people} />
+      <Ahead people={people} />
       <Table head={['담당자', '계약 수', '공급가', '입금액', '변동비', '마진', '마진율']}
         sort={{ keys: ['owner', 'count', 'supply', 'received', 'cost', 'margin', 'rate'], cur: s, href: (k) => q({ s: k, sel }) }}>
         {rows.map((o) => (
@@ -920,6 +921,83 @@ function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null })
         `크리에이터 수는 안건마다 지급내역 받는 사람 수와 봇 크리에이터 계약 요청 수 중 큰 값입니다. 둘 다 없는 안건은 인원 미상으로 세고 막대에는 넣지 않습니다.`,
         '진행 중은 운영보드 상태 「진행 중」입니다. 담당은 운영보드 정담당, 없으면 계약 「담당자(정)」이고 여러 명이면 n분의 1입니다.',
         `막대는 ${cap}명의 80% 이상이면 노랑, 100% 이상이면 빨강입니다. 매주 월요일 07:00 주간 잡에서 갱신합니다.`,
+      ]} />
+    </Panel>
+  )
+}
+
+/** 리소스 예측(인혁 261127): 수주할 때 누가 언제 새 크리에이터를 받을 수 있는지. 칸 값은 상한 − 그날에도 진행 중일 크리에이터 수(주간 잡 people.ahead) */
+function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }) {
+  const cap = people?.load_cap
+  const at = people?.ahead_at
+  const all = (people?.rows ?? []).filter((r) => r.ahead && r.load && (r.load.deals || r.ahead.soon)).sort((a, b) => b.load!.heads - a.load!.heads)
+  if (!cap || !at?.length || !all.length) return null
+  const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
+  const grid = 'grid grid-cols-[4.5rem_repeat(5,minmax(2.25rem,1fr))] items-center gap-x-2 sm:grid-cols-[8rem_repeat(5,minmax(4rem,1fr))_minmax(5rem,1fr)_minmax(5rem,1fr)] sm:gap-x-5'
+  const num = 'text-right tabular-nums'
+  const free = (used: number, est = 0) => {
+    const f = Math.round(cap - used)
+    const tone = f <= 0 ? 'text-red-400' : f < cap * 0.2 ? 'text-amber-300' : 'text-neutral-100'
+    return (
+      <span className={num}>
+        <span className={`font-medium ${tone}`}>{f}명</span>
+        {est >= 0.5 && <span className="block text-[11px] text-neutral-500">추정 +{Math.round(est)}</span>}
+      </span>
+    )
+  }
+  const line = (r: (typeof all)[number]) => {
+    const a = r.ahead!
+    return (
+      <li key={r.name} className={`${grid} py-1 text-sm`}>
+        <span className="truncate text-neutral-200">{r.name}</span>
+        {free(r.load!.heads)}
+        {a.at.map((x, i) => <span key={i} className="contents">{free(x, a.est_freed[i])}</span>)}
+        <span className={`${num} hidden sm:block ${a.stale ? 'text-neutral-300' : 'text-neutral-600'}`}>{a.stale ? `${Math.round(a.stale)}명, ${cnt(a.stale_list.reduce((s, x) => s + x.share, 0))}건` : '-'}</span>
+        <span className={`${num} hidden sm:block ${a.soon ? 'text-neutral-300' : 'text-neutral-600'}`}>{a.soon ? `${cnt(a.soon)}건${a.soon_heads ? `, ${Math.round(a.soon_heads)}명` : ''}` : '-'}</span>
+      </li>
+    )
+  }
+  const ops = all.filter((r) => r.roles.includes('운영'))
+  const rest = all.filter((r) => !r.roles.includes('운영'))
+  const stale = all.flatMap((r) => r.ahead!.stale_list.map((x) => ({ ...x, who: r.name })))
+  return (
+    <Panel title="리소스 예측" sub={`날짜마다 새로 받을 수 있는 크리에이터 수(${cap}명 − 그날에도 진행 중일 크리에이터). 수주할 때 담당 고르기용`}>
+      <div>
+        <div className={`${grid} whitespace-nowrap border-b border-neutral-800 pb-1.5 text-xs text-neutral-500`}>
+          <span>담당</span>
+          <span className={num}>지금</span>
+          {at.map((d) => <span key={d} className={num}>{md(d)}</span>)}
+          <span className={`${num} hidden sm:block`}>정리 필요</span>
+          <span className={`${num} hidden sm:block`}>곧 시작</span>
+        </div>
+        <ul className="pt-1">{ops.map(line)}</ul>
+        {rest.length > 0 && (
+          <>
+            <p className="mt-2 border-t border-neutral-800 pt-2 text-xs text-neutral-500">운영팀 밖 담당, 미배정, 인계 미지정</p>
+            <ul className="pt-1 opacity-80">{rest.map(line)}</ul>
+          </>
+        )}
+      </div>
+      {stale.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-xs text-neutral-400 hover:text-neutral-200">정리 필요 안건 {stale.length}줄 보기(종료일이 지났거나 없는데 운영보드 상태가 진행 중)</summary>
+          <Table head={['담당', '안건', '종료일', '크리에이터']} left={3}>
+            {stale.map((x, i) => (
+              <tr key={i}>
+                <td className={tdl}>{x.who}</td>
+                <td className={tdl}>{x.name}{x.share !== 1 ? ` (${cnt(x.share)})` : ''}</td>
+                <td className={tdl}>{x.end ? `${x.end}${x.est ? ' (시작일 + ' + (people?.ahead_est_days ?? 30) + '일 추정)' : ''}` : '없음'}</td>
+                <td className={td}>{x.heads}명</td>
+              </tr>
+            ))}
+          </Table>
+        </details>
+      )}
+      <Notes items={[
+        '칸 값은 그 날짜에도 진행 중일 안건의 크리에이터 수를 상한에서 뺀 값입니다. 0명 이하는 빨강, 상한의 20% 미만은 노랑입니다.',
+        `종료일은 계약 종료일, 없으면 운영보드 종료일입니다. 둘 다 없으면 시작일 + ${people?.ahead_est_days ?? 30}일로 추정하고, 추정으로 풀린 인원은 칸 아래 「추정 +N」으로 적습니다.`,
+        '종료일이 지났거나 시작일도 없는 안건은 운영보드 상태가 바뀔 때까지 모든 칸을 차지합니다(「정리 필요」). 운영보드에서 상태나 종료일을 고치면 다음 주간 잡부터 여유가 늘어납니다.',
+        '곧 시작은 운영보드 상태 「진행 전」, 「섭외 중」 안건입니다. 인원을 아는 것만 명수를 붙이고 칸 값에는 넣지 않습니다. 인원 미상 안건도 칸 값에 들어가지 않습니다.',
       ]} />
     </Panel>
   )
