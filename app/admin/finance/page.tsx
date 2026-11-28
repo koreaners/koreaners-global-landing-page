@@ -946,7 +946,8 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
     }
   }
   const ops = all.filter((r) => r.roles.includes('운영')).map(row)
-  const rest = all.filter((r) => !r.roles.includes('운영')).map(row)
+  // 미배정, 인계 미지정은 사람이 아니라 여유(상한 − 인원)가 뜻이 없어 표에서 뺌. 정리 필요 목록에는 남김
+  const rest = all.filter((r) => !r.roles.includes('운영') && r.name !== '미배정' && r.name !== '인계 미지정').map(row)
   const stale = all.flatMap((r) => r.ahead!.stale_list.map((x) => ({ ...x, who: r.name })))
   return (
     <Panel title="리소스 예측" sub={`안건 시작일과 필요 인원을 넣으면 그날 새로 받을 수 있는 크리에이터 수(${cap}명 − 그날에도 진행 중일 크리에이터)가 많은 순. 수주할 때 담당 고르기용`}>

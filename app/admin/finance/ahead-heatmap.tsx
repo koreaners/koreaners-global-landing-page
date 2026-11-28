@@ -106,7 +106,7 @@ export function AheadHeatmap({ cap, cols, dates, ops, rest }: { cap: number; col
           <tbody>
             {rank(ops).map(line(false))}
             {sumRow}
-            {rest.length > 0 && sub('운영팀 밖 담당, 미배정, 인계 미지정')}
+            {rest.length > 0 && sub('운영팀 밖 담당')}
             {rank(rest).map(line(true))}
           </tbody>
         </table>
