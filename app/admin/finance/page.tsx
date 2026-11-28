@@ -873,42 +873,45 @@ function Owners({ model, q, s = '-supply', year, trend, sel, qt }: { model: Mode
 /** 운영 인력 리소스 게이지(인혁 261127): 사람마다 지금 진행 중 안건의 크리에이터 수 합 ÷ 상한. 값은 주간 잡 사람 단면 load, 미배정과 인계 미지정은 끝에 */
 function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null }) {
   const cap = people?.load_cap
-  const all = (people?.rows ?? []).filter((r) => r.load?.deals).sort((a, b) => b.load!.heads - a.load!.heads)
+  // 부담 = 곧 시작 + 진행 중 안건 수(인혁 261128, 업로드 완료 전까지). 크리에이터 수는 보조
+  const busy = (r: NonNullable<typeof people>['rows'][number]) => (r.load?.deals ?? 0) + (r.ahead?.soon ?? 0)
+  const all = (people?.rows ?? []).filter((r) => busy(r) > 0).sort((a, b) => busy(b) - busy(a))
   if (!cap || !all.length) return null
   // 운영팀(구성원 DB 기능 「운영」)을 위에, 운영팀 밖 담당과 미배정, 인계 미지정은 아래 묶음으로
   const ops = all.filter((r) => r.roles.includes('운영'))
   const rest = all.filter((r) => !r.roles.includes('운영'))
   // 한 격자: 이름 | 크리에이터 | 막대(남는 폭 전부, 80% 눈금) | % | 안건 | 미상. 좁은 화면은 뒤 두 칸 숨김
-  const grid = 'grid grid-cols-[6rem_3rem_minmax(4rem,1fr)_2.5rem] items-center gap-x-3 sm:grid-cols-[8rem_4rem_minmax(8rem,1fr)_4rem_5rem_5rem] sm:gap-x-5'
+  const grid = 'grid grid-cols-[6rem_3rem_minmax(4rem,1fr)_2.5rem] items-center gap-x-3 sm:grid-cols-[8rem_4rem_minmax(8rem,1fr)_4rem_4rem_8rem] sm:gap-x-5'
   const num = 'text-right tabular-nums'
   const line = (r: (typeof all)[number]) => {
     const l = r.load!
-    const p = (100 * l.heads) / cap
+    const b = busy(r)
+    const p = (100 * b) / cap
     const tone = p >= 100 ? 'red' : p >= 80 ? 'yellow' : 'green'
     return (
       <li key={r.name} className={`${grid} py-1 text-sm`}>
         <span className="truncate text-neutral-200">{r.name}</span>
-        <span className={`${num} font-medium text-neutral-100`}>{Math.round(l.heads)}명</span>
+        <span className={`${num} font-medium text-neutral-100`}>{cnt(b)}건</span>
         <span className="relative h-2 rounded-full bg-neutral-800">
           <i className={`absolute inset-y-0 left-0 rounded-full ${DOT[tone]}`} style={{ width: `${Math.min(p, 100)}%` }} />
           <i className="absolute -inset-y-1 left-[80%] w-px bg-neutral-500" aria-hidden />
         </span>
         <span className={`${num} text-neutral-400`}>{Math.round(p)}%</span>
-        <span className={`${num} hidden text-neutral-400 sm:block`}>{cnt(l.deals)}건</span>
-        <span className={`${num} hidden sm:block ${l.unknown ? 'text-neutral-400' : 'text-neutral-600'}`}>{l.unknown ? `${cnt(l.unknown)}건` : '-'}</span>
+        <span className={`${num} hidden sm:block ${r.ahead?.soon ? 'text-neutral-400' : 'text-neutral-600'}`}>{r.ahead?.soon ? `${cnt(r.ahead.soon)}건` : '-'}</span>
+        <span className={`${num} hidden text-neutral-400 sm:block`}>{Math.round(l.heads)}명{l.unknown ? ` (미상 ${cnt(l.unknown)}건)` : ''}</span>
       </li>
     )
   }
   return (
-    <Panel title="운영 리소스" sub={`진행 중 안건의 크리에이터 수 합, ${cap}명 대비. 세로선은 80%`}>
+    <Panel title="운영 리소스" sub={`곧 시작부터 업로드 완료 전까지 맡은 안건 수, ${cap}건 대비. 세로선은 80%`}>
       <div>
         <div className={`${grid} whitespace-nowrap border-b border-neutral-800 pb-1.5 text-xs text-neutral-500`}>
           <span>담당</span>
-          <span className={num}>크리에이터</span>
+          <span className={num}>안건</span>
           <span />
           <span className={num}>비율</span>
-          <span className={`${num} hidden sm:block`}>안건</span>
-          <span className={`${num} hidden sm:block`}>인원 미상</span>
+          <span className={`${num} hidden sm:block`}>곧 시작</span>
+          <span className={`${num} hidden sm:block`}>크리에이터</span>
         </div>
         <ul className="pt-1">{ops.map(line)}</ul>
         {rest.length > 0 && (
@@ -919,9 +922,10 @@ function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null })
         )}
       </div>
       <Notes items={[
-        `크리에이터 수는 안건마다 지급내역 받는 사람 수와 봇 크리에이터 계약 요청 수 중 큰 값입니다. 둘 다 없는 안건은 인원 미상으로 세고 막대에는 넣지 않습니다.`,
-        '진행 중은 운영보드 상태 「진행 중」입니다. 담당은 운영보드 「정:」에 적힌 사람이고 여러 명이면 n분의 1, 비어 있으면 미배정입니다(계약 「담당자(정)」은 계약서를 올린 사람일 수 있어 쓰지 않음).',
-        `막대는 ${cap}명의 80% 이상이면 노랑, 100% 이상이면 빨강입니다. 매주 월요일 07:00 주간 잡에서 갱신합니다.`,
+        '안건은 운영보드 상태 「섭외 중」, 「진행 전」(곧 시작)과 「진행 중」입니다. 업로드가 끝나 정산 단계로 넘어간 안건은 송금일, 입금일을 기다리는 일이 대부분이라 세지 않습니다.',
+        `크리에이터 수는 참고용으로, 계약 인원, 지급내역 받는 사람 수, 봇 크리에이터 계약 요청 수 중 큰 값입니다. 모르는 안건은 미상으로 따로 셉니다.`,
+        '담당은 운영보드 「정:」에 적힌 사람이고 여러 명이면 n분의 1, 비어 있으면 미배정입니다(계약 「담당자(정)」은 계약서를 올린 사람일 수 있어 쓰지 않음).',
+        `막대는 ${cap}건의 80% 이상이면 노랑, 100% 이상이면 빨강입니다. 매주 월요일 07:00 주간 잡에서 갱신합니다.`,
       ]} />
     </Panel>
   )
@@ -931,7 +935,7 @@ function Load({ people }: { people: NonNullable<FunnelTrend['people']> | null })
 function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }) {
   const cap = people?.load_cap
   const at = people?.ahead_at
-  const all = (people?.rows ?? []).filter((r) => r.ahead && r.load && (r.load.deals || r.ahead.soon)).sort((a, b) => b.load!.heads - a.load!.heads)
+  const all = (people?.rows ?? []).filter((r) => r.ahead && r.load && (r.load.deals || r.ahead.soon)).sort((a, b) => b.load!.deals + b.ahead!.soon - a.load!.deals - a.ahead!.soon)
   if (!cap || !at?.length || !all.length) return null
   const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
   // 칸: 지금(load.heads) + ahead_at 주마다. 히트맵(색, 드래그, 필요 인원)은 클라이언트 컴포넌트
@@ -939,7 +943,7 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
     const a = r.ahead!
     return {
       name: r.name,
-      free: [r.load!.heads, ...a.at].map((x) => Math.round(cap - x)),
+      free: [r.load!.deals + a.soon, ...a.at].map((x) => Math.round((cap - x) * 10) / 10),
       est: [0, ...a.est_freed],
       stale: a.stale ? `${Math.round(a.stale)}명, ${cnt(a.stale_list.reduce((s, x) => s + x.share, 0))}건` : '-',
       soon: a.soon ? `${cnt(a.soon)}건${a.soon_heads ? `, ${Math.round(a.soon_heads)}명` : ''}` : '-',
@@ -950,7 +954,7 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
   const rest = all.filter((r) => !r.roles.includes('운영') && r.name !== '미배정' && r.name !== '인계 미지정').map(row)
   const stale = all.flatMap((r) => r.ahead!.stale_list.map((x) => ({ ...x, who: r.name })))
   return (
-    <Panel title="리소스 예측" sub={`안건 시작일과 필요 인원을 넣으면 그날 새로 받을 수 있는 크리에이터 수(${cap}명 − 그날에도 진행 중일 크리에이터)가 많은 순. 수주할 때 담당 고르기용`}>
+    <Panel title="리소스 예측" sub={`안건 시작일을 넣으면 그날 더 맡을 수 있는 안건 수(${cap}건 − 그날에도 업로드 전일 안건)가 많은 순. 수주할 때 담당 고르기용`}>
       <AheadHeatmap cap={cap} cols={['지금', ...at.map(md)]} dates={at} ops={ops} rest={rest} />
       {stale.length > 0 && (
         <details className="text-sm">
@@ -968,10 +972,9 @@ function Ahead({ people }: { people: NonNullable<FunnelTrend['people']> | null }
         </details>
       )}
       <Notes items={[
-        '여유는 그날에도 진행 중일 안건의 크리에이터 수를 상한에서 뺀 값입니다. 새 안건은 들어가지 않아 여유는 시간이 갈수록 늘기만 하므로, 안건 기간 중 가장 빠듯한 날은 시작일입니다(종료일은 넣지 않음). 주 단위로 계산해 시작일이 주 사이면 앞 주 값을 씁니다. 여러 명이 나눠 맡으면 「명이서」에 담당 수를 넣으면 1인당 필요 인원(올림)으로 판정합니다. 0명 이하는 빨강, 상한의 20% 미만은 노랑입니다.',
-        `종료일은 계약 종료일, 없으면 운영보드 종료일입니다. 둘 다 없으면 시작일 + ${people?.ahead_est_days ?? 30}일로 추정하고, 추정으로 풀린 인원이 든 칸은 점선 밑줄을 긋습니다(칸에 마우스를 올리면 명수).`,
-        '종료일이 지났거나 시작일도 없는 안건은 운영보드 상태가 바뀔 때까지 모든 칸을 차지합니다(「정리 필요」). 운영보드에서 상태나 종료일을 고치면 다음 주간 잡부터 여유가 늘어납니다.',
-        '곧 시작은 운영보드 상태 「진행 전」, 「섭외 중」 안건입니다. 인원을 아는 것은 시작일부터 종료일(없으면 시작일 + 30일)까지 칸 값에 넣고, 시작일이 지났는데 아직 곧 시작이면 오늘부터, 시작일이 없으면 모든 칸에 넣습니다. 인원 미상 안건은 칸 값에 들어가지 않으니 운영보드 「계약 인원」을 채워 주세요. 담당은 위 운영 리소스와 같이 운영보드 「정:」 기준입니다.',
+        '여유는 상한에서 그날에도 업로드 전일 안건 수(곧 시작 + 진행 중, 공동 담당은 n분의 1)를 뺀 값입니다. 시작일을 넣으면 그 주 열 기준으로 줄을 세우고, 시작일이 주 사이면 앞 주 값을 씁니다. 여러 명이 나눠 맡으면 「명이서」에 담당 수를 넣습니다. 0건 이하는 빨강, 상한의 20% 미만은 노랑입니다.',
+        `안건 기간은 시작일부터 종료일(계약, 없으면 운영보드)까지이되 시작일 + 60일을 넘지 않습니다. 계약 종료일은 운영과 무관하게 길게 잡히기도 해서입니다. 종료일이 없으면 시작일 + ${people?.ahead_est_days ?? 30}일로 추정하고, 추정으로 풀린 몫이 든 칸은 점선 밑줄을 긋습니다.`,
+        '종료일이 지났거나 시작일도 없는 진행 중 안건은 운영보드 상태가 바뀔 때까지 모든 칸을 차지합니다(「정리 필요」). 곧 시작 안건은 시작일부터 넣고, 시작일이 지났는데 아직 곧 시작이면 오늘부터, 시작일이 없으면 모든 칸에 넣습니다.',
       ]} />
     </Panel>
   )
