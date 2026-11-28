@@ -105,14 +105,14 @@ export type People = {
     m: Record<string, { deals: number; supply: number; contrib: number; rep_n: number; rep_amt: number; twikr_est: number; deal_list: PersonDeal[]; rep_list?: PersonRep[] }>
     proc: { exc: PersonItem[]; late_creator: PersonItem[]; blocked: PersonItem[]; margin?: PersonItem[] } // margin: 구간별 최소 마진 미달(입금 달), 261127 전 파일엔 없음
     open: { backlog: PersonItem[]; open: PersonItem[] }
-    // 리소스 게이지(261127 이후): 지금 진행 중 안건의 크리에이터 수 합(heads), 안건 수(deals), 그중 인원 미상(unknown). 모두 정담당 n분의 1
+    // 리소스 게이지: 지금 진행 중 안건의 크리에이터 수 합(heads, 인원 미상 안건은 1명으로 셈), 안건 수(deals), 그중 인원 미상(unknown). 모두 정담당 n분의 1
     load?: { heads: number; deals: number; unknown: number }
     // 리소스 예측(261127 이후): ahead_at 날짜마다 아직 진행 중일 크리에이터 수(at, 종료일 지남과 미상 포함), 추정 종료로 풀린 몫(est_freed),
-    // 종료일 지남이나 미상이라 모든 칸을 차지하는 몫(stale)과 그 안건, 곧 시작(진행 전, 섭외 중) 건수와 아는 인원
-    ahead?: { at: number[]; est_freed: number[]; stale: number; soon: number; soon_heads: number; stale_list: { code: string; name: string; share: number; heads: number; end: string; est: boolean }[] }
+    // 종료일 지남이나 미상이라 모든 칸을 차지하는 몫(stale)과 그 안건, 곧 시작(진행 전, 섭외 중) 건수(soon), 인원(soon_heads, 미상 1명), 그중 인원 미상 건수(soon_unknown, 261128 이후)
+    ahead?: { at: number[]; est_freed: number[]; stale: number; soon: number; soon_heads: number; soon_unknown?: number; stale_list: { code: string; name: string; share: number; heads: number; end: string; est: boolean }[] }
   }[]
   check?: Record<string, Record<string, [number, number]>> // 달마다 [사람 합, 지도 값], 주간 잡 점검용
-  load_cap?: number // 한 명이 동시에 맡는 크리에이터 수 상한(50명)
+  load_cap?: number // 한 명이 동시에 맡는 크리에이터 수 상한(곧 시작 ~ 업로드 완료)
   ahead_at?: string[] // 예측 칸 날짜(기준일 뒤 매주, 261127 이전 파일은 2, 4, 8, 12주)
   ahead_est_days?: number // 종료일 없는 안건 추정 기간(시작일 + N일)
 }
